@@ -146,6 +146,13 @@ namespace {
 
         return compressed_str;
     }
+
+    template <typename S>
+    std::string XMLSerializeCompressThreaded(boost::asio::thread_pool& thread_pool, const S& stuff) {
+        std::string retval;
+        boost::asio::post(thread_pool, [&retval, &stuff]() { retval = Compress(XMLSerialize(stuff)); });
+        return retval;
+    }
 }
 
 std::map<int, SaveGameEmpireData> CompileSaveGameEmpireData() {
@@ -246,20 +253,9 @@ int SaveGame(const std::string& filename, const ServerSaveGameData& server_save_
                     timer.EnterSection("dispatching gamestate serialization");
 
                     // serialize main gamestate info
-                    std::string universe_data;
-                    boost::asio::post(thread_pool, [&universe_data, &universe]() {
-                        universe_data = Compress(XMLSerialize(universe));
-                    });
-
-                    std::string combat_log_data;
-                    boost::asio::post(thread_pool, [&combat_log_data, &combat_log_manager]() {
-                        combat_log_data = Compress(XMLSerialize(combat_log_manager));
-                    });
-
-                    std::string empire_data;
-                    boost::asio::post(thread_pool, [&empire_data, &empire_manager]() {
-                        empire_data = Compress(XMLSerialize(empire_manager));
-                    });
+                    auto universe_data = XMLSerializeCompressThreaded(thread_pool, universe);
+                    auto combat_log_data = XMLSerializeCompressThreaded(thread_pool, combat_log_manager);
+                    auto empire_data = XMLSerializeCompressThreaded(thread_pool, empire_manager);
 
                     freeorion_xml_oarchive xoa2(ofs);
                     boost::asio::post(thread_pool, [&xoa2, &save_preview_data, &galaxy_setup_data, &server_save_game_data,
@@ -272,11 +268,8 @@ int SaveGame(const std::string& filename, const ServerSaveGameData& server_save_
                         xoa2 << BOOST_SERIALIZATION_NVP(empire_save_game_data);
                     });
 
-                    std::string player_data, species_data;
-                    boost::asio::post(thread_pool, [&player_data, &species_data, &player_save_game_data, &species_manager]() {
-                        species_data = Compress(XMLSerialize(species_manager));
-                        player_data = Compress(XMLSerialize(player_save_game_data));
-                    });
+                    auto player_data = XMLSerializeCompressThreaded(thread_pool, player_save_game_data);
+                    auto species_data = XMLSerializeCompressThreaded(thread_pool, species_manager);
 
                     timer.EnterSection("waiting for gamestate serialization");
                     thread_pool.join();

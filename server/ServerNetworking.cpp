@@ -427,9 +427,9 @@ void PlayerConnection::HandleMessageBodyRead(boost::system::error_code error,
                 //TraceLogger(network) << "     Full message: " << m_incoming_message;
             }
             if (EstablishedPlayer()) {
-                EventSignal(boost::bind(m_player_message_callback, m_incoming_message, shared_from_this()));
+                EventSignal(boost::bind(m_player_message_callback, std::move(m_incoming_message), shared_from_this()));
             } else {
-                EventSignal(boost::bind(m_nonplayer_message_callback, m_incoming_message, shared_from_this()));
+                EventSignal(boost::bind(m_nonplayer_message_callback, std::move(m_incoming_message), shared_from_this()));
             }
             m_incoming_message.Reset();
             AsyncReadMessage();

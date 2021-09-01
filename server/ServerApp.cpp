@@ -300,7 +300,7 @@ void ServerApp::CreateAIClients(const std::vector<PlayerSetupData>& player_setup
 ServerApp* ServerApp::GetApp()
 { return static_cast<ServerApp*>(s_app); }
 
-Universe& ServerApp::GetUniverse()
+Universe& ServerApp::GetUniverse() noexcept
 { return m_universe; }
 
 EmpireManager& ServerApp::Empires()
@@ -406,34 +406,34 @@ void ServerApp::SetAIsProcessPriorityToLow(bool set_to_low) {
     }
 }
 
-void ServerApp::HandleMessage(const Message& msg, PlayerConnectionPtr player_connection) {
+void ServerApp::HandleMessage(Message msg, PlayerConnectionPtr player_connection) {
 
     //DebugLogger() << "ServerApp::HandleMessage type " << msg.Type();
     m_networking.UpdateCookie(player_connection->Cookie()); // update cookie expire date
 
     switch (msg.Type()) {
-    case Message::MessageType::HOST_SP_GAME:             m_fsm->process_event(HostSPGame(msg, player_connection));       break;
-    case Message::MessageType::START_MP_GAME:            m_fsm->process_event(StartMPGame(msg, player_connection));      break;
-    case Message::MessageType::LOBBY_UPDATE:             m_fsm->process_event(LobbyUpdate(msg, player_connection));      break;
-    case Message::MessageType::SAVE_GAME_INITIATE:       m_fsm->process_event(SaveGameRequest(msg, player_connection));  break;
-    case Message::MessageType::TURN_ORDERS:              m_fsm->process_event(TurnOrders(msg, player_connection));       break;
-    case Message::MessageType::TURN_PARTIAL_ORDERS:      m_fsm->process_event(TurnPartialOrders(msg, player_connection));break;
-    case Message::MessageType::UNREADY:                  m_fsm->process_event(RevokeReadiness(msg, player_connection));  break;
-    case Message::MessageType::PLAYER_CHAT:              m_fsm->process_event(PlayerChat(msg, player_connection));       break;
-    case Message::MessageType::DIPLOMACY:                m_fsm->process_event(Diplomacy(msg, player_connection));        break;
-    case Message::MessageType::MODERATOR_ACTION:         m_fsm->process_event(ModeratorAct(msg, player_connection));     break;
-    case Message::MessageType::ELIMINATE_SELF:           m_fsm->process_event(EliminateSelf(msg, player_connection));    break;
-    case Message::MessageType::AUTO_TURN:                m_fsm->process_event(AutoTurn(msg, player_connection));         break;
+    case Message::MessageType::HOST_SP_GAME:             m_fsm->process_event(HostSPGame{std::move(msg), std::move(player_connection)});       break;
+    case Message::MessageType::START_MP_GAME:            m_fsm->process_event(StartMPGame{std::move(msg), std::move(player_connection)});      break;
+    case Message::MessageType::LOBBY_UPDATE:             m_fsm->process_event(LobbyUpdate{std::move(msg), std::move(player_connection)});      break;
+    case Message::MessageType::SAVE_GAME_INITIATE:       m_fsm->process_event(SaveGameRequest{std::move(msg), std::move(player_connection)});  break;
+    case Message::MessageType::TURN_ORDERS:              m_fsm->process_event(TurnOrders{std::move(msg), std::move(player_connection)});       break;
+    case Message::MessageType::TURN_PARTIAL_ORDERS:      m_fsm->process_event(TurnPartialOrders{std::move(msg), std::move(player_connection)});break;
+    case Message::MessageType::UNREADY:                  m_fsm->process_event(RevokeReadiness{std::move(msg), std::move(player_connection)});  break;
+    case Message::MessageType::PLAYER_CHAT:              m_fsm->process_event(PlayerChat{std::move(msg), std::move(player_connection)});       break;
+    case Message::MessageType::DIPLOMACY:                m_fsm->process_event(Diplomacy{std::move(msg), std::move(player_connection)});        break;
+    case Message::MessageType::MODERATOR_ACTION:         m_fsm->process_event(ModeratorAct{std::move(msg), std::move(player_connection)});     break;
+    case Message::MessageType::ELIMINATE_SELF:           m_fsm->process_event(EliminateSelf{std::move(msg), std::move(player_connection)});    break;
+    case Message::MessageType::AUTO_TURN:                m_fsm->process_event(AutoTurn{std::move(msg), std::move(player_connection)});         break;
 
     case Message::MessageType::ERROR_MSG:
     case Message::MessageType::DEBUG:                    break;
 
-    case Message::MessageType::SHUT_DOWN_SERVER:         HandleShutdownMessage(msg, player_connection);  break;
-    case Message::MessageType::AI_END_GAME_ACK:          m_fsm->process_event(LeaveGame(msg, player_connection));        break;
+    case Message::MessageType::SHUT_DOWN_SERVER:         HandleShutdownMessage(std::move(msg), std::move(player_connection));  break;
+    case Message::MessageType::AI_END_GAME_ACK:          m_fsm->process_event(LeaveGame{std::move(msg), std::move(player_connection)});        break;
 
-    case Message::MessageType::REQUEST_SAVE_PREVIEWS:    UpdateSavePreviews(msg, player_connection); break;
-    case Message::MessageType::REQUEST_COMBAT_LOGS:      m_fsm->process_event(RequestCombatLogs(msg, player_connection));break;
-    case Message::MessageType::LOGGER_CONFIG:            HandleLoggerConfig(msg, player_connection); break;
+    case Message::MessageType::REQUEST_SAVE_PREVIEWS:    UpdateSavePreviews(std::move(msg), std::move(player_connection)); break;
+    case Message::MessageType::REQUEST_COMBAT_LOGS:      m_fsm->process_event(RequestCombatLogs{std::move(msg), std::move(player_connection)});break;
+    case Message::MessageType::LOGGER_CONFIG:            HandleLoggerConfig(std::move(msg), std::move(player_connection)); break;
 
     default:
         ErrorLogger() << "ServerApp::HandleMessage : Received an unknown message type \"" << msg.Type() << "\".  Terminating connection.";
@@ -479,13 +479,13 @@ void ServerApp::HandleLoggerConfig(const Message& msg, PlayerConnectionPtr playe
     }
 }
 
-void ServerApp::HandleNonPlayerMessage(const Message& msg, PlayerConnectionPtr player_connection) {
+void ServerApp::HandleNonPlayerMessage(Message msg, PlayerConnectionPtr player_connection) {
     switch (msg.Type()) {
-    case Message::MessageType::HOST_SP_GAME:  m_fsm->process_event(HostSPGame(msg, player_connection));   break;
-    case Message::MessageType::HOST_MP_GAME:  m_fsm->process_event(HostMPGame(msg, player_connection));   break;
-    case Message::MessageType::JOIN_GAME:     m_fsm->process_event(JoinGame(msg, player_connection));     break;
-    case Message::MessageType::AUTH_RESPONSE: m_fsm->process_event(AuthResponse(msg, player_connection)); break;
-    case Message::MessageType::ERROR_MSG:     m_fsm->process_event(Error(msg, player_connection));        break;
+    case Message::MessageType::HOST_SP_GAME:  m_fsm->process_event(HostSPGame{std::move(msg), std::move(player_connection)});   break;
+    case Message::MessageType::HOST_MP_GAME:  m_fsm->process_event(HostMPGame{std::move(msg), std::move(player_connection)});   break;
+    case Message::MessageType::JOIN_GAME:     m_fsm->process_event(JoinGame{std::move(msg), std::move(player_connection)});     break;
+    case Message::MessageType::AUTH_RESPONSE: m_fsm->process_event(AuthResponse{std::move(msg), std::move(player_connection)}); break;
+    case Message::MessageType::ERROR_MSG:     m_fsm->process_event(Error{std::move(msg), std::move(player_connection)});        break;
     case Message::MessageType::DEBUG:         break;
     default:
         if ((m_networking.size() == 1) &&

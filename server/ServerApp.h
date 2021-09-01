@@ -37,7 +37,7 @@ public:
 
     /** Returns a ClientApp pointer to the singleton instance of the app. */
     [[nodiscard]] static ServerApp* GetApp();
-    [[nodiscard]] Universe& GetUniverse() override;
+    [[nodiscard]] Universe& GetUniverse() noexcept override;
     [[nodiscard]] EmpireManager& Empires() override;
     [[nodiscard]] Empire* GetEmpire(int id) override;
     [[nodiscard]] SupplyManager& GetSupplyManager() override;
@@ -264,7 +264,7 @@ private:
 
     /** Handles an incoming message from the server with the appropriate action
       * or response */
-    void    HandleMessage(const Message& msg, PlayerConnectionPtr player_connection);
+    void    HandleMessage(Message msg, PlayerConnectionPtr player_connection);
 
     /** Checks validity of shut down message from player, then attempts to
       * cleanly shut down this server process. */
@@ -275,7 +275,7 @@ private:
 
     /** When Messages arrive from connections that are not established players,
       * they arrive via a call to this function*/
-    void    HandleNonPlayerMessage(const Message& msg, PlayerConnectionPtr player_connection);
+    void    HandleNonPlayerMessage(Message msg, PlayerConnectionPtr player_connection);
 
     /** Called by ServerNetworking when a player's TCP connection is closed*/
     void    PlayerDisconnected(PlayerConnectionPtr player_connection);

@@ -63,10 +63,13 @@ struct Hostless : sc::event<Hostless>                                   {}; // E
 //  Message events
 /** The base class for all state machine events that are based on Messages. */
 struct MessageEventBase {
-    MessageEventBase(const Message& message, const PlayerConnectionPtr& player_connection);
+    MessageEventBase(Message&& message, PlayerConnectionPtr player_connection) :
+        m_message(std::move(message)),
+        m_player_connection(std::move(player_connection))
+    {}
 
-    Message              m_message;
-    PlayerConnectionPtr  m_player_connection;
+    Message             m_message;
+    PlayerConnectionPtr m_player_connection;
 };
 
 // Define Boost.Preprocessor list of all Message events
@@ -97,8 +100,8 @@ struct MessageEventBase {
         sc::event<name>,                                                                \
         MessageEventBase                                                                \
     {                                                                                   \
-        name(const Message& message, const PlayerConnectionPtr& player_connection) :    \
-            MessageEventBase(message, player_connection)                                \
+        name(Message&& message, PlayerConnectionPtr player_connection) :                \
+            MessageEventBase(std::move(message), std::move(player_connection))          \
         {}                                                                              \
     };
 

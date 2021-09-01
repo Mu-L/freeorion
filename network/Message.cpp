@@ -17,6 +17,8 @@
 #include "../util/Version.h"
 #include <boost/algorithm/string/erase.hpp>
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/iostreams/device/array.hpp>
+#include <boost/iostreams/stream.hpp>
 #include <boost/serialization/deque.hpp>
 #include <boost/serialization/list.hpp>
 #include <boost/serialization/map.hpp>
@@ -36,7 +38,7 @@
 
 
 namespace {
-    const std::string DUMMY_EMPTY_MESSAGE = "Lathanda";
+    constexpr auto DUMMY_EMPTY_MESSAGE{"Lathanda"};
 }
 
 ////////////////////////////////////////////////
@@ -55,39 +57,42 @@ std::ostream& operator<<(std::ostream& os, const Message& msg) {
 ////////////////////////////////////////////////
 // Message
 ////////////////////////////////////////////////
-Message::Message(MessageType type, const std::string& text) :
+Message::Message(MessageType type, std::string&& text) :
     m_type(type),
     m_message_size(text.size()),
     m_message_text(new char[text.size()])
-{ std::copy(text.begin(), text.end(), m_message_text.get()); }
+{ std::copy(text.begin(), text.end(), m_message_text.get()); } // TODO: can text be moved into this Message's storage?
 
-Message::MessageType Message::Type() const
+Message::MessageType Message::Type() const noexcept
 { return m_type; }
 
-std::size_t Message::Size() const
+std::size_t Message::Size() const noexcept
 { return m_message_size; }
 
-const char* Message::Data() const
+const char* Message::Data() const noexcept
 { return m_message_text.get(); }
 
 std::string Message::Text() const
 { return std::string(m_message_text.get(), m_message_size); }
+
+std::string_view Message::TextView() const noexcept
+{ return std::string_view{m_message_text.get(), m_message_size}; }
 
 void Message::Resize(std::size_t size) {
     m_message_size = size;
     m_message_text.reset(new char[m_message_size]);
 }
 
-char* Message::Data()
+char* Message::Data() noexcept
 { return m_message_text.get(); }
 
-void Message::Swap(Message& rhs) {
+void Message::Swap(Message& rhs) noexcept {
     std::swap(m_type, rhs.m_type);
     std::swap(m_message_size, rhs.m_message_size);
     std::swap(m_message_text, rhs.m_message_text);
 }
 
-void Message::Reset() {
+void Message::Reset() noexcept {
     m_type = MessageType::UNDEFINED;
     m_message_size = 0;
     m_message_text.reset();
@@ -168,10 +173,8 @@ Message JoinGameMessage(const std::string& player_name,
     return Message(Message::MessageType::JOIN_GAME, os.str());
 }
 
-Message HostIDMessage(int host_player_id) {
-    return Message(Message::MessageType::HOST_ID,
-                   std::to_string(host_player_id));
-}
+Message HostIDMessage(int host_player_id)
+{ return Message{Message::MessageType::HOST_ID, std::to_string(host_player_id)}; }
 
 Message GameStartMessage(bool single_player_game, int empire_id,
                          int current_turn, const EmpireManager& empires,
@@ -217,7 +220,7 @@ Message GameStartMessage(bool single_player_game, int empire_id,
             oa << BOOST_SERIALIZATION_NVP(galaxy_setup_data);
         }
     }
-    return Message(Message::MessageType::GAME_START, os.str());
+    return Message{Message::MessageType::GAME_START, os.str()};
 }
 
 Message GameStartMessage(bool single_player_game, int empire_id,
@@ -286,7 +289,7 @@ Message GameStartMessage(bool single_player_game, int empire_id,
             oa << BOOST_SERIALIZATION_NVP(galaxy_setup_data);
         }
     }
-    return Message(Message::MessageType::GAME_START, os.str());
+    return Message{Message::MessageType::GAME_START, os.str()};
 }
 
 Message GameStartMessage(bool single_player_game, int empire_id,
@@ -359,10 +362,10 @@ Message GameStartMessage(bool single_player_game, int empire_id,
 }
 
 Message HostSPAckMessage(int player_id)
-{ return Message(Message::MessageType::HOST_SP_GAME, std::to_string(player_id)); }
+{ return Message{Message::MessageType::HOST_SP_GAME, std::to_string(player_id)}; }
 
 Message HostMPAckMessage(int player_id)
-{ return Message(Message::MessageType::HOST_MP_GAME, std::to_string(player_id)); }
+{ return Message{Message::MessageType::HOST_MP_GAME, std::to_string(player_id)}; }
 
 Message JoinAckMessage(int player_id, boost::uuids::uuid cookie)
 {
@@ -372,7 +375,7 @@ Message JoinAckMessage(int player_id, boost::uuids::uuid cookie)
         oa << BOOST_SERIALIZATION_NVP(player_id)
            << BOOST_SERIALIZATION_NVP(cookie);
     }
-    return Message(Message::MessageType::JOIN_GAME, os.str());
+    return Message{Message::MessageType::JOIN_GAME, os.str()};
 }
 
 Message TurnOrdersMessage(const OrderSet& orders, const SaveGameUIData& ui_data) {
@@ -386,7 +389,7 @@ Message TurnOrdersMessage(const OrderSet& orders, const SaveGameUIData& ui_data)
            << BOOST_SERIALIZATION_NVP(ui_data)
            << BOOST_SERIALIZATION_NVP(save_state_string_available);
     }
-    return Message(Message::MessageType::TURN_ORDERS, os.str());
+    return Message{Message::MessageType::TURN_ORDERS, os.str()};
 }
 
 Message TurnOrdersMessage(const OrderSet& orders, const std::string& save_state_string) {
@@ -400,7 +403,7 @@ Message TurnOrdersMessage(const OrderSet& orders, const std::string& save_state_
            << BOOST_SERIALIZATION_NVP(save_state_string_available)
            << BOOST_SERIALIZATION_NVP(save_state_string);
     }
-    return Message(Message::MessageType::TURN_ORDERS, os.str());
+    return Message{Message::MessageType::TURN_ORDERS, os.str()};
 }
 
 Message TurnPartialOrdersMessage(const std::pair<OrderSet, std::set<int>>& orders_updates) {
@@ -410,11 +413,11 @@ Message TurnPartialOrdersMessage(const std::pair<OrderSet, std::set<int>>& order
         Serialize(oa, orders_updates.first);
         oa << boost::serialization::make_nvp("deleted", orders_updates.second);
     }
-    return Message(Message::MessageType::TURN_PARTIAL_ORDERS, os.str());
+    return Message{Message::MessageType::TURN_PARTIAL_ORDERS, os.str()};
 }
 
 Message TurnTimeoutMessage(int timeout_remaining)
-{ return Message(Message::MessageType::TURN_TIMEOUT, std::to_string(timeout_remaining)); }
+{ return Message{Message::MessageType::TURN_TIMEOUT, std::to_string(timeout_remaining)}; }
 
 Message TurnProgressMessage(Message::TurnProgressPhase phase_id) {
     std::ostringstream os;
@@ -422,7 +425,7 @@ Message TurnProgressMessage(Message::TurnProgressPhase phase_id) {
         freeorion_xml_oarchive oa(os);
         oa << BOOST_SERIALIZATION_NVP(phase_id);
     }
-    return Message(Message::MessageType::TURN_PROGRESS, os.str());
+    return Message{Message::MessageType::TURN_PROGRESS, os.str()};
 }
 
 Message PlayerStatusMessage(Message::PlayerStatus player_status,
@@ -434,7 +437,7 @@ Message PlayerStatusMessage(Message::PlayerStatus player_status,
         oa << BOOST_SERIALIZATION_NVP(player_status)
            << BOOST_SERIALIZATION_NVP(about_empire_id);
     }
-    return Message(Message::MessageType::PLAYER_STATUS, os.str());
+    return Message{Message::MessageType::PLAYER_STATUS, os.str()};
 }
 
 Message TurnUpdateMessage(int empire_id, int current_turn,
@@ -468,7 +471,7 @@ Message TurnUpdateMessage(int empire_id, int current_turn,
             oa << BOOST_SERIALIZATION_NVP(players);
         }
     }
-    return Message(Message::MessageType::TURN_UPDATE, os.str());
+    return Message{Message::MessageType::TURN_UPDATE, os.str()};
 }
 
 Message TurnPartialUpdateMessage(int empire_id, const Universe& universe,
@@ -485,11 +488,11 @@ Message TurnPartialUpdateMessage(int empire_id, const Universe& universe,
             Serialize(oa, universe);
         }
     }
-    return Message(Message::MessageType::TURN_PARTIAL_UPDATE, os.str());
+    return Message{Message::MessageType::TURN_PARTIAL_UPDATE, os.str()};
 }
 
-Message HostSaveGameInitiateMessage(const std::string& filename)
-{ return Message(Message::MessageType::SAVE_GAME_INITIATE, filename); }
+Message HostSaveGameInitiateMessage(std::string filename)
+{ return Message{Message::MessageType::SAVE_GAME_INITIATE, std::move(filename)}; }
 
 Message ServerSaveGameCompleteMessage(const std::string& save_filename, int bytes_written) {
     std::ostringstream os;
@@ -547,11 +550,11 @@ Message ModeratorActionMessage(const Moderator::ModeratorAction& action) {
 }
 
 Message ShutdownServerMessage()
-{ return Message(Message::MessageType::SHUT_DOWN_SERVER, DUMMY_EMPTY_MESSAGE); }
+{ return Message{Message::MessageType::SHUT_DOWN_SERVER, DUMMY_EMPTY_MESSAGE}; }
 
 /** requests previews of savefiles from server synchronously */
 Message RequestSavePreviewsMessage(std::string relative_directory)
-{ return Message(Message::MessageType::REQUEST_SAVE_PREVIEWS, relative_directory); }
+{ return Message{Message::MessageType::REQUEST_SAVE_PREVIEWS, std::move(relative_directory)}; }
 
 /** returns the savegame previews to the client */
 Message DispatchSavePreviewsMessage(const PreviewInformation& previews) {
@@ -560,7 +563,7 @@ Message DispatchSavePreviewsMessage(const PreviewInformation& previews) {
         freeorion_xml_oarchive oa(os);
         oa << BOOST_SERIALIZATION_NVP(previews);
     }
-    return Message(Message::MessageType::DISPATCH_SAVE_PREVIEWS, os.str());
+    return Message{Message::MessageType::DISPATCH_SAVE_PREVIEWS, os.str()};
 }
 
 Message RequestCombatLogsMessage(const std::vector<int>& ids) {
@@ -569,7 +572,7 @@ Message RequestCombatLogsMessage(const std::vector<int>& ids) {
         freeorion_xml_oarchive oa(os);
         oa << BOOST_SERIALIZATION_NVP(ids);
     }
-    return Message(Message::MessageType::REQUEST_COMBAT_LOGS, os.str());
+    return Message{Message::MessageType::REQUEST_COMBAT_LOGS, os.str()};
 }
 
 Message DispatchCombatLogsMessage(const std::vector<std::pair<int, const CombatLog>>& logs,
@@ -590,7 +593,7 @@ Message DispatchCombatLogsMessage(const std::vector<std::pair<int, const CombatL
         }
     }
 
-    return Message(Message::MessageType::DISPATCH_COMBAT_LOGS, os.str());
+    return Message{Message::MessageType::DISPATCH_COMBAT_LOGS, os.str()};
 }
 
 Message LoggerConfigMessage(int sender, const std::set<std::tuple<std::string, std::string, LogLevel>>& options) {
@@ -608,7 +611,7 @@ Message LoggerConfigMessage(int sender, const std::set<std::tuple<std::string, s
             oa << BOOST_SERIALIZATION_NVP(value);
         }
     }
-    return Message(Message::MessageType::LOGGER_CONFIG, os.str());
+    return Message{Message::MessageType::LOGGER_CONFIG, os.str()};
 }
 
 ////////////////////////////////////////////////
@@ -620,7 +623,7 @@ Message LobbyUpdateMessage(const MultiplayerLobbyData& lobby_data) {
         freeorion_xml_oarchive oa(os);
         oa << BOOST_SERIALIZATION_NVP(lobby_data);
     }
-    return Message(Message::MessageType::LOBBY_UPDATE, os.str());
+    return Message{Message::MessageType::LOBBY_UPDATE, os.str()};
 }
 
 Message ServerLobbyUpdateMessage(const MultiplayerLobbyData& lobby_data) {
@@ -629,7 +632,7 @@ Message ServerLobbyUpdateMessage(const MultiplayerLobbyData& lobby_data) {
         freeorion_xml_oarchive oa(os);
         oa << BOOST_SERIALIZATION_NVP(lobby_data);
     }
-    return Message(Message::MessageType::LOBBY_UPDATE, os.str());
+    return Message{Message::MessageType::LOBBY_UPDATE, os.str()};
 }
 
 Message ChatHistoryMessage(const std::vector<std::reference_wrapper<const ChatHistoryEntity>>& chat_history) {
@@ -642,7 +645,7 @@ Message ChatHistoryMessage(const std::vector<std::reference_wrapper<const ChatHi
             oa << boost::serialization::make_nvp(BOOST_PP_STRINGIZE(elem), elem.get());
         }
     }
-    return Message(Message::MessageType::CHAT_HISTORY, os.str());
+    return Message{Message::MessageType::CHAT_HISTORY, os.str()};
 }
 
 Message PlayerChatMessage(const std::string& data, std::set<int> recipients, bool pm) {
@@ -653,7 +656,7 @@ Message PlayerChatMessage(const std::string& data, std::set<int> recipients, boo
            << BOOST_SERIALIZATION_NVP(data)
            << BOOST_SERIALIZATION_NVP(pm);
     }
-    return Message(Message::MessageType::PLAYER_CHAT, os.str());
+    return Message{Message::MessageType::PLAYER_CHAT, os.str()};
 }
 
 Message ServerPlayerChatMessage(int sender, const boost::posix_time::ptime& timestamp,
@@ -667,7 +670,7 @@ Message ServerPlayerChatMessage(int sender, const boost::posix_time::ptime& time
            << BOOST_SERIALIZATION_NVP(data)
            << BOOST_SERIALIZATION_NVP(pm);
     }
-    return Message(Message::MessageType::PLAYER_CHAT, os.str());
+    return Message{Message::MessageType::PLAYER_CHAT, os.str()};
 }
 
 Message StartMPGameMessage()
@@ -681,7 +684,7 @@ Message ContentCheckSumMessage() {
         freeorion_xml_oarchive oa(os);
         oa << BOOST_SERIALIZATION_NVP(checksums);
     }
-    return Message(Message::MessageType::CHECKSUM, os.str());
+    return Message{Message::MessageType::CHECKSUM, os.str()};
 }
 
 Message AuthRequestMessage(const std::string& player_name, const std::string& auth) {
@@ -691,7 +694,7 @@ Message AuthRequestMessage(const std::string& player_name, const std::string& au
         oa << BOOST_SERIALIZATION_NVP(player_name)
            << BOOST_SERIALIZATION_NVP(auth);
     }
-    return Message(Message::MessageType::AUTH_REQUEST, os.str());
+    return Message{Message::MessageType::AUTH_REQUEST, os.str()};
 }
 
 Message AuthResponseMessage(const std::string& player_name, const std::string& auth) {
@@ -701,17 +704,17 @@ Message AuthResponseMessage(const std::string& player_name, const std::string& a
         oa << BOOST_SERIALIZATION_NVP(player_name)
            << BOOST_SERIALIZATION_NVP(auth);
     }
-    return Message(Message::MessageType::AUTH_RESPONSE, os.str());
+    return Message{Message::MessageType::AUTH_RESPONSE, os.str()};
 }
 
 Message SetAuthorizationRolesMessage(const Networking::AuthRoles& roles)
-{ return Message(Message::MessageType::SET_AUTH_ROLES, roles.Text()); }
+{ return Message{Message::MessageType::SET_AUTH_ROLES, roles.Text()}; }
 
 Message EliminateSelfMessage()
-{ return Message(Message::MessageType::ELIMINATE_SELF, DUMMY_EMPTY_MESSAGE); }
+{ return Message{Message::MessageType::ELIMINATE_SELF, DUMMY_EMPTY_MESSAGE}; }
 
 Message UnreadyMessage()
-{ return Message(Message::MessageType::UNREADY, DUMMY_EMPTY_MESSAGE); }
+{ return Message{Message::MessageType::UNREADY, DUMMY_EMPTY_MESSAGE}; }
 
 Message PlayerInfoMessage(const std::map<int, PlayerInfo>& players) {
     std::ostringstream os;
@@ -719,13 +722,11 @@ Message PlayerInfoMessage(const std::map<int, PlayerInfo>& players) {
         freeorion_xml_oarchive oa(os);
         oa << BOOST_SERIALIZATION_NVP(players);
     }
-    return Message(Message::MessageType::PLAYER_INFO, os.str());
+    return Message{Message::MessageType::PLAYER_INFO, os.str()};
 }
 
-Message AutoTurnMessage(int turns_count) {
-    return Message(Message::MessageType::AUTO_TURN,
-                   std::to_string(turns_count));
-}
+Message AutoTurnMessage(int turns_count)
+{ return Message{Message::MessageType::AUTO_TURN, std::to_string(turns_count)}; }
 
 ////////////////////////////////////////////////
 // Message data extractors
@@ -838,12 +839,12 @@ void ExtractGameStartMessageData(const Message& msg, bool& single_player_game, i
                                  bool& ui_data_available, SaveGameUIData& ui_data, bool& save_state_string_available,
                                  std::string& save_state_string, GalaxySetupData& galaxy_setup_data)
 {
-    ExtractGameStartMessageData(msg.Text(), single_player_game, empire_id, current_turn, empires, universe,
+    ExtractGameStartMessageData(msg.TextView(), single_player_game, empire_id, current_turn, empires, universe,
                                 species, combat_logs, supply, players, orders, loaded_game_data, ui_data_available,
                                 ui_data, save_state_string_available, save_state_string, galaxy_setup_data);
 }
 
-void ExtractGameStartMessageData(std::string text, bool& single_player_game, int& empire_id, int& current_turn,
+void ExtractGameStartMessageData(std::string_view text, bool& single_player_game, int& empire_id, int& current_turn,
                                  EmpireManager& empires, Universe& universe, SpeciesManager& species,
                                  CombatLogManager& combat_logs, SupplyManager& supply,
                                  std::map<int, PlayerInfo>& players, OrderSet& orders, bool& loaded_game_data,
@@ -851,11 +852,14 @@ void ExtractGameStartMessageData(std::string text, bool& single_player_game, int
                                  std::string& save_state_string, GalaxySetupData& galaxy_setup_data)
 {
     try {
+        //boost::iostreams::array_source src(text.data(), text.size());
+        boost::iostreams::stream<boost::iostreams::basic_array_source<char>> is(text.data(), text.size());
+
         bool try_xml = false;
-        if (strncmp(text.c_str(), "<?xml", 5)) {
+        if (strncmp(text.data(), "<?xml", 5)) {
             try {
                 // first attempt binary deserialziation
-                std::istringstream is(text);
+                boost::iostreams::seek(is, 0, std::ios_base::beg);
 
                 freeorion_bin_iarchive ia(is);
                 ia >> BOOST_SERIALIZATION_NVP(single_player_game)
@@ -900,7 +904,7 @@ void ExtractGameStartMessageData(std::string text, bool& single_player_game, int
         }
         if (try_xml) {
             // if binary deserialization failed, try more-portable XML deserialization
-            std::istringstream is(text);
+            boost::iostreams::seek(is, 0, std::ios_base::beg);
 
             freeorion_xml_iarchive ia(is);
             ia >> BOOST_SERIALIZATION_NVP(single_player_game)

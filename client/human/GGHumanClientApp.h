@@ -28,8 +28,8 @@ public:
     GGHumanClientApp() = delete;
 
     GGHumanClientApp(int width, int height, bool calculate_FPS,
-                   std::string name, int x, int y,
-                   bool fullscreen, bool fake_mode_change);
+                     std::string name, int x, int y,
+                     bool fullscreen, bool fake_mode_change);
 
     GGHumanClientApp(const GGHumanClientApp&) = delete;
     GGHumanClientApp(GGHumanClientApp&&) = delete;
@@ -54,7 +54,7 @@ public:
     void MultiPlayerGame();                     ///< shows multiplayer connection window, and then transitions to multiplayer lobby if connected
     void StartMultiPlayerGameFromLobby();       ///< begins
     void CancelMultiplayerGameFromLobby();      ///< cancels out of multiplayer game
-    void SaveGame(const std::string& filename); ///< saves the current game; blocks until all save-related network traffic is resolved
+    void SaveGame(std::string filename);        ///< saves the current game; blocks until all save-related network traffic is resolved
 
     void SaveGameCompleted();                   ///< Accepts acknowledgement that server has completed the save
 

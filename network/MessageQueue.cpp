@@ -23,7 +23,7 @@ void MessageQueue::Clear() {
     m_queue.clear();
 }
 
-void MessageQueue::PushBack(Message message) {
+void MessageQueue::PushBack(Message&& message) {
     std::scoped_lock lock(m_monitor);
     m_queue.push_back(std::move(message));
 }
@@ -32,8 +32,7 @@ boost::optional<Message> MessageQueue::PopFront() {
     std::scoped_lock lock(m_monitor);
     if (m_queue.empty())
         return boost::none;
-    Message message;
-    swap(message, m_queue.front());
+    Message message{std::move(m_queue.front())};
     m_queue.pop_front();
     return message;
 }

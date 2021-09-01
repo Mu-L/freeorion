@@ -260,9 +260,9 @@ private:
     MessageQueue                    m_incoming_messages;    // accessed from multiple threads, but its interface is threadsafe
     std::list<Message>              m_outgoing_messages;
 
-    Message::HeaderBuffer           m_incoming_header= {};
+    Message::HeaderBuffer           m_incoming_header = {};
     Message                         m_incoming_message;
-    Message::HeaderBuffer           m_outgoing_header= {};
+    Message::HeaderBuffer           m_outgoing_header = {};
 
     std::string                     m_destination;
 };
@@ -542,7 +542,7 @@ void ClientNetworking::Impl::HandleMessageBodyRead(const std::shared_ptr<const C
 
     assert(static_cast<int>(bytes_transferred) <= m_incoming_header[Message::Parts::SIZE]);
     if (static_cast<int>(bytes_transferred) == m_incoming_header[Message::Parts::SIZE]) {
-        m_incoming_messages.PushBack(m_incoming_message);
+        m_incoming_messages.PushBack(std::move(m_incoming_message));
         AsyncReadMessage(keep_alive);
     }
 }

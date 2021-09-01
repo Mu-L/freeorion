@@ -238,14 +238,6 @@ Disconnection::Disconnection(PlayerConnectionPtr& player_connection) :
 {}
 
 ////////////////////////////////////////////////////////////
-// MessageEventBase
-////////////////////////////////////////////////////////////
-MessageEventBase::MessageEventBase(const Message& message, const PlayerConnectionPtr& player_connection) :
-    m_message(message),
-    m_player_connection(player_connection)
-{}
-
-////////////////////////////////////////////////////////////
 // ServerFSM
 ////////////////////////////////////////////////////////////
 ServerFSM::ServerFSM(ServerApp &server) :
@@ -3358,10 +3350,8 @@ sc::result WaitingForTurnEnd::react(const CheckTurnEndConditions& c) {
     }
 
     // save game so orders from the player will be backuped
-    if (server.IsHostless() && GetOptionsDB().Get<bool>("save.auto.hostless.each-player.enabled")) {
-        PlayerConnectionPtr dummy_connection = nullptr;
-        post_event(SaveGameRequest(HostSaveGameInitiateMessage(GetAutoSaveFileName(server.CurrentTurn())), dummy_connection));
-    }
+    if (server.IsHostless() && GetOptionsDB().Get<bool>("save.auto.hostless.each-player.enabled"))
+        post_event(SaveGameRequest{HostSaveGameInitiateMessage(GetAutoSaveFileName(server.CurrentTurn())), nullptr});
 
     return discard_event();
 }

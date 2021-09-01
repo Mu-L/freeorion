@@ -14,7 +14,9 @@ struct Disconnection : boost::statechart::event<Disconnection> {};
 //  Message events
 /** The base class for all state machine events that are based on Messages. */
 struct MessageEventBase {
-    MessageEventBase(Message& message);
+    explicit MessageEventBase(Message&& message) :
+        m_message{std::move(message)}
+    {}
     Message m_message;
 };
 
@@ -51,7 +53,8 @@ struct MessageEventBase {
         boost::statechart::event<name>,                                 \
         MessageEventBase                                                \
     {                                                                   \
-        name(Message& message) : MessageEventBase(message) {}           \
+        name(Message&& message) :                                       \
+            MessageEventBase(std::move(message)) {}                     \
     };
 
 BOOST_PP_SEQ_FOR_EACH(DECLARE_MESSAGE_EVENT, _, MESSAGE_EVENTS)

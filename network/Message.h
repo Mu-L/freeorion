@@ -138,23 +138,23 @@ public:
     )
 
     Message() = default;
-    Message(MessageType message_type, const std::string& text);
-    ~Message() = default;
+    Message(MessageType message_type, std::string&& text);
 
-    MessageType Type() const;               ///< Returns the type of the message.
-    std::size_t Size() const;               ///< Returns the size of the underlying buffer.
-    const char* Data() const;               ///< Returns the underlying buffer.
+    MessageType Type() const noexcept;      ///< Returns the type of the message.
+    std::size_t Size() const noexcept;      ///< Returns the size of the underlying buffer.
+    const char* Data() const noexcept;      ///< Returns the underlying buffer.
     std::string Text() const;               ///< Returns the underlying buffer as a std::string.
+    std::string_view TextView() const noexcept;
 
     void        Resize(std::size_t size);   ///< Resizes the underlying char buffer to \a size uninitialized bytes.
-    char*       Data();                     ///< Returns the underlying buffer.
-    void        Swap(Message& rhs);         ///< Swaps the contents of \a *this with \a rhs.  Does not throw.
-    void        Reset();                    ///< Reverts message to same state as after default constructor
+    char*       Data() noexcept;            ///< Returns the underlying buffer.
+    void        Swap(Message& rhs) noexcept;///< Swaps the contents of \a *this with \a rhs.  Does not throw.
+    void        Reset() noexcept;           ///< Reverts message to same state as after default constructor
 
 private:
-    MessageType               m_type = MessageType::UNDEFINED;
-    int                       m_message_size = 0;
-    boost::shared_array<char> m_message_text;
+    MessageType                 m_type = MessageType::UNDEFINED;
+    std::string_view::size_type m_message_size = 0;
+    boost::shared_array<char>   m_message_text;
 
     friend FO_COMMON_API void BufferToHeader(const HeaderBuffer&, Message&);
 };
@@ -275,7 +275,7 @@ FO_COMMON_API Message TurnPartialUpdateMessage(int empire_id, const Universe& un
 
 /** creates a SAVE_GAME_INITIATE request message.  This message should only be sent by
   * the host player.*/
-FO_COMMON_API Message HostSaveGameInitiateMessage(const std::string& filename);
+FO_COMMON_API Message HostSaveGameInitiateMessage(std::string filename);
 
 /** creates a SAVE_GAME_COMPLETE complete message.  This message should only be
     sent by the server to inform clients that the last initiated save has been
@@ -400,7 +400,7 @@ FO_COMMON_API void ExtractGameStartMessageData(const Message& msg, bool& single_
                                                SaveGameUIData& ui_data, bool& save_state_string_available,
                                                std::string& save_state_string, GalaxySetupData& galaxy_setup_data);
 
-FO_COMMON_API void ExtractGameStartMessageData(std::string text, bool& single_player_game, int& empire_id,
+FO_COMMON_API void ExtractGameStartMessageData(std::string_view text, bool& single_player_game, int& empire_id,
                                                int& current_turn, EmpireManager& empires, Universe& universe,
                                                SpeciesManager& species, CombatLogManager& combat_logs,
                                                SupplyManager& supply,
@@ -414,8 +414,7 @@ FO_COMMON_API void ExtractJoinGameMessageData(const Message& msg, std::string& p
                                               std::string& version_string,
                                               boost::uuids::uuid& cookie);
 
-FO_COMMON_API void ExtractJoinAckMessageData(const Message& msg, int& player_id,
-                                             boost::uuids::uuid& cookie);
+FO_COMMON_API void ExtractJoinAckMessageData(const Message& msg, int& player_id, boost::uuids::uuid& cookie);
 
 FO_COMMON_API void ExtractTurnOrdersMessageData(const Message& msg, OrderSet& orders, bool& ui_data_available,
                                                 SaveGameUIData& ui_data, bool& save_state_string_available,

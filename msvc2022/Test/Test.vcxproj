@@ -87,6 +87,9 @@
     <OutDir>../../</OutDir>
     <TargetName>FreeOrionUnitTests</TargetName>
     <IntDir>$(Configuration)\</IntDir>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
+    <EnableClangTidyCodeAnalysis>false</EnableClangTidyCodeAnalysis>
+    <EnableMicrosoftCodeAnalysis>false</EnableMicrosoftCodeAnalysis>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -159,8 +162,11 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <ForcedIncludeFiles>StdAfx.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <TreatAngleIncludeAsExternal>true</TreatAngleIncludeAsExternal>
+      <DisableAnalyzeExternal>true</DisableAnalyzeExternal>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -187,12 +193,14 @@
     <ClCompile Include="..\..\test\parse\CommonTest.cpp" />
     <ClCompile Include="..\..\test\parse\main.cpp" />
     <ClCompile Include="..\..\test\parse\ParserAppFixture.cpp" />
+    <ClCompile Include="..\..\test\parse\TestDefaultPythonParser.cpp" />
     <ClCompile Include="..\..\test\parse\TestEnumParser.cpp" />
     <ClCompile Include="..\..\test\parse\TestPythonParser.cpp" />
     <ClCompile Include="..\..\test\parse\TestScriptParser.cpp" />
     <ClCompile Include="..\..\test\system\ClientAppFixture.cpp" />
     <ClCompile Include="..\..\test\system\SmokeTestGame.cpp" />
     <ClCompile Include="..\..\test\system\SmokeTestHostless.cpp" />
+    <ClCompile Include="..\..\test\system\TestChecksum.cpp" />
     <ClCompile Include="..\..\util\DependencyVersions.cpp" />
     <ClCompile Include="..\..\util\Process.cpp" />
     <ClCompile Include="StdAfx.cpp">

@@ -18,11 +18,11 @@ public:
     ProductionWnd(GG::X w, GG::Y h);
     void CompleteConstruction() override;
 
-    int SelectedPlanetID() const;
-    int ShownEmpireID() const { return m_empire_shown_id; }
+    int SelectedPlanetID() const noexcept;
+    int ShownEmpireID() const noexcept { return m_empire_shown_id; }
 
-    bool InWindow(GG::Pt pt) const override;
-    bool InClient(GG::Pt pt) const override;
+    bool InWindow(GG::Pt pt) const noexcept override;
+    bool InClient(GG::Pt pt) const noexcept override;
     void SizeMove(GG::Pt ul, GG::Pt lr) override;
 
     void Render() override;
@@ -33,35 +33,16 @@ public:
     void Reset(const ScriptingContext& context);
     void Update(const ScriptingContext& context);
 
-    //! Shows \a building_type in production encyclopedia window
-    void ShowBuildingTypeInEncyclopedia(const std::string& building_type);
-
-    //! Shows ShipDesign with id \a design_id in production encyclopedia window
-    void ShowShipDesignInEncyclopedia(int design_id);
-
-    //! Shows \a planet in production encyclopedia window
-    void ShowPlanetInEncyclopedia(int planet_id);
-
-    //! Shows \a tech in production encyclopedia window
-    void ShowTechInEncyclopedia(const std::string& tech_name);
-
-    //! Shows @a policy_name in production encyclopedia window
-    void ShowPolicyInEncyclopedia(const std::string& policy_name);
-
-    //! Shows @a part_name in production encyclopedia window
-    void ShowShipPartInEncyclopedia(const std::string& part_name);
-
-    //! Shows \a species in production encyclopedia window
-    void ShowSpeciesInEncyclopedia(const std::string& species_name);
-
-    //! Shows \a empire in production encyclopedia window
-    void ShowEmpireInEncyclopedia(int empire_id);
-
-    //! Shows \a special in production encyclopedia window
-    void ShowSpecialInEncyclopedia(const std::string& special_name);
-
-    //! Shows \a field_type in production encyclopedia window
-    void ShowFieldTypeInEncyclopedia(const std::string& field_type_name);
+    void ShowBuildingTypeInEncyclopedia(std::string building_type); //! Shows \a building_type in production encyclopedia window
+    void ShowShipDesignInEncyclopedia(int design_id);               //! Shows ShipDesign with id \a design_id in production encyclopedia window
+    void ShowPlanetInEncyclopedia(int planet_id);                   //! Shows \a planet in production encyclopedia window
+    void ShowTechInEncyclopedia(std::string tech_name);             //! Shows \a tech in production encyclopedia window
+    void ShowPolicyInEncyclopedia(std::string policy_name);         //! Shows @a policy_name in production encyclopedia window
+    void ShowShipPartInEncyclopedia(std::string part_name);         //! Shows @a part_name in production encyclopedia window
+    void ShowSpeciesInEncyclopedia(std::string species_name);       //! Shows \a species in production encyclopedia window
+    void ShowEmpireInEncyclopedia(int empire_id);                   //! Shows \a empire in production encyclopedia window
+    void ShowSpecialInEncyclopedia(std::string special_name);       //! Shows \a special in production encyclopedia window
+    void ShowFieldTypeInEncyclopedia(std::string field_type_name);  //! Shows \a field_type in production encyclopedia window
 
     //! Change visibility of production encyclopdia panel
     void ShowPedia();
@@ -112,11 +93,11 @@ private:
 
     void AddBuildToQueueSlot(ProductionQueue::ProductionItem item, int number, int location, int pos);
 
-    void ChangeBuildQuantitySlot(int queue_idx, int quantity);
-    void ChangeBuildQuantityBlockSlot(int queue_idx, int quantity, int blocksize);
+    void ChangeBuildQuantitySlot(int queue_idx, int quantity) const;
+    void ChangeBuildQuantityBlockSlot(int queue_idx, int quantity, int blocksize) const;
 
     void DeleteQueueItem(GG::ListBox::iterator it, bool do_delete);
-    void QueueItemMoved(const GG::ListBox::iterator& row_it, const GG::ListBox::iterator& original_position_it);
+    void QueueItemMoved(const GG::ListBox::iterator row_it, const GG::ListBox::iterator original_position_it);
     void QueueItemClickedSlot(GG::ListBox::iterator it, GG::Pt pt, GG::Flags<GG::ModKey> modkeys);
     void QueueItemDoubleClickedSlot(GG::ListBox::iterator it, GG::Pt pt, GG::Flags<GG::ModKey> modkeys);
     void QueueItemRallied(GG::ListBox::iterator it, int object_id);

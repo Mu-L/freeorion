@@ -33,12 +33,18 @@ struct ScriptingContext;
 class CUILabel final : public GG::TextControl {
 public:
     CUILabel(std::string str,
+             GG::Flags<GG::TextFormat> format,
+             GG::Flags<GG::WndFlag> flags,
+             std::shared_ptr<GG::Font> font,
+             GG::X x = GG::X0, GG::Y y = GG::Y0, GG::X w = GG::X1, GG::Y h = GG::Y1);
+
+    CUILabel(std::string str,
              GG::Flags<GG::TextFormat> format = GG::FORMAT_NONE,
              GG::Flags<GG::WndFlag> flags = GG::NO_WND_FLAGS,
              GG::X x = GG::X0, GG::Y y = GG::Y0, GG::X w = GG::X1, GG::Y h = GG::Y1);
 
     CUILabel(std::string str,
-             std::vector<std::shared_ptr<GG::Font::TextElement>> text_elements,
+             std::vector<GG::Font::TextElement> text_elements,
              GG::Flags<GG::TextFormat> format = GG::FORMAT_NONE,
              GG::Flags<GG::WndFlag> flags = GG::NO_WND_FLAGS,
              GG::X x = GG::X0, GG::Y y = GG::Y0, GG::X w = GG::X1, GG::Y h = GG::Y1);
@@ -84,15 +90,13 @@ public:
     CUIArrowButton(ShapeOrientation orientation, bool fill_background,
                    GG::Flags<GG::WndFlag> flags = GG::INTERACTIVE);
 
-    bool InWindow(GG::Pt pt) const override;
+    bool InWindow(GG::Pt pt) const noexcept override;
 
     void MouseHere(GG::Pt pt, GG::Flags<GG::ModKey> mod_keys) override;
 
 protected:
     void RenderPressed() override;
-
     void RenderRollover() override;
-
     void RenderUnpressed() override;
 
 private:
@@ -155,12 +159,12 @@ public:
 class CUIIconButtonRepresenter final : public GG::StateButtonRepresenter {
 public:
     CUIIconButtonRepresenter(std::shared_ptr<GG::SubTexture> icon,
-                             const GG::Clr& highlight_clr);
+                             GG::Clr highlight_clr);
 
     CUIIconButtonRepresenter(std::shared_ptr<GG::SubTexture> unchecked_icon,
-                             const GG::Clr& unchecked_clr,
+                             GG::Clr unchecked_clr,
                              std::shared_ptr<GG::SubTexture> checked_icon,
-                             const GG::Clr& checked_clr);
+                             GG::Clr checked_clr);
 
     void Render(const GG::StateButton& button) const override;
 
@@ -266,7 +270,7 @@ public:
     void CompleteConstruction() override;
 
     void RClick(GG::Pt pt, GG::Flags<GG::ModKey> mod_keys) override;
-    void KeyPress(GG::Key key, std::uint32_t key_code_point,
+    void KeyPress(GG::Key key, uint32_t key_code_point,
                   GG::Flags<GG::ModKey> mod_keys) override;
     void AcceptPastedText(const std::string& text) override;
     void GainingFocus() override;
@@ -320,7 +324,7 @@ public:
     CUILinkTextMultiEdit(std::string str, GG::Flags<GG::MultiEditStyle> style = GG::MULTI_LINEWRAP);
     void CompleteConstruction() override;
 
-    const std::vector<GG::Font::LineData>& GetLineData() const noexcept override { return CUIMultiEdit::GetLineData(); }
+    const GG::Font::LineVec& GetLineData() const noexcept override { return CUIMultiEdit::GetLineData(); }
     const std::shared_ptr<GG::Font>& GetFont() const noexcept override { return CUIMultiEdit::GetFont(); }
 
     GG::Pt TextUpperLeft() const override;
@@ -384,8 +388,7 @@ public:
     GG::Pt MinUsableSize() const override;
 
     void PreRender() override;
-    void Render() override
-    {}
+    void Render() override {}
 
     void SizeMove(GG::Pt ul, GG::Pt lr) override;
 
@@ -412,10 +415,11 @@ public:
 private:
     void DoLayout();
 
-    /// The value, precision and sign of the statistic value
-    std::vector<std::tuple<double, int, bool>> m_values;
-    std::shared_ptr<GG::StaticGraphic>         m_icon;
-    std::shared_ptr<GG::Label>                 m_text;
+    /// The value, precision and sign of the statistic value(s)
+    std::shared_ptr<GG::StaticGraphic>           m_icon;
+    std::shared_ptr<GG::Label>                   m_text;
+    std::array<std::tuple<double, int, bool>, 2> m_values{{{0.0, 0, false}, {0.0, 0, false}}};
+    bool                                         m_have_two = false;
 };
 
 class CUIToolBar final : public GG::Control {
@@ -445,7 +449,7 @@ public:
 
     GG::Clr CurrentColor() const; ///< returns the color that is currently selected, or GG::CLR_ZERO if none is selected
 
-    void SelectColor(const GG::Clr& clr);
+    void SelectColor(GG::Clr clr);
 
     mutable boost::signals2::signal<void (GG::Clr)> ColorChangedSignal;
 };
@@ -454,8 +458,6 @@ public:
 class ColorSelector final : public GG::Control {
 public:
     ColorSelector(GG::Clr color, GG::Clr default_color);
-
-    virtual ~ColorSelector();
 
     void Render() override;
     void LClick(GG::Pt pt, GG::Flags<GG::ModKey> mod_keys) override;
@@ -552,16 +554,15 @@ public:
     *               Adjusted to lighter color for segment lines after
     *               @p percent_completed portion
     */
-    MultiTurnProgressBar(int num_segments, float percent_completed,
-                         float percent_predicted, const GG::Clr& bar_color,
-                         const GG::Clr& bg_color, const GG::Clr& outline_color);
+    MultiTurnProgressBar(int num_segments, float percent_completed, float percent_predicted,
+                         GG::Clr bar_color, GG::Clr bg_color, GG::Clr outline_color);
 
     void Render() override;
 
 private:
-    int m_num_segments;
-    float m_perc_completed;
-    float m_perc_predicted;
+    unsigned int m_num_segments = 0;
+    float m_perc_completed = 0.0f;
+    float m_perc_predicted = 0.0f;
     GG::Clr m_clr_bar;
     GG::Clr m_clr_bg;
     GG::Clr m_clr_outline;

@@ -9,7 +9,6 @@
 #include "ShipHull.h"
 #include "ShipPart.h"
 #include "Species.h"
-#include "UniverseObjectVisitor.h"
 #include "Universe.h"
 #include "ValueRef.h"
 #include "../combat/CombatDamage.h"
@@ -20,6 +19,7 @@
 #include "../util/Logger.h"
 #include "../util/Random.h"
 #include "../util/i18n.h"
+#include <numeric>
 
 
 Ship::Ship(int empire_id, int design_id, std::string species_name,
@@ -42,50 +42,49 @@ Ship::Ship(int empire_id, int design_id, std::string species_name,
     if (!m_species_name.empty() && !ship_species)
         DebugLogger() << "Ship created with invalid species name: " << m_species_name;
 
-
-    UniverseObject::Init();
-
-    AddMeter(MeterType::METER_FUEL);
-    AddMeter(MeterType::METER_MAX_FUEL);
-    AddMeter(MeterType::METER_SHIELD);
-    AddMeter(MeterType::METER_MAX_SHIELD);
-    AddMeter(MeterType::METER_DETECTION);
-    AddMeter(MeterType::METER_STRUCTURE);
-    AddMeter(MeterType::METER_MAX_STRUCTURE);
-    AddMeter(MeterType::METER_SPEED);
-    AddMeter(MeterType::METER_TARGET_INDUSTRY);
-    AddMeter(MeterType::METER_INDUSTRY);
-    AddMeter(MeterType::METER_TARGET_RESEARCH);
-    AddMeter(MeterType::METER_RESEARCH);
-    AddMeter(MeterType::METER_TARGET_INFLUENCE);
-    AddMeter(MeterType::METER_INFLUENCE);
+    AddMeters(ship_meter_types);
 
     if (!design)
         return;
 
+    m_part_meters.reserve(design->Parts().size() * 2); // guesstimate
     for (const std::string& part_name : design->Parts()) {
         if (!part_name.empty()) {
             const ShipPart* part = GetShipPart(part_name);
-            if (!part) {
+            if (!part) [[unlikely]] {
                 ErrorLogger() << "Ship::Ship couldn't get part with name " << part_name;
                 continue;
             }
 
+#if defined(__cpp_using_enum)
+            using enum MeterType;
+            using enum ShipPartClass;
+#else
+            static constexpr auto METER_CAPACITY = MeterType::METER_CAPACITY;
+            static constexpr auto METER_MAX_CAPACITY = MeterType::METER_MAX_CAPACITY;
+            static constexpr auto METER_SECONDARY_STAT = MeterType::METER_SECONDARY_STAT;
+            static constexpr auto METER_MAX_SECONDARY_STAT = MeterType::METER_MAX_SECONDARY_STAT;
+            static constexpr auto PC_COLONY = ShipPartClass::PC_COLONY;
+            static constexpr auto PC_TROOPS = ShipPartClass::PC_TROOPS;
+            static constexpr auto PC_DIRECT_WEAPON = ShipPartClass::PC_DIRECT_WEAPON;
+            static constexpr auto PC_FIGHTER_HANGAR = ShipPartClass::PC_FIGHTER_HANGAR;
+            static constexpr auto PC_FIGHTER_BAY = ShipPartClass::PC_FIGHTER_BAY;
+#endif
             switch (part->Class()) {
-            case ShipPartClass::PC_COLONY:
-            case ShipPartClass::PC_TROOPS: {
-                m_part_meters[{part_name, MeterType::METER_CAPACITY}];
+            case PC_COLONY:
+            case PC_TROOPS: {
+                m_part_meters[{part_name, METER_CAPACITY}];
                 break;
             }
-            case ShipPartClass::PC_DIRECT_WEAPON:      // capacity is damage, secondary stat is shots per attack
-            case ShipPartClass::PC_FIGHTER_HANGAR: {   // capacity is how many fighters contained, secondary stat is damage per fighter attack
-                m_part_meters[{part_name, MeterType::METER_SECONDARY_STAT}];
-                m_part_meters[{part_name, MeterType::METER_MAX_SECONDARY_STAT}];
+            case PC_DIRECT_WEAPON:      // capacity is damage, secondary stat is shots per attack
+            case PC_FIGHTER_HANGAR: {   // capacity is how many fighters contained, secondary stat is damage per fighter attack
+                m_part_meters[{part_name, METER_SECONDARY_STAT}];
+                m_part_meters[{part_name, METER_MAX_SECONDARY_STAT}];
             }
             [[fallthrough]];
-            case ShipPartClass::PC_FIGHTER_BAY: {      // capacity is how many fighters launched per combat round
-                m_part_meters[{part_name, MeterType::METER_CAPACITY}];
-                m_part_meters[{part_name, MeterType::METER_MAX_CAPACITY}];
+            case PC_FIGHTER_BAY: {      // capacity is how many fighters launched per combat round
+                m_part_meters[{part_name, METER_CAPACITY}];
+                m_part_meters[{part_name, METER_MAX_CAPACITY}];
                 break;
             }
             default:
@@ -96,7 +95,8 @@ Ship::Ship(int empire_id, int design_id, std::string species_name,
 }
 
 std::shared_ptr<UniverseObject> Ship::Clone(const Universe& universe, int empire_id) const {
-    Visibility vis = universe.GetObjectVisibilityByEmpire(this->ID(), empire_id);
+    const Visibility vis = empire_id == ALL_EMPIRES ?
+        Visibility::VIS_FULL_VISIBILITY : universe.GetObjectVisibilityByEmpire(this->ID(), empire_id);
 
     if (!(vis >= Visibility::VIS_BASIC_VISIBILITY && vis <= Visibility::VIS_FULL_VISIBILITY))
         return nullptr;
@@ -123,7 +123,8 @@ void Ship::Copy(const Ship& copied_ship, const Universe& universe, int empire_id
         return;
 
     const int copied_object_id = copied_ship.ID();
-    const Visibility vis = universe.GetObjectVisibilityByEmpire(copied_object_id, empire_id);
+    const Visibility vis = empire_id == ALL_EMPIRES ?
+        Visibility::VIS_FULL_VISIBILITY : universe.GetObjectVisibilityByEmpire(copied_object_id, empire_id);
     const auto visible_specials = universe.GetObjectVisibleSpecialsByEmpire(copied_object_id, empire_id);
 
     UniverseObject::Copy(copied_ship, vis, visible_specials, universe);
@@ -174,15 +175,15 @@ UniverseObject::TagVecs Ship::Tags(const ScriptingContext& context) const {
     const Species* species = context.species.GetSpecies(m_species_name);
 
     if (design && species)
-        return {design->Tags(), species->Tags()};
+        return TagVecs{design->Tags(), species->Tags()};
     else if (design)
-        return design->Tags();
+        return TagVecs{design->Tags()};
     else if (species)
-        return species->Tags();
+        return TagVecs{species->Tags()};
     else return {};
 }
 
-bool Ship::ContainedBy(int object_id) const {
+bool Ship::ContainedBy(int object_id) const noexcept {
     return object_id != INVALID_OBJECT_ID
         && (    object_id == m_fleet_id
             ||  object_id == this->SystemID());
@@ -274,11 +275,16 @@ bool Ship::HasFighters(const Universe& universe) const {
 bool Ship::CanColonize(const Universe& universe, const SpeciesManager& sm) const {
     if (m_species_name.empty())
         return false;
-    const Species* species = sm.GetSpecies(m_species_name);
-    if (!species || !species->CanColonize())
-        return false;
     const ShipDesign* design = universe.GetShipDesign(m_design_id);
-    return design && design->CanColonize(); // use design->CanColonize because zero-capacity colony ships still count as outpost ships, can "can colonize" as far as order / the UI are concerned
+    if (design && design->CanColonize()) {
+        if (design->ColonyCapacity() == 0.0f) // zero-capacity colony ships count as outpost ships
+            return true;
+        // for establishing a colony, the species needs to be able to colonize
+        const Species* species = sm.GetSpecies(m_species_name);
+        if (species && species->CanColonize())
+            return true;
+    }
+    return false;
 }
 
 bool Ship::HasTroops(const Universe& universe) const
@@ -369,9 +375,6 @@ const std::string& Ship::PublicName(int empire_id) const {
     else
         return UserString("OBJ_SHIP");
 }
-
-std::shared_ptr<UniverseObject> Ship::Accept(const UniverseObjectVisitor& visitor) const
-{ return visitor.Visit(std::const_pointer_cast<Ship>(std::static_pointer_cast<const Ship>(shared_from_this()))); }
 
 const Meter* Ship::GetPartMeter(MeterType type, const std::string& part_name) const {
     const Meter* retval = nullptr;
@@ -504,40 +507,28 @@ float Ship::WeaponPartShipDamage(const ShipPart* part, const ScriptingContext& c
 
 float Ship::TotalWeaponsFighterDamage(const ScriptingContext& context, bool launch_fighters) const {
     // sum up all individual weapons' attack strengths
-    float total_shots = 0.0f;
     const auto all_weapons_shots = AllWeaponsFighterDamage(context, launch_fighters);
-    for (float shots : all_weapons_shots)
-        total_shots += shots;
-    return total_shots;
+    return std::accumulate(all_weapons_shots.begin(), all_weapons_shots.end(), 0.0f);
 }
 
 float Ship::TotalWeaponsShipDamage(const ScriptingContext& context, float shield_DR,
                                    bool launch_fighters) const
 {
     // sum up all individual weapons' attack strengths
-    float total_attack = 0.0f;
     const auto all_weapons_damage = AllWeaponsShipDamage(context, shield_DR, launch_fighters);
-    for (float attack : all_weapons_damage)
-        total_attack += attack;
-    return total_attack;
+    return std::accumulate(all_weapons_damage.begin(), all_weapons_damage.end(), 0.0f);
 }
 
 std::vector<float> Ship::AllWeaponsFighterDamage(const ScriptingContext& context,
                                                  bool launch_fighters) const
 {
-    return Combat::WeaponDamageImpl(
-        context, std::static_pointer_cast<const Ship>(shared_from_this()),
-        /*target_shield_DR*/0, /*max meters*/false,
-        launch_fighters, /*target_ships*/false);
+    return Combat::WeaponDamageImpl(context, *this, /*target_shield_DR*/0, /*max meters*/false,
+                                    launch_fighters, /*target_ships*/false);
 }
 
 std::vector<float> Ship::AllWeaponsShipDamage(const ScriptingContext& context, float shield_DR,
                                               bool launch_fighters) const
-{
-    return Combat::WeaponDamageImpl(
-        context, std::static_pointer_cast<const Ship>(shared_from_this()),
-        shield_DR, false, launch_fighters, true);
-}
+{ return Combat::WeaponDamageImpl(context, *this, shield_DR, false, launch_fighters, true); }
 
 std::vector<float> Ship::AllWeaponsMaxShipDamage(const ScriptingContext& context, float shield_DR,
                                                  bool launch_fighters) const
@@ -548,8 +539,19 @@ std::vector<float> Ship::AllWeaponsMaxShipDamage(const ScriptingContext& context
     if (!design)
         return retval;
 
-    return Combat::WeaponDamageImpl(context, std::static_pointer_cast<const Ship>(shared_from_this()),
-                                    shield_DR, true, launch_fighters);
+    return Combat::WeaponDamageImpl(context, *this, shield_DR, true, launch_fighters);
+}
+
+std::size_t Ship::SizeInMemory() const {
+    std::size_t retval = UniverseObject::SizeInMemory();
+    retval += sizeof(Ship) - sizeof(UniverseObject);
+
+    retval += sizeof(PartMeterMap::value_type)*m_part_meters.capacity();
+    for (const auto& name : m_part_meters | range_keys | range_keys)
+        retval += name.capacity()*sizeof(std::decay_t<decltype(name)>::value_type);
+    retval += sizeof(decltype(m_species_name)::value_type)*m_species_name.capacity();
+
+    return retval;
 }
 
 void Ship::SetFleetID(int fleet_id) {
@@ -566,7 +568,7 @@ void Ship::SetArrivedOnTurn(int turn) {
     }
 }
 
-void Ship::BackPropagateMeters() {
+void Ship::BackPropagateMeters() noexcept {
     UniverseObject::BackPropagateMeters();
 
     // ship part meter back propagation, since base class function doesn't do this...
@@ -576,7 +578,7 @@ void Ship::BackPropagateMeters() {
 
 namespace {
     // specifically for ship part meters
-    inline constexpr auto ToPairedMeterType(MeterType mt) noexcept {
+    constexpr auto ToPairedMeterType(MeterType mt) noexcept {
         return
             mt == MeterType::METER_CAPACITY ? MeterType::METER_MAX_CAPACITY :
             mt == MeterType::METER_SECONDARY_STAT ? MeterType::METER_MAX_SECONDARY_STAT :
@@ -584,7 +586,7 @@ namespace {
     };
 
     // specifically for ship part meters
-    inline constexpr bool IsMaxMeterType(MeterType mt) noexcept
+    constexpr bool IsMaxMeterType(MeterType mt) noexcept
     { return mt == MeterType::METER_MAX_CAPACITY || mt == MeterType::METER_MAX_SECONDARY_STAT; }
 }
 
@@ -593,8 +595,7 @@ void Ship::Resupply(int turn) {
 
     Meter* fuel_meter = UniverseObject::GetMeter(MeterType::METER_FUEL);
     const Meter* max_fuel_meter = UniverseObject::GetMeter(MeterType::METER_MAX_FUEL);
-    if (!fuel_meter || !max_fuel_meter) {
-        [[unlikely]]
+    if (!fuel_meter || !max_fuel_meter) [[unlikely]] {
         ErrorLogger() << "Ship::Resupply couldn't get fuel meters!";
     } else {
         fuel_meter->SetCurrent(max_fuel_meter->Current());
@@ -620,7 +621,7 @@ void Ship::Resupply(int turn) {
 }
 
 void Ship::SetSpecies(std::string species_name, const SpeciesManager& sm) {
-    if (!sm.GetSpecies(species_name))
+    if (!sm.GetSpecies(species_name)) [[unlikely]] 
         ErrorLogger() << "Ship::SetSpecies couldn't get species with name " << species_name;
     m_species_name = std::move(species_name);
 }

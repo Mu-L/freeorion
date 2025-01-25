@@ -24,11 +24,11 @@ combat events.
 
 Many combat events are created, but few are examined by players.
 The constructors must be fast.  They should not do any string processing
-in the contructor. The descriptions can be expanded on request.
+in the constructor. The descriptions can be expanded on request.
 
 */
 struct FO_COMMON_API CombatEvent {
-    CombatEvent() = default;
+    constexpr CombatEvent() = default;
     virtual ~CombatEvent() = default;
 
     [[nodiscard]] virtual std::string DebugString(const ScriptingContext& context) const = 0;
@@ -40,7 +40,7 @@ struct FO_COMMON_API CombatEvent {
     /** Generate the combat log details.
         Describe how it happened in enough detail to avoid a trip to the Pedia. */
     [[nodiscard]] virtual std::string CombatLogDetails(int viewing_empire_id) const
-    { return ""; }
+    { return {}; }
 
     /** If the combat event is composed of smaller events then return a vector of the sub events,
         otherwise returns an empty vector. */
@@ -48,11 +48,11 @@ struct FO_COMMON_API CombatEvent {
     { return std::vector<ConstCombatEventPtr>(); }
 
     /** Return true if there are no details; */
-    [[nodiscard]] virtual bool AreDetailsEmpty(int viewing_empire_id) const
+    [[nodiscard]] virtual bool AreDetailsEmpty(int viewing_empire_id) const noexcept
     { return true; }
 
     /** Return true if there are no sub events; */
-    [[nodiscard]] virtual bool AreSubEventsEmpty(int viewing_empire_id) const
+    [[nodiscard]] virtual bool AreSubEventsEmpty(int viewing_empire_id) const noexcept
     { return true; }
 
     /** Return true if sub events are to be flattened on display; */

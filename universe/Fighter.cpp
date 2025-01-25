@@ -1,13 +1,12 @@
 #include "Fighter.h"
 
-#include "UniverseObjectVisitor.h"
 #include "../Empire/EmpireManager.h"
 #include "../util/AppInterface.h"
 #include "../util/Logger.h"
 
 
 Fighter::Fighter(int empire_id, int launched_from_id, const std::string& species_name,
-                 float damage, const ::Condition::Condition* combat_targets/*, int current_turn*/) :
+                 float damage, const ::Condition::Condition* combat_targets) :
     UniverseObject(UniverseObjectType::OBJ_FIGHTER),
     m_damage(damage),
     m_launched_from_id(launched_from_id),
@@ -15,7 +14,6 @@ Fighter::Fighter(int empire_id, int launched_from_id, const std::string& species
     m_combat_targets(combat_targets)
 {
     this->SetOwner(empire_id);
-    UniverseObject::Init();
 }
 
 bool Fighter::HostileToEmpire(int empire_id, const EmpireManager& empires) const {
@@ -26,16 +24,11 @@ bool Fighter::HostileToEmpire(int empire_id, const EmpireManager& empires) const
 }
 
 std::string Fighter::Dump(uint8_t ntabs) const {
-    std::stringstream os;
-    os << UniverseObject::Dump(ntabs);
-    os << " (Combat Fighter) damage: " << m_damage;
+    auto retval = UniverseObject::Dump(ntabs) + " (Combat Fighter) damage: " + std::to_string(m_damage);
     if (m_destroyed)
-        os << "  (DESTROYED)";
-    return os.str();
+        retval.append("  (DESTROYED)");
+    return retval;
 }
-
-std::shared_ptr<UniverseObject> Fighter::Accept(const UniverseObjectVisitor& visitor) const
-{ return visitor.Visit(std::const_pointer_cast<Fighter>(std::static_pointer_cast<const Fighter>(shared_from_this()))); }
 
 std::shared_ptr<UniverseObject> Fighter::Clone(const Universe& universe, int empire_id) const {
     auto retval = std::make_shared<Fighter>();

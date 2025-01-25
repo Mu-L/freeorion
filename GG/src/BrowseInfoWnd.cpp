@@ -26,21 +26,21 @@ void BrowseInfoWnd::Update(std::size_t mode, const Wnd* target)
 {
     UpdateImpl(mode, target);
     Pt new_pos;
-    if (PositionWnd) {
-        new_pos = PositionWnd(m_cursor_pos, GUI::GetGUI()->GetCursor(), *this, *target);
+    if (m_position_wnd_fn) {
+        new_pos = m_position_wnd_fn(m_cursor_pos, GUI::GetGUI()->GetCursor(), *this, *target);
     } else {
-        static constexpr Y MARGIN(2);
+        static constexpr Y MARGIN{2};
         new_pos = m_cursor_pos - Pt(Width() / 2, Height() + MARGIN);
     }
     MoveTo(new_pos);
     Pt ul = UpperLeft(), lr = LowerRight();
     if (GUI::GetGUI()->AppWidth() <= lr.x)
         ul.x += GUI::GetGUI()->AppWidth() - lr.x;
-    else if (ul.x < 0)
+    else if (ul.x < X0)
         ul.x = X0;
     if (GUI::GetGUI()->AppHeight() <= lr.y)
         ul.y += GUI::GetGUI()->AppHeight() - lr.y;
-    else if (ul.y < 0)
+    else if (ul.y < Y0)
         ul.y = Y0;
     MoveTo(ul);
 }
@@ -59,7 +59,7 @@ TextBoxBrowseInfoWnd::TextBoxBrowseInfoWnd(X w, const std::shared_ptr<Font>& fon
     m_border_color(border_color),
     m_border_width(border_width),
     m_preferred_width(w),
-    m_text_control(GetStyleFactory()->NewTextControl("", m_font, text_color, format)),
+    m_text_control(GetStyleFactory().NewTextControl("", m_font, text_color, format)),
     m_text_margin(text_margin)
 {}
 
@@ -94,7 +94,7 @@ void TextBoxBrowseInfoWnd::SetText(std::string str)
 {
     unsigned int margins = 2 * TextMargin();
     bool str_empty = str.empty();
-    Flags<TextFormat> fmt = GetTextFormat();
+    const auto fmt = GetTextFormat();
     auto text_elements = m_font->ExpensiveParseFromTextToTextElements(str, fmt);
     auto lines = m_font->DetermineLines(str, fmt, m_preferred_width - X(margins),
                                         text_elements);
@@ -110,19 +110,19 @@ void TextBoxBrowseInfoWnd::SetText(std::string str)
 
 void TextBoxBrowseInfoWnd::InitBuffer()
 {
-    GG::Pt sz = Size();
+    const auto sz = Size();
     m_buffer.clear();
-    m_buffer.store(0.0f,        0.0f);
-    m_buffer.store(Value(sz.x), 0.0f);
-    m_buffer.store(Value(sz.x), Value(sz.y));
-    m_buffer.store(0.0f,        Value(sz.y));
-    m_buffer.store(0.0f,        0.0f);
+    m_buffer.store(0.0f,                            0.0f);
+    m_buffer.store(static_cast<float>(Value(sz.x)), 0.0f);
+    m_buffer.store(static_cast<float>(Value(sz.x)), Value(sz.y));
+    m_buffer.store(0.0f,                            static_cast<float>(Value(sz.y)));
+    m_buffer.store(0.0f,                            0.0f);
     m_buffer.createServerBuffer();
 }
 
 void TextBoxBrowseInfoWnd::SizeMove(Pt ul, Pt lr)
 {
-    Pt sz = Size();
+    const auto sz = Size();
     BrowseInfoWnd::SizeMove(ul, lr);
     if (sz != Size())
         InitBuffer();
@@ -130,13 +130,13 @@ void TextBoxBrowseInfoWnd::SizeMove(Pt ul, Pt lr)
 
 void TextBoxBrowseInfoWnd::Render()
 {
-    Pt ul = UpperLeft();
+    const auto ul = UpperLeft();
 
     glPushMatrix();
     glLoadIdentity();
     glTranslatef(static_cast<GLfloat>(Value(ul.x)), static_cast<GLfloat>(Value(ul.y)), 0.0f);
     glDisable(GL_TEXTURE_2D);
-    glLineWidth(m_border_width);
+    glLineWidth(static_cast<GLfloat>(m_border_width));
     glEnableClientState(GL_VERTEX_ARRAY);
 
     m_buffer.activate();

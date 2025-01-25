@@ -21,7 +21,7 @@ namespace {
             y1_ = Value(lr.y);
             x2_ = Value(lr.x);
             y2_ = Value(lr.y);
-            x3_ = Value((ul.x + lr.x) / 2.0);
+            x3_ = (ul.x + lr.x) / 2.0;
             y3_ = Value(ul.y);
             break;
         case ShapeOrientation::DOWN:
@@ -29,7 +29,7 @@ namespace {
             y1_ = Value(ul.y);
             x2_ = Value(ul.x);
             y2_ = Value(ul.y);
-            x3_ = Value((ul.x + lr.x) / 2.0);
+            x3_ = (ul.x + lr.x) / 2.0;
             y3_ = Value(lr.y);
             break;
         case ShapeOrientation::LEFT:
@@ -38,7 +38,7 @@ namespace {
             x2_ = Value(lr.x);
             y2_ = Value(ul.y);
             x3_ = Value(ul.x);
-            y3_ = Value((ul.y + lr.y) / 2.0);
+            y3_ = (ul.y + lr.y) / 2.0;
             break;
         default:
             [[fallthrough]];
@@ -48,7 +48,7 @@ namespace {
             x2_ = Value(ul.x);
             y2_ = Value(lr.y);
             x3_ = Value(lr.x);
-            y3_ = Value((ul.y + lr.y) / 2.0);
+            y3_ = (ul.y + lr.y) / 2.0;
             break;
         }
     }
@@ -60,8 +60,8 @@ void BufferStoreCircleArcVertices(GG::GL2DVertexBuffer& buffer, const GG::Pt ul,
 {
     int wd = Value(lr.x - ul.x);
     int ht = Value(lr.y - ul.y);
-    double center_x = Value(ul.x + wd / 2.0);
-    double center_y = Value(ul.y + ht / 2.0);
+    double center_x = ul.x + wd/2.0;
+    double center_y = ul.y + ht/2.0;
     double r = std::min(wd / 2.0, ht / 2.0);
     static constexpr double PI = 3.141594; // intentionally slightly more than pi
     static constexpr double TWO_PI = 2.0 * PI;
@@ -163,38 +163,41 @@ void BufferStoreCircleArcVertices(GG::GL2DVertexBuffer& buffer, const GG::Pt ul,
     }
 }
 
-void AdjustBrightness(GG::Clr& color, int amount, bool jointly_capped)
+GG::Clr AdjustBrightness(GG::Clr color, int amount, bool jointly_capped)
 {
     if (jointly_capped) {
-        int maxVal = std::max(std::max(color.r, color.g), color.b);
-        amount = std::min(amount, 255-maxVal);
+        uint8_t max_val = std::max(std::max(color.r, color.g), color.b);
+        amount = std::min(amount, 255-max_val);
     }
-    color.r = static_cast<uint8_t>(std::max(0, std::min(color.r + amount, 255)));
-    color.g = static_cast<uint8_t>(std::max(0, std::min(color.g + amount, 255)));
-    color.b = static_cast<uint8_t>(std::max(0, std::min(color.b + amount, 255)));
+    return {
+        std::max<uint8_t>(0, std::min(color.r + amount, 255)),
+        std::max<uint8_t>(0, std::min(color.g + amount, 255)),
+        std::max<uint8_t>(0, std::min(color.b + amount, 255)),
+        color.a
+    };
 }
 
-void AdjustBrightness(GG::Clr& color, double amount, bool jointly_capped)
+GG::Clr AdjustBrightness(GG::Clr color, double amount, bool jointly_capped)
 {
     if (jointly_capped) {
-        int maxVal = std::max(std::max(color.r, color.g), color.b);
-        amount = std::min(amount, 255.0/maxVal);
+        uint8_t max_val = std::max(std::max(color.r, color.g), color.b);
+        amount = max_val > 0 ? std::min(amount, 255.0/max_val) : 255.0;
     }
-    color.r = static_cast<uint8_t>(std::max(0, std::min(static_cast<int>(color.r * amount), 255)));
-    color.g = static_cast<uint8_t>(std::max(0, std::min(static_cast<int>(color.g * amount), 255)));
-    color.b = static_cast<uint8_t>(std::max(0, std::min(static_cast<int>(color.b * amount), 255)));
+    return {
+        std::max<uint8_t>(0, std::min(color.r * amount, 255.0)),
+        std::max<uint8_t>(0, std::min(color.g * amount, 255.0)),
+        std::max<uint8_t>(0, std::min(color.b * amount, 255.0)),
+        color.a
+    };
 }
 
-GG::Clr OpaqueColor(const GG::Clr& color)
+GG::Clr OpaqueColor(GG::Clr color)
 {
-    GG::Clr retval = color;
-    retval.a = static_cast<uint8_t>(255);
-    return retval;
+    color.a = 255;
+    return color;
 }
 
-void BufferStoreRectangle(GG::GL2DVertexBuffer& buffer,
-                          const GG::Rect& area,
-                          const GG::Rect& border_thickness)
+void BufferStoreRectangle(GG::GL2DVertexBuffer& buffer, GG::Rect area, GG::Rect border_thickness)
 {
         GG::X inner_x1(area.ul.x + border_thickness.ul.x);
         GG::Y inner_y1(area.ul.y + border_thickness.ul.y);
@@ -219,8 +222,9 @@ void BufferStoreRectangle(GG::GL2DVertexBuffer& buffer,
         buffer.store(inner_x2, inner_y2);
 }
 
-void AngledCornerRectangle(const GG::Pt ul, const GG::Pt lr, GG::Clr color, GG::Clr border, int angle_offset, int thick,
-                           bool upper_left_angled, bool lower_right_angled, bool draw_bottom)
+void AngledCornerRectangle(const GG::Pt ul, const GG::Pt lr, GG::Clr color, GG::Clr border,
+                           int angle_offset, int thick, bool upper_left_angled,
+                           bool lower_right_angled, bool draw_bottom)
 {
     glDisable(GL_TEXTURE_2D);
 
@@ -283,8 +287,8 @@ void BufferStoreAngledCornerRectangleVertices(GG::GL2DVertexBuffer& buffer, cons
 bool InAngledCornerRect(const GG::Pt pt, const GG::Pt ul, const GG::Pt lr, int angle_offset,
                         bool upper_left_angled, bool lower_right_angled) noexcept
 {
-    bool retval = false;
-    if ((retval = ((ul <= pt) && (pt < lr)))) {
+    bool retval = (ul <= pt) && (pt < lr);
+    if (retval) {
         GG::Pt dist_from_ul = pt - ul;
         GG::Pt dist_from_lr = lr - pt;
         bool inside_upper_left_corner = upper_left_angled ? (angle_offset < Value(dist_from_ul.x) + Value(dist_from_ul.y)) : true;
@@ -295,9 +299,7 @@ bool InAngledCornerRect(const GG::Pt pt, const GG::Pt ul, const GG::Pt lr, int a
 }
 
 void Triangle(double x1, double y1, double x2, double y2, double x3, double y3, GG::Clr color, bool border) {
-    GG::Clr border_clr = color;
-    if (border)
-        AdjustBrightness(border_clr, 75);
+    const GG::Clr border_clr = border ? AdjustBrightness(color, 75) : color;
     GG::Triangle(GG::Pt(GG::X(x1), GG::Y(y1)),
                  GG::Pt(GG::X(x2), GG::Y(y2)),
                  GG::Pt(GG::X(x3), GG::Y(y3)),
@@ -506,12 +508,9 @@ public:
         m_scanline_shader->Bind("line_color", m_color.r * (1.f / 255.f), m_color.g * (1.f / 255.f), m_color.b * (1.f / 255.f), m_color.a * (1.f / 255.f));
     }
 
-    void SetColor(GG::Clr clr) {
-        m_color = clr;
-    }
+    void SetColor(GG::Clr clr) noexcept { m_color = clr; }
 
-    void StopUsing()
-    { m_scanline_shader->stopUse(); }
+    void StopUsing() { m_scanline_shader->stopUse(); }
 
     void RenderCircle(const GG::Pt ul, const GG::Pt lr) {
         StartUsing();
@@ -532,7 +531,7 @@ public:
 
 
 ScanlineRenderer::ScanlineRenderer() :
-    m_impl(new Impl())
+    m_impl(std::make_unique<Impl>())
 {}
 
 // This destructor is required here because ~ScanlineRendererImpl is declared here.
@@ -547,7 +546,7 @@ void ScanlineRenderer::RenderRectangle(const GG::Pt ul, const GG::Pt lr)
 void ScanlineRenderer::StartUsing()
 { m_impl->StartUsing(); }
 
-void ScanlineRenderer::SetColor(GG::Clr clr)
+void ScanlineRenderer::SetColor(GG::Clr clr) noexcept
 { m_impl->SetColor(clr); }
 
 void ScanlineRenderer::StopUsing()

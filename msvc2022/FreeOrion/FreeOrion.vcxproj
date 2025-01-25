@@ -83,6 +83,9 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>../../</OutDir>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
+    <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
+    <EnableMicrosoftCodeAnalysis>true</EnableMicrosoftCodeAnalysis>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -155,8 +158,11 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <ForcedIncludeFiles>StdAfx.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <TreatAngleIncludeAsExternal>true</TreatAngleIncludeAsExternal>
+      <DisableAnalyzeExternal>true</DisableAnalyzeExternal>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -297,9 +303,7 @@
     <ClCompile Include="..\..\client\ClientNetworking.cpp" />
     <ClCompile Include="..\..\client\human\chmain.cpp" />
     <ClCompile Include="..\..\client\human\GGHumanClientApp.cpp" />
-    <ClCompile Include="..\..\client\human\HumanClientFSM.cpp">
-      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4244; 4251; 4275; 4996</DisableSpecificWarnings>
-    </ClCompile>
+    <ClCompile Include="..\..\client\human\HumanClientFSM.cpp" />
     <ClCompile Include="..\..\UI\About.cpp" />
     <ClCompile Include="..\..\UI\AccordionPanel.cpp" />
     <ClCompile Include="..\..\UI\BuildDesignatorWnd.cpp" />

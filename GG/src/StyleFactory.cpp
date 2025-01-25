@@ -55,10 +55,6 @@ std::shared_ptr<Font> StyleFactory::DefaultFont(unsigned int pts,
     }
 }
 
-// Don't translate, just pass the key.
-std::string StyleFactory::Translate(const std::string& key) const
-{ return key; }
-
 std::shared_ptr<Button> StyleFactory::NewButton(std::string str, const std::shared_ptr<Font>& font,
                                                 Clr color, Clr text_color,
                                                 Flags<WndFlag> flags) const
@@ -178,8 +174,5 @@ std::shared_ptr<ThreeButtonDlg> StyleFactory::NewThreeButtonDlg(
                                        text_color, buttons, std::move(zero), std::move(one), std::move(two));
 }
 
-const std::string& StyleFactory::DefaultFontName()
-{
-    static std::string retval = DEFAULT_FONT_NAME;
-    return retval;
-}
+std::string_view StyleFactory::DefaultFontName() noexcept
+{ return DEFAULT_FONT_NAME; }

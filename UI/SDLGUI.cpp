@@ -188,10 +188,10 @@ private:
 SDLGUI::SDLGUI(int w, int h, bool calc_FPS, std::string app_name, int x, int y,
                bool fullscreen, bool fake_mode_change) :
     GUI(std::move(app_name)),
-    m_app_width(w),
-    m_app_height(h),
-    m_initial_x(x),
-    m_initial_y(y),
+    m_app_width{w},
+    m_app_height{h},
+    m_initial_x{x},
+    m_initial_y{y},
     m_fullscreen(fullscreen),
     m_fake_mode_change(fake_mode_change)
 {
@@ -274,7 +274,8 @@ void SDLGUI::SDLInit() {
         m_gl_context = SDL_GL_CreateContext(m_window);
     GLenum glew_status = glewInit();
 
-    if (!m_window || !m_gl_context || GLEW_OK != glew_status) {
+    const char* glew_error_string = reinterpret_cast<const char*>(glewGetErrorString(glew_status));
+    if (!m_window || !m_gl_context || ((GLEW_OK != glew_status) && (strcmp(glew_error_string, "Unknown Error")==0))) {
         std::string msg;
         if (!m_window) {
             msg = "Unable to create window.";
@@ -294,6 +295,9 @@ void SDLGUI::SDLInit() {
             SDL_MESSAGEBOX_ERROR, "OpenGL initialization error", msg.c_str(), nullptr);
         std::cerr << msg << std::endl;
         ExitApp(1);
+    }
+    if (GLEW_OK != glew_status) {
+        std::cerr << "[error] Ignored GLEW error when setting up OpenGL: " << glew_error_string << std::endl;
     }
 
     SDL_ShowWindow(m_window);
@@ -324,21 +328,21 @@ void SDLGUI::GLInit() {
 
     // set up perspective with vertical FOV of 50°. 1:1 application
     // window ratio, near plane of 1.0 and far plane of 10.0
-    float ratio = Value(m_app_width) * 1.0f / Value(m_app_height);
-    float radians = static_cast<float>(50.0 * M_PI / 180.0);
-    float near = 1.0f;
-    float far = 10.0f;
-    float cotangent = std::cos(radians) / std::sin(radians);
+    const float ratio = Value(m_app_width) * 1.0f / Value(m_app_height);
 
-    float projection[4][4] = {};
-    projection[0][0] = cotangent / ratio;
-    projection[1][1] = cotangent;
-    projection[2][2] = -((far + near) / (far - near));
-    projection[2][3] = -1.0f;
-    projection[3][2] = -((2.0f * far * near) / (far - near));
-    projection[3][3] = 0.0f;
+    static constexpr float cot = 0.839099631177f; // radians = 50.0f * pi / 180.0f; cot = cos(radians) / sin(radians);
+    const float cor = cot / ratio;
+    static constexpr float near = 1.0f;
+    static constexpr float far = 10.0f;
+    static constexpr float fpnonmn = -((far + near) / (far - near));
+    static constexpr float ttftnofmn = -((2.0f * far * near) / (far - near));
+    const std::array<std::array<float, 4>, 4> projection{{
+        { cor, 0.0f,      0.0f,  0.0f},
+        {0.0f, cot,       0.0f,  0.0f},
+        {0.0f, 0.0f,   fpnonmn, -1.0f},
+        {0.0f, cot,  ttftnofmn,  0.0f}}};
 
-    glMultMatrixf(&projection[0][0]);
+    glMultMatrixf(projection.front().data());
 }
 
 void SDLGUI::HandleSystemEvents() {
@@ -348,7 +352,7 @@ void SDLGUI::HandleSystemEvents() {
         bool send_to_gg = false;
         EventType gg_event = EventType::MOUSEMOVE;
         Key key = Key::GGK_NONE;
-        std::uint32_t key_code_point = 0;
+        uint32_t key_code_point = 0;
         GG::Flags<GG::ModKey> mod_keys = GetSDLModKeys();
         // In GiGi some events contain mouse position info,
         // where the corresponding sdl event does not.
@@ -582,7 +586,7 @@ Pt SDLGUI::GetDefaultResolutionStatic(int display_id) {
         Pt resolution(X(mode.w), Y(mode.h));
         return resolution;
     } else {
-        return Pt(X0, Y0);
+        return Pt0;
     }
 }
 
@@ -615,7 +619,7 @@ void SDLGUI::RelayTextInput(const SDL_TextInputEvent& text, GG::Pt mouse_pos) {
     const char* end = current + SDL_TEXTEDITINGEVENT_TEXT_SIZE;
     while (current != end && *current)
         ++current;
-    HandleGGEvent(EventType::TEXTINPUT, Key::GGK_NONE, 0u, GG::Flags<GG::ModKey>(), mouse_pos, Pt(X0, Y0),
+    HandleGGEvent(EventType::TEXTINPUT, Key::GGK_NONE, 0u, GG::Flags<GG::ModKey>(), mouse_pos, Pt0,
                   std::string(text.text, current));
 }
 
@@ -623,7 +627,7 @@ void SDLGUI::ResetFramebuffer() {
     m_framebuffer.reset();
     if (m_fake_mode_change && m_fullscreen) {
         try {
-            m_framebuffer.reset(new Framebuffer(Pt(m_app_width, m_app_height)));
+            m_framebuffer = std::make_unique<Framebuffer>(Pt(m_app_width, m_app_height));
         } catch (const FramebufferFailedException& ex) {
             std::cerr << "Fake resolution change failed. Reason: \"" << ex.what() << "\". Reverting to real resolution change." << std::endl;
             m_fake_mode_change = false;

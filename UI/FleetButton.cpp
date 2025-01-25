@@ -92,24 +92,20 @@ void FleetButton::CompleteConstruction() {
 }
 
 void FleetButton::Refresh(SizeType size_type) {
-    const Universe& u = GetUniverse();
-    const ObjectMap& o = u.Objects();
-    const EmpireManager& e = Empires();
-    ScriptingContext context{u, e};
+    const ScriptingContext& context = IApp::GetApp()->GetContext();
+    const Universe& u = context.ContextUniverse();
+    const ObjectMap& o = context.ContextObjects();
+    const EmpireManager& e = context.Empires();
 
-    auto fleets_shared = o.find<Fleet>(m_fleets);
-    std::vector<const Fleet*> fleets;
-    fleets.reserve(fleets_shared.size());
-    std::transform(fleets_shared.begin(), fleets_shared.end(), std::back_inserter(fleets),
-                   [](auto& f) { return f.get(); });
+    const auto fleets = o.findRaw<const Fleet>(m_fleets);
 
     // determine owner(s) of fleet(s).  Only care whether or not there is more than one owner, as owner
     // is used to determine colouration
     int multiple_owners = false;
-    int owner_id = fleets.empty() ? ALL_EMPIRES : fleets.front()->Owner();
+    int owner_id = fleets.empty() ? ALL_EMPIRES : (fleets.front() ? fleets.front()->Owner() : ALL_EMPIRES);
     if (!fleets.empty()) {
         // use ALL_EMPIRES if there are multiple owners
-        for (auto& fleet : fleets) {
+        for (auto* fleet : fleets) {
             if (fleet->Owner() != owner_id) {
                 owner_id = ALL_EMPIRES;
                 multiple_owners = true;
@@ -127,8 +123,8 @@ void FleetButton::Refresh(SizeType size_type) {
         // all ships owned by no empire
         bool monsters = true;
         // find if any ship in fleets in button is not a monster
-        for (const auto& fleet : fleets) {
-            for (const auto& ship : o.find<Ship>(fleet->ShipIDs())) {
+        for (const auto* fleet : fleets) {
+            for (const auto* ship : o.findRaw<const Ship>(fleet->ShipIDs())) {
                 if (!ship->IsMonster(u)) {
                     monsters = false;
                     break;
@@ -148,7 +144,9 @@ void FleetButton::Refresh(SizeType size_type) {
 
     // determine direction button should be rotated to orient along a starlane
     GLfloat pointing_angle = 0.0f;
-    const auto& map_wnd = ClientUI::GetClientUI()->GetMapWnd();
+    const auto map_wnd = ClientUI::GetClientUI()->GetMapWndConst();
+    if (!map_wnd)
+        return;
 
     const Fleet* first_fleet = fleets.empty() ? nullptr : fleets.front();
 
@@ -156,8 +154,7 @@ void FleetButton::Refresh(SizeType size_type) {
         first_fleet->SystemID() == INVALID_OBJECT_ID &&
         first_fleet->NextSystemID() != INVALID_OBJECT_ID)
     {
-        int next_sys_id = first_fleet->NextSystemID();
-        if (const auto* obj = Objects().get(next_sys_id).get()) {
+        if (auto* obj = o.getRaw<const System>(first_fleet->NextSystemID())) {
             // fleet is not in a system and has a valid next destination, so can orient it in that direction
             // fleet icons might not appear on the screen in the exact place corresponding to their
             // actual universe position, but if they're moving along a starlane, this code will assume
@@ -181,12 +178,11 @@ void FleetButton::Refresh(SizeType size_type) {
     // select icon(s) for fleet(s)
     int num_ships = 0;
     m_fleet_blockaded = false;
-    for (const auto& fleet : fleets) {
-        if (fleet) {
-            num_ships += fleet->NumShips();
-            if (!m_fleet_blockaded && fleet->Blockaded(context))
-                m_fleet_blockaded = true;
-        }
+    static constexpr auto not_null = [](const auto* f) -> bool { return f; };
+    for (const auto* fleet : fleets | range_filter(not_null)) {
+        num_ships += fleet->NumShips();
+        if (!m_fleet_blockaded && fleet->Blockaded(context))
+            m_fleet_blockaded = true;
     }
 
     // remove and re-create graphics for all icons needed
@@ -295,7 +291,7 @@ bool FleetButton::InWindow(GG::Pt pt) const noexcept {
 }
 
 void FleetButton::MouseHere(GG::Pt pt, GG::Flags<GG::ModKey> mod_keys) {
-    const auto& map_wnd = ClientUI::GetClientUI()->GetMapWnd();
+    const auto map_wnd = ClientUI::GetClientUI()->GetMapWndConst();
     if (!Disabled() && (!map_wnd || !map_wnd->InProductionViewMode())) {
         if (State() != ButtonState::BN_ROLLOVER)
             PlayFleetButtonRolloverSound();
@@ -304,18 +300,14 @@ void FleetButton::MouseHere(GG::Pt pt, GG::Flags<GG::ModKey> mod_keys) {
 }
 
 void FleetButton::SizeMove(GG::Pt ul, GG::Pt lr) {
-    GG::Pt sz = Size();
-
+    const auto sz = Size();
     Button::SizeMove(ul, lr);
-
-    if (sz == Size())
-        return;
-
-    LayoutIcons();
+    if (sz != Size())
+        LayoutIcons();
 }
 
 void FleetButton::LayoutIcons() {
-    const ScriptingContext context;
+    const ScriptingContext& context = IApp::GetApp()->GetContext();
 
     GG::Pt middle = GG::Pt(Width() / 2, Height() / 2);
     for (auto& graphic : m_icons) {
@@ -333,24 +325,27 @@ void FleetButton::LayoutIcons() {
         m_selection_indicator->SizeMove(graphic_ul, graphic_ul + subtexture_sz);
     }
 
+    const auto client_empire_id = GGHumanClientApp::GetApp()->EmpireID();
+    const auto& u{context.ContextUniverse()};
+    const auto& o{context.ContextObjects()};
+
     // refresh fleet button tooltip
     if (m_fleet_blockaded) {
         if (m_fleets.empty())
             return;
 
         // can just pick first fleet because all fleets in system should have same exits
-        auto fleet = context.ContextObjects().get<Fleet>(m_fleets.front());
+        const auto fleet = o.get<Fleet>(m_fleets.front());
 
         std::string available_exits;
         int available_exits_count = 0;
 
-        for (const auto& target_system_id : context.ContextObjects().get<System>(fleet->SystemID())->StarlanesWormholes()) {
-            if (fleet->BlockadedAtSystem(fleet->SystemID(), target_system_id.first, context))
+        for (const auto target_system_id : o.get<System>(fleet->SystemID())->Starlanes()) {
+            if (fleet->BlockadedAtSystem(fleet->SystemID(), target_system_id, context))
                 continue;
 
-            if (auto target_system = context.ContextObjects().get<System>(target_system_id.first)) {
-                available_exits.append("\n").append(target_system->ApparentName(
-                    GGHumanClientApp::GetApp()->EmpireID(), context.ContextUniverse()));
+            if (auto target_system = o.get<System>(target_system_id)) {
+                available_exits.append("\n").append(target_system->ApparentName(client_empire_id, u));
                 available_exits_count++;
             }
         }
@@ -445,8 +440,8 @@ std::vector<std::shared_ptr<GG::Texture>> FleetHeadIcons(
     bool hasMonsters = false;
     bool canDamageShips = false;
 
-    const Universe& u = GetUniverse();
-    const ScriptingContext context{u, Empires()};
+    const ScriptingContext& context = IApp::GetApp()->GetContext();
+    const Universe& u = context.ContextUniverse();
 
     for (const auto* fleet : fleets) {
         if (!fleet)

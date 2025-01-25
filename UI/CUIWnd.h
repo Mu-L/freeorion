@@ -36,10 +36,9 @@ public:
     void Toggle(bool pinned); // Switches icon from Pin to Pinned and back
 };
 
-// Aditional window creation flags
-extern GG::WndFlag MINIMIZABLE;    ///< allows the window to be minimized
-extern GG::WndFlag CLOSABLE;       ///< allows the window to be closed
-extern GG::WndFlag PINABLE;        ///< allows the window to be pinned
+inline constexpr GG::WndFlag MINIMIZABLE(1 << 10);
+inline constexpr GG::WndFlag CLOSABLE(1 << 11);
+inline constexpr GG::WndFlag PINABLE(1 << 12);
 
 class CUILabel;
 
@@ -94,17 +93,16 @@ public:
            std::string_view config_name = "", bool visible = true);
 
     void CompleteConstruction() override;
-    /** Virtual destructor. */
     virtual ~CUIWnd();
 
-    bool    Minimized() const noexcept { return m_minimized; } //!< true if window is minimized
+    bool    Minimized() const noexcept { return m_minimized; }      //!< true if window is minimized
     GG::Pt  ClientUpperLeft() const noexcept override;
     GG::Pt  ClientLowerRight() const noexcept override;
     bool    InWindow(GG::Pt pt) const override;
-    GG::X   LeftBorder() const noexcept { return BORDER_LEFT; }                        //!< the distance on the left side between the outer edge of the window and the inner border
-    GG::Y   TopBorder() const;  //!< distance at the top between the outer edge of the window and the inner border
-    GG::X   RightBorder() const noexcept { return BORDER_RIGHT; }                      //!< the distance on the right side between the outer edge of the window and the inner border
-    GG::Y   BottomBorder() const noexcept { return BORDER_BOTTOM; }                    //!< the distance at the bottom between the outer edge of the window and the inner border
+    GG::X   LeftBorder() const noexcept { return BORDER_LEFT; }     //!< distance on the left side between the outer edge of the window and the inner border
+    GG::Y   TopBorder() const;                                      //!< distance at the top between the outer edge of the window and the inner border
+    GG::X   RightBorder() const noexcept { return BORDER_RIGHT; }   //!< distance on the right side between the outer edge of the window and the inner border
+    GG::Y   BottomBorder() const noexcept { return BORDER_BOTTOM; } //!< distance at the bottom between the outer edge of the window and the inner border
 
     GG::Pt  MinimizedSize() const { return GG::Pt(MINIMIZED_WND_WIDTH, TopBorder()); }
     int     InnerBorderAngleOffset() const noexcept { return INNER_BORDER_ANGLE_OFFSET; }
@@ -162,7 +160,7 @@ protected:
     void         Init();                         //!< performs initialization common to all CUIWnd constructors
     void         ResetDefaultPosition();         //!< called via signal from the ClientUI, passes the value from CalculatePosition() to InitSizeMove()
 
-    void         SetParent(std::shared_ptr<GG::Wnd> wnd) override;
+    void         SetParent(std::shared_ptr<GG::Wnd> wnd) noexcept override;
     void         SetDefaultedOptions();          //!< flags options currently at their default values for later use in SaveDefaultedOptions
     void         SaveDefaultedOptions();         //!< sets the default value any options previously determined from calls to SetDefaultedOptions to their current value
 
@@ -201,7 +199,7 @@ protected:
     static constexpr GG::Y BORDER_BOTTOM{5};
     static constexpr int OUTER_EDGE_ANGLE_OFFSET = 8;
     static constexpr int INNER_BORDER_ANGLE_OFFSET = 15;
-    static constexpr int TITLE_OFFSET = 2;
+    static constexpr GG::Y TITLE_OFFSET{2};
     static constexpr int RESIZE_HASHMARK1_OFFSET = 9;
     static constexpr int RESIZE_HASHMARK2_OFFSET = 4;
 };
@@ -215,7 +213,7 @@ public:
                GG::Flags<GG::WndFlag> flags = GG::MODAL);
     void CompleteConstruction() override;
     void ModalInit() override;
-    void KeyPress(GG::Key key, std::uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys) override;
+    void KeyPress(GG::Key key, uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys) override;
 
     const std::string& Result() const noexcept { return m_result; }
 

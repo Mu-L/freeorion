@@ -72,6 +72,10 @@ condition_wrapper operator&(const value_ref_wrapper<double>& lhs, const value_re
     return lhs.operator condition_wrapper() & rhs.operator condition_wrapper();
 }
 
+condition_wrapper operator&(const value_ref_wrapper<int>& lhs, const condition_wrapper& rhs) {
+    return lhs.operator condition_wrapper() & rhs;
+}
+
 
 condition_wrapper operator|(const condition_wrapper& lhs, const condition_wrapper& rhs) {
     return condition_wrapper(std::make_shared<Condition::Or>(
@@ -121,7 +125,7 @@ namespace {
     }
 
     condition_wrapper insert_contains_(const condition_wrapper& cond) {
-        return condition_wrapper(std::make_shared<Condition::Contains>(ValueRef::CloneUnique(cond.condition)));
+        return condition_wrapper(std::make_shared<Condition::Contains<>>(ValueRef::CloneUnique(cond.condition)));
     }
 
     condition_wrapper insert_meter_value_(const boost::python::tuple& args, const boost::python::dict& kw, MeterType m) {
@@ -147,6 +151,32 @@ namespace {
         return condition_wrapper(std::make_shared<Condition::MeterValue>(m, std::move(low), std::move(high)));
     }
 
+    condition_wrapper insert_sorted_number_of_(const boost::python::tuple& args, const boost::python::dict& kw, Condition::SortingMethod method) {
+        std::unique_ptr<ValueRef::ValueRef<int>> number;
+        auto number_args = boost::python::extract<value_ref_wrapper<int>>(kw["number"]);
+        if (number_args.check()) {
+            number = ValueRef::CloneUnique(number_args().value_ref);
+        } else {
+            number = std::make_unique<ValueRef::Constant<int>>(boost::python::extract<int>(kw["number"])());
+        }
+
+        std::unique_ptr<ValueRef::ValueRef<double>> sortkey;
+        if (kw.has_key("sortkey")) {
+            auto sortkey_args = boost::python::extract<value_ref_wrapper<double>>(kw["sortkey"]);
+            if (sortkey_args.check()) {
+                sortkey = ValueRef::CloneUnique(sortkey_args().value_ref);
+            } else {
+                sortkey = std::make_unique<ValueRef::Constant<double>>(boost::python::extract<double>(kw["sortkey"])());
+            }
+        }
+
+        auto condition = ValueRef::CloneUnique(boost::python::extract<condition_wrapper>(kw["condition"])().condition);
+        return condition_wrapper(std::make_shared<Condition::SortedNumberOf>(std::move(number),
+                                                                             std::move(sortkey),
+                                                                             method,
+                                                                             std::move(condition)));
+    }
+
     condition_wrapper insert_visible_to_empire_(const boost::python::tuple& args, const boost::python::dict& kw) {
         std::unique_ptr<ValueRef::ValueRef<int>> empire;
         auto empire_args = boost::python::extract<value_ref_wrapper<int>>(kw["empire"]);
@@ -170,16 +200,26 @@ namespace {
     condition_wrapper insert_planet_(const boost::python::tuple& args, const boost::python::dict& kw) {
         if (kw.has_key("type")) {
             std::vector<std::unique_ptr<ValueRef::ValueRef< ::PlanetType>>> types;
+            std::vector<::PlanetType> type_vals;
+
             boost::python::stl_input_iterator<boost::python::object> it_begin(kw["type"]), it_end;
+            bool have_refs = false;
             for (auto it = it_begin; it != it_end; ++it) {
                 auto type_arg = boost::python::extract<value_ref_wrapper< ::PlanetType>>(*it);
                 if (type_arg.check()) {
                     types.push_back(ValueRef::CloneUnique(type_arg().value_ref));
+                    have_refs = true;
                 } else {
-                    types.push_back(std::make_unique<ValueRef::Constant< ::PlanetType>>(boost::python::extract<enum_wrapper< ::PlanetType>>(*it)().value));
+                    auto val = boost::python::extract<enum_wrapper< ::PlanetType>>(*it)().value;
+                    types.push_back(std::make_unique<ValueRef::Constant< ::PlanetType>>(val));
+                    type_vals.push_back(val);
                 }
             }
-            return condition_wrapper(std::make_shared<Condition::PlanetType>(std::move(types)));
+            if (have_refs) {
+                return condition_wrapper(std::make_shared<Condition::PlanetType<>>(std::move(types)));
+            } else { // have only constants
+                return condition_wrapper(std::make_shared<Condition::PlanetType<::PlanetType>>(std::move(type_vals)));
+            }
         } else if (kw.has_key("size")) {
             std::vector<std::unique_ptr<ValueRef::ValueRef< ::PlanetSize>>> sizes;
             boost::python::stl_input_iterator<boost::python::object> it_begin(kw["size"]), it_end;
@@ -256,6 +296,20 @@ namespace {
         return condition_wrapper(std::make_shared<Condition::Species>());
     }
 
+    condition_wrapper insert_is_field_(const boost::python::tuple& args, const boost::python::dict& kw) {
+        std::vector<std::unique_ptr<ValueRef::ValueRef<std::string>>> names;
+        boost::python::stl_input_iterator<boost::python::object> it_begin(kw["name"]), it_end;
+        for (auto it = it_begin; it != it_end; ++it) {
+            auto name_arg = boost::python::extract<value_ref_wrapper<std::string>>(*it);
+            if (name_arg.check()) {
+                names.push_back(ValueRef::CloneUnique(name_arg().value_ref));
+            } else {
+                names.push_back(std::make_unique<ValueRef::Constant<std::string>>(boost::python::extract<std::string>(*it)()));
+            }
+        }
+        return condition_wrapper(std::make_shared<Condition::Field>(std::move(names)));
+    }
+
     condition_wrapper insert_has_tag_(const boost::python::tuple& args, const boost::python::dict& kw) {
         std::unique_ptr<ValueRef::ValueRef<std::string>> name;
         if (kw.has_key("name")) {
@@ -267,6 +321,12 @@ namespace {
             }
         }
         return condition_wrapper(std::make_shared<Condition::HasTag>(std::move(name)));
+    }
+
+    condition_wrapper insert_has_starlane_(const boost::python::tuple& args, const boost::python::dict& kw) {
+        std::unique_ptr<Condition::Condition> from = ValueRef::CloneUnique(boost::python::extract<condition_wrapper>(kw["from_"])().condition);
+
+        return condition_wrapper(std::make_shared<Condition::HasStarlaneTo>(std::move(from)));
     }
 
     condition_wrapper insert_focus_(const boost::python::tuple& args, const boost::python::dict& kw) {
@@ -538,6 +598,18 @@ namespace {
             std::move(condition)));
     }
 
+    condition_wrapper insert_produced_by_empire_(const boost::python::tuple& args, const boost::python::dict& kw) {
+        std::unique_ptr<ValueRef::ValueRef<int>> empire;
+        auto empire_args = boost::python::extract<value_ref_wrapper<int>>(kw["empire"]);
+        if (empire_args.check()) {
+            empire = ValueRef::CloneUnique(empire_args().value_ref);
+        } else {
+            empire = std::make_unique<ValueRef::Constant<int>>(boost::python::extract<int>(kw["empire"])());
+        }
+
+        return condition_wrapper(std::make_shared<Condition::ProducedByEmpire>(std::move(empire)));
+    }
+
     condition_wrapper insert_owner_has_tech_(const boost::python::tuple& args, const boost::python::dict& kw) {
         std::unique_ptr<ValueRef::ValueRef<std::string>> name;
         auto name_args = boost::python::extract<value_ref_wrapper<std::string>>(kw["name"]);
@@ -727,6 +799,7 @@ void RegisterGlobalsConditions(boost::python::dict& globals) {
     globals["Location"] = boost::python::raw_function(insert_location_);
     globals["Enqueued"] = boost::python::raw_function(insert_enqueued_);
     globals["Number"] = boost::python::raw_function(insert_number_);
+    globals["ProducedByEmpire"] = boost::python::raw_function(insert_produced_by_empire_);
 
     // non_ship_part_meter_enum_grammar
     for (const auto& meter : std::initializer_list<std::pair<const char*, MeterType>>{
@@ -782,14 +855,30 @@ void RegisterGlobalsConditions(boost::python::dict& globals) {
         globals[op.first] = enum_wrapper<Condition::ContentType>(op.second);
     }
 
+    for (const auto& op : std::initializer_list<std::pair<const char*, Condition::SortingMethod>>{
+            {"MaximumNumberOf", Condition::SortingMethod::SORT_MAX},
+            {"MinimumNumberOf", Condition::SortingMethod::SORT_MIN},
+            {"ModeNumberOf",    Condition::SortingMethod::SORT_MODE},
+            {"UniqueNumberOf",  Condition::SortingMethod::SORT_UNIQUE}})
+    {
+        const auto sm = op.second;
+        globals[op.first] = boost::python::raw_function([sm](const auto& args, const auto& kw) { return insert_sorted_number_of_(args, kw, sm); });
+    }
+    globals["NumberOf"] = boost::python::raw_function([](const auto& args, const auto& kw) { return insert_sorted_number_of_(args, kw, Condition::SortingMethod::SORT_RANDOM); });
+
     globals["HasSpecies"] = boost::python::raw_function(insert_has_species_);
+    globals["IsField"] = boost::python::raw_function(insert_is_field_);
     globals["CanColonize"] = condition_wrapper(std::make_shared<Condition::CanColonize>());
+    globals["Armed"] = condition_wrapper(std::make_shared<Condition::Armed>());
 
     globals["IsSource"] = condition_wrapper(std::make_shared<Condition::Source>());
     globals["IsTarget"] = condition_wrapper(std::make_shared<Condition::Target>());
     globals["IsRootCandidate"] = condition_wrapper(std::make_shared<Condition::RootCandidate>());
+    globals["IsAnyObject"] = condition_wrapper(std::make_shared<Condition::All>());
+    globals["NoObject"] = condition_wrapper(std::make_shared<Condition::None>());
 
     globals["HasTag"] = boost::python::raw_function(insert_has_tag_);
+    globals["HasStarlane"] = boost::python::raw_function(insert_has_starlane_);
     globals["Planet"] = boost::python::raw_function(insert_planet_);
     globals["Homeworld"] = boost::python::raw_function(insert_homeworld_);
     globals["HasSpecial"] = boost::python::raw_function(insert_has_special_);

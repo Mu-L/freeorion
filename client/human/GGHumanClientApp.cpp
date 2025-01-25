@@ -54,8 +54,13 @@
 
 #include <chrono>
 #include <thread>
-
 #include <sstream>
+#include <utility>
+#if !defined(__cpp_lib_integer_comparison_functions)
+namespace std {
+    inline auto cmp_less(auto&& lhs, auto&& rhs) { return lhs < rhs; }
+}
+#endif
 
 
 namespace fs = boost::filesystem;
@@ -152,9 +157,9 @@ namespace {
         return buff.data();
     }
 
-    static float stored_gl_version = -1.0f;  // to be replaced when gl version first checked
 
     float GetGLVersion() {
+        static float stored_gl_version = -1.0f; // to be replaced when gl version first checked
         if (stored_gl_version != -1.0f)
             return stored_gl_version;
 
@@ -227,7 +232,7 @@ GGHumanClientApp::GGHumanClientApp(int width, int height, bool calculate_fps, st
 
     // Force the log file if requested.
     if (GetOptionsDB().Get<std::string>("log-file").empty()) {
-        const std::string HUMAN_CLIENT_LOG_FILENAME((GetUserDataDir() / "freeorion.log").string());
+        const std::string HUMAN_CLIENT_LOG_FILENAME(PathToString(GetUserDataDir() / "freeorion.log"));
         GetOptionsDB().Set("log-file", HUMAN_CLIENT_LOG_FILENAME);
     }
     // Force the log threshold if requested.
@@ -254,6 +259,7 @@ GGHumanClientApp::GGHumanClientApp(int width, int height, bool calculate_fps, st
     RegisterLoggerWithOptionsDB("conditions");
     RegisterLoggerWithOptionsDB("FSM");
     RegisterLoggerWithOptionsDB("network");
+    RegisterLoggerWithOptionsDB("parsing");
     RegisterLoggerWithOptionsDB("python");
     RegisterLoggerWithOptionsDB("timer");
     RegisterLoggerWithOptionsDB("IDallocator");
@@ -281,7 +287,7 @@ GGHumanClientApp::GGHumanClientApp(int width, int height, bool calculate_fps, st
         ErrorLogger() << "OpenGL version is less than 2.1; FreeOrion may crash during initialization";
     }
 
-    SetStyleFactory(std::make_shared<CUIStyle>());
+    SetStyleFactory(std::make_unique<CUIStyle>());
 
     SetMinDragTime(0);
 
@@ -316,7 +322,7 @@ GGHumanClientApp::GGHumanClientApp(int width, int height, bool calculate_fps, st
     GG::Wnd::SetDefaultBrowseInfoWnd(std::move(default_browse_info_wnd));
 
     auto cursor_texture = m_ui->GetTexture(ClientUI::ArtDir() / "cursors" / "default_cursor.png");
-    SetCursor(std::make_shared<GG::TextureCursor>(std::move(cursor_texture),
+    SetCursor(std::make_unique<GG::TextureCursor>(std::move(cursor_texture),
                                                   GG::Pt(GG::X(6), GG::Y(3))));
     RenderCursor(true);
 
@@ -373,16 +379,16 @@ GGHumanClientApp::GGHumanClientApp(int width, int height, bool calculate_fps, st
 
 void GGHumanClientApp::ConnectKeyboardAcceleratorSignals() {
     // Add global hotkeys
-    HotkeyManager *hkm = HotkeyManager::GetManager();
+    auto& hkm = HotkeyManager::GetManager();
 
-    hkm->Connect(boost::bind(&GGHumanClientApp::HandleHotkeyExitApp, this), "exit",
-                 NoModalWndsOpenCondition);
-    hkm->Connect(boost::bind(&GGHumanClientApp::HandleHotkeyResetGame, this), "quit",
-                 NoModalWndsOpenCondition);
-    hkm->Connect(boost::bind(&GGHumanClientApp::ToggleFullscreen, this), "video.fullscreen",
-                 NoModalWndsOpenCondition);
+    hkm.Connect(boost::bind(&GGHumanClientApp::HandleHotkeyExitApp, this), "exit",
+                NoModalWndsOpenCondition);
+    hkm.Connect(boost::bind(&GGHumanClientApp::HandleHotkeyResetGame, this), "quit",
+                NoModalWndsOpenCondition);
+    hkm.Connect(boost::bind(&GGHumanClientApp::ToggleFullscreen, this), "video.fullscreen",
+                NoModalWndsOpenCondition);
 
-    hkm->RebuildShortcuts();
+    hkm.RebuildShortcuts();
 }
 
 GGHumanClientApp::~GGHumanClientApp() {
@@ -576,7 +582,7 @@ void GGHumanClientApp::NewSinglePlayerGame(bool quickstart) {
     // if stored value is invalid, use a default colour
     const std::vector<EmpireColor>& empire_colours = EmpireColors();
     int colour_index = GetOptionsDB().Get<int>("setup.empire.color.index");
-    if (colour_index >= 0 && colour_index < static_cast<int>(empire_colours.size()))
+    if (colour_index >= 0 && std::cmp_less(colour_index, empire_colours.size()))
         human_player_setup_data.empire_color = empire_colours[colour_index];
     else
         human_player_setup_data.empire_color = GG::CLR_GREEN.RGBA();
@@ -585,14 +591,13 @@ void GGHumanClientApp::NewSinglePlayerGame(bool quickstart) {
     if (human_player_setup_data.starting_species_name == "1")
         human_player_setup_data.starting_species_name = "SP_HUMAN";   // kludge / bug workaround for bug with options storage and retreival.  Empty-string options are stored, but read in as "true" boolean, and converted to string equal to "1"
 
-    const SpeciesManager& sm = this->GetSpeciesManager();
     if (human_player_setup_data.starting_species_name != "RANDOM" &&
-        !sm.GetSpecies(human_player_setup_data.starting_species_name))
+        !m_species_manager.GetSpecies(human_player_setup_data.starting_species_name))
     {
-        if (sm.NumPlayableSpecies() < 1)
+        if (m_species_manager.NumPlayableSpecies() < 1)
             human_player_setup_data.starting_species_name.clear();
         else
-            human_player_setup_data.starting_species_name = sm.playable_begin()->first;
+            human_player_setup_data.starting_species_name = m_species_manager.playable_begin()->first;
     }
 
     human_player_setup_data.save_game_empire_id = ALL_EMPIRES; // not used for new games
@@ -736,10 +741,10 @@ void GGHumanClientApp::LoadSinglePlayerGame(std::string filename) {
     if (!filename.empty()) {
         if (!exists(FilenameToPath(filename))) {
             std::string msg = "GGHumanClientApp::LoadSinglePlayerGame() given a nonexistent file \""
-                            + filename + "\" to load; aborting.";
+                            + filename + "\" to load. Aborting load.";
             DebugLogger() << msg;
             std::cerr << msg << '\n';
-            abort();
+            return;
         }
     } else {
         try {
@@ -845,10 +850,8 @@ void GGHumanClientApp::RequestSavePreviews(const std::string& relative_directory
 }
 
 std::pair<int, int> GGHumanClientApp::GetWindowLeftTop() {
-    int left(0), top(0);
-
-    left = GetOptionsDB().Get<int>("video.windowed.left");
-    top = GetOptionsDB().Get<int>("video.windowed.top");
+    int left = GetOptionsDB().Get<int>("video.windowed.left");
+    int top = GetOptionsDB().Get<int>("video.windowed.top");
 
     // clamp to edges to avoid weird bug with maximizing windows setting their
     // left and top to -9 which lead to weird issues when attmepting to recreate
@@ -887,19 +890,21 @@ std::pair<int, int> GGHumanClientApp::GetWindowWidthHeight() {
 }
 
 void GGHumanClientApp::Reinitialize() {
-    bool fullscreen = GetOptionsDB().Get<bool>("video.fullscreen.enabled");
-    bool fake_mode_change = GetOptionsDB().Get<bool>("video.fullscreen.fake.enabled");
-    std::pair<int, int> size = GetWindowWidthHeight();
+    const bool fullscreen = GetOptionsDB().Get<bool>("video.fullscreen.enabled");
+    const bool fake_mode_change = GetOptionsDB().Get<bool>("video.fullscreen.fake.enabled");
+    const auto size = GetWindowWidthHeight();
+    const GG::X width{size.first};
+    const GG::Y height{size.second};
 
-    bool fullscreen_transition = Fullscreen() != fullscreen;
-    GG::X old_width = AppWidth();
-    GG::Y old_height = AppHeight();
+    const bool fullscreen_transition = Fullscreen() != fullscreen;
+    const GG::X old_width = AppWidth();
+    const GG::Y old_height = AppHeight();
 
-    SetVideoMode(GG::X(size.first), GG::Y(size.second), fullscreen, fake_mode_change);
+    SetVideoMode(width, height, fullscreen, fake_mode_change);
     if (fullscreen_transition) {
         FullscreenSwitchSignal(fullscreen); // after video mode is changed but before DoLayout() calls
     } else if (fullscreen &&
-               (old_width != size.first || old_height != size.second) &&
+               (old_width != width || old_height != height) &&
                GetOptionsDB().Get<bool>("ui.reposition.auto.enabled"))
     {
         // Reposition windows if in fullscreen mode... handled here instead of
@@ -912,9 +917,8 @@ void GGHumanClientApp::Reinitialize() {
     // SDLGUI::HandleSystemEvents() when in windowed mode.  This sends the
     // signal (and hence calls HandleWindowResize()) when in fullscreen mode,
     // making the signal more consistent...
-    if (fullscreen) {
-        WindowResizedSignal(GG::X(size.first), GG::Y(size.second));
-    }
+    if (fullscreen)
+        WindowResizedSignal(width, height);
 }
 
 float GGHumanClientApp::GLVersion() const
@@ -959,7 +963,7 @@ boost::intrusive_ptr<const boost::statechart::event_base> GGHumanClientApp::GetD
     std::scoped_lock lock(m_event_queue_guard);
     if (m_posted_event_queue.empty())
         return nullptr;
-    auto retval = std::move(m_posted_event_queue.front());
+    auto retval{std::move(m_posted_event_queue.front())};
     m_posted_event_queue.pop();
     return retval;
 }
@@ -1099,15 +1103,15 @@ void GGHumanClientApp::HandleWindowMove(GG::X w, GG::Y h) {
 
 void GGHumanClientApp::HandleWindowResize(GG::X w, GG::Y h) {
     if (ClientUI* ui = ClientUI::GetClientUI()) {
-        if (auto&& map_wnd = ui->GetMapWnd())
+        if (auto map_wnd = ui->GetMapWnd(false))
             map_wnd->DoLayout();
-        if (auto&& intro_screen = ui->GetIntroScreen())
+        if (auto intro_screen = ui->GetIntroScreen())
             intro_screen->Resize(GG::Pt(w, h));
     }
 
     if (!GetOptionsDB().Get<bool>("video.fullscreen.enabled") &&
-         (GetOptionsDB().Get<int>("video.windowed.width") != w ||
-          GetOptionsDB().Get<int>("video.windowed.height") != h))
+         (GetOptionsDB().Get<GG::X>("video.windowed.width") != w ||
+          GetOptionsDB().Get<GG::Y>("video.windowed.height") != h))
     {
         if (GetOptionsDB().Get<bool>("ui.reposition.auto.enabled")) {
             // Reposition windows if in windowed mode.
@@ -1183,7 +1187,7 @@ bool GGHumanClientApp::ToggleFullscreen() {
 void GGHumanClientApp::StartGame(bool is_new_game) {
     m_game_started = true;
 
-    if (auto&& map_wnd = ClientUI::GetClientUI()->GetMapWnd())
+    if (auto map_wnd = ClientUI::GetClientUI()->GetMapWnd(false))
         map_wnd->ResetEmpireShown();
 
     ClientUI::GetClientUI()->GetShipDesignManager()->StartGame(EmpireID(), is_new_game);
@@ -1284,10 +1288,10 @@ namespace {
                 return; // don't need to delete anything.
 
             int num_deleted = 0;
-            for (auto& entry : files_by_write_time) {
+            for (auto& delete_file_path : files_by_write_time | range_values) {
                 if (num_deleted >= num_to_delete)
                     break;
-                remove(entry.second);
+                remove(delete_file_path);
                 ++num_deleted;
             }
         } catch (...) {
@@ -1441,7 +1445,8 @@ void GGHumanClientApp::ResetClientData(bool save_connection) {
         m_networking->SetHostPlayerID(Networking::INVALID_PLAYER_ID);
     }
     SetEmpireID(ALL_EMPIRES);
-    m_ui->GetMapWnd()->Sanitize();
+    if (auto map_wnd = m_ui->GetMapWnd(false))
+        map_wnd->Sanitize();
 
     m_universe.Clear();
     m_empires.Clear();
@@ -1462,7 +1467,7 @@ void GGHumanClientApp::ExitSDL(int exit_code)
 void GGHumanClientApp::ResetOrExitApp(bool reset, bool skip_savegame, int exit_code ) {
     DebugLogger() << "GGHumanClientApp::ResetOrExitApp(" << reset << ", " << skip_savegame << ", " << exit_code << ")";
     if (m_exit_handled) {
-        static int repeat_count = 0;
+        static constinit int repeat_count = 0;
         if (repeat_count++ > 2) {
             m_exit_handled = false;
             skip_savegame = true;
@@ -1484,8 +1489,8 @@ void GGHumanClientApp::ResetOrExitApp(bool reset, bool skip_savegame, int exit_c
             !m_empires.GetEmpire(m_empire_id)->Ready() &&
             GetClientType() == Networking::ClientType::CLIENT_TYPE_HUMAN_PLAYER)
         {
-            std::shared_ptr<GG::Font> font = ClientUI::GetFont();
-            auto prompt = GG::GUI::GetGUI()->GetStyleFactory()->NewThreeButtonDlg(
+            auto font = ClientUI::GetFont();
+            auto prompt = GG::GUI::GetGUI()->GetStyleFactory().NewThreeButtonDlg(
                 GG::X(275), GG::Y(75), UserString("GAME_MENU_CONFIRM_NOT_READY"), font,
                 ClientUI::CtrlColor(), ClientUI::CtrlBorderColor(), ClientUI::CtrlColor(), ClientUI::TextColor(),
                 2, UserString("YES"), UserString("CANCEL"));
@@ -1504,7 +1509,7 @@ void GGHumanClientApp::ResetOrExitApp(bool reset, bool skip_savegame, int exit_c
         if (!m_game_saves_in_progress.empty()) {
             DebugLogger() << "save game in progress. Checking with player.";
             // Ask the player if they want to wait for the save game to complete
-            auto dlg = GG::GUI::GetGUI()->GetStyleFactory()->NewThreeButtonDlg(
+            auto dlg = GG::GUI::GetGUI()->GetStyleFactory().NewThreeButtonDlg(
                 GG::X(320), GG::Y(200), UserString("SAVE_GAME_IN_PROGRESS"),
                 ClientUI::GetFont(ClientUI::Pts()+2),
                 ClientUI::WndColor(), ClientUI::WndOuterBorderColor(),
@@ -1559,7 +1564,7 @@ bool GGHumanClientApp::HaveWindowFocus() const
 
 int GGHumanClientApp::SelectedSystemID() const {
     if (m_ui) {
-        if (auto mapwnd = m_ui->GetMapWnd())
+        if (auto mapwnd = m_ui->GetMapWndConst())
             return mapwnd->SelectedSystemID();
     }
     return INVALID_OBJECT_ID;
@@ -1567,7 +1572,7 @@ int GGHumanClientApp::SelectedSystemID() const {
 
 int GGHumanClientApp::SelectedPlanetID() const {
     if (m_ui) {
-        if (auto mapwnd = m_ui->GetMapWnd())
+        if (auto mapwnd = m_ui->GetMapWndConst())
             return mapwnd->SelectedPlanetID();
     }
     return INVALID_OBJECT_ID;
@@ -1575,7 +1580,7 @@ int GGHumanClientApp::SelectedPlanetID() const {
 
 int GGHumanClientApp::SelectedFleetID() const {
     if (m_ui) {
-        if (auto mapwnd = m_ui->GetMapWnd())
+        if (auto mapwnd = m_ui->GetMapWndConst())
             return mapwnd->SelectedFleetID();
     }
     return INVALID_OBJECT_ID;
@@ -1583,7 +1588,7 @@ int GGHumanClientApp::SelectedFleetID() const {
 
 int GGHumanClientApp::SelectedShipID() const {
     if (m_ui) {
-        if (auto mapwnd = m_ui->GetMapWnd())
+        if (auto mapwnd = m_ui->GetMapWndConst())
             return mapwnd->SelectedShipID();
     }
     return INVALID_OBJECT_ID;

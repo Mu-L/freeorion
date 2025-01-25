@@ -128,7 +128,7 @@ void DynamicGraphic::Render()
                         send_stopped_signal = true;
                     }
                 }
-                m_last_frame_time = curr_time;
+                m_last_frame_time = static_cast<decltype(m_last_frame_time)>(curr_time);
             }
         }
 
@@ -137,9 +137,8 @@ void DynamicGraphic::Render()
         glColor(color_to_use);
 
         const int INT_MARGIN = m_margin;
-        std::size_t cols =
-            Value(m_textures[m_curr_texture].texture->DefaultWidth() /
-                  (m_frame_width + INT_MARGIN));
+        std::size_t cols = static_cast<std::size_t>(
+            m_textures[m_curr_texture].texture->DefaultWidth() / (m_frame_width + INT_MARGIN));
         X x = static_cast<int>(m_curr_subtexture % cols) * (m_frame_width + INT_MARGIN) + INT_MARGIN;
         Y y = static_cast<int>(m_curr_subtexture / cols) * (m_frame_height + INT_MARGIN) + INT_MARGIN;
         SubTexture st(m_textures[m_curr_texture].texture, x, y, x + m_frame_width, y + m_frame_height);
@@ -150,27 +149,27 @@ void DynamicGraphic::Render()
         Pt pt1, pt2(graphic_sz); // (unscaled) default graphic size
         if (m_style & GRAPHIC_FITGRAPHIC) {
             if (m_style & GRAPHIC_PROPSCALE) {
-                X_d scale_x = window_sz.x / (graphic_sz.x * 1.0);
-                Y_d scale_y = window_sz.y / (graphic_sz.y * 1.0);
-                double scale = std::min(Value(scale_x), Value(scale_y));
-                pt2.x = graphic_sz.x * scale;
-                pt2.y = graphic_sz.y * scale;
+                float scale_x = Value(window_sz.x) * 1.0f / Value(graphic_sz.x);
+                float scale_y = Value(window_sz.y) * 1.0f / Value(graphic_sz.y);
+                float scale = std::min(scale_x, scale_y);
+                pt2.x = ToX(graphic_sz.x * scale);
+                pt2.y = ToY(graphic_sz.y * scale);
             } else {
                 pt2 = window_sz;
             }
         } else if (m_style & GRAPHIC_SHRINKFIT) {
             if (m_style & GRAPHIC_PROPSCALE) {
-                X_d scale_x = (graphic_sz.x > window_sz.x) ? window_sz.x / (graphic_sz.x * 1.0) : X_d(1.0);
-                Y_d scale_y = (graphic_sz.y > window_sz.y) ? window_sz.y / (graphic_sz.y * 1.0) : Y_d(1.0);
-                double scale = std::min(Value(scale_x), Value(scale_y));
-                pt2.x = graphic_sz.x * scale;
-                pt2.y = graphic_sz.y * scale;
+                const double scale_x = (graphic_sz.x > window_sz.x) ? window_sz.x / (graphic_sz.x * 1.0) : 1.0;
+                const double scale_y = (graphic_sz.y > window_sz.y) ? window_sz.y / (graphic_sz.y * 1.0) : 1.0;
+                const double scale = std::min(scale_x, scale_y);
+                pt2.x = ToX(graphic_sz.x * scale);
+                pt2.y = ToY(graphic_sz.y * scale);
             } else {
                 pt2 = window_sz;
             }
         }
 
-        X x_shift(0);
+        X x_shift = X0;
         if (m_style & GRAPHIC_LEFT) {
             x_shift = ul.x;
         } else if (m_style & GRAPHIC_CENTER) {
@@ -181,7 +180,7 @@ void DynamicGraphic::Render()
         pt1.x += x_shift;
         pt2.x += x_shift;
 
-        Y y_shift(0);
+        Y y_shift = Y0;
         if (m_style & GRAPHIC_TOP) {
             y_shift = ul.y;
         } else if (m_style & GRAPHIC_VCENTER) {
@@ -209,7 +208,7 @@ void DynamicGraphic::AddFrames(const Texture* texture, std::size_t frames)
 
     FrameSet fs;
     fs.texture.reset(texture);
-    fs.frames = std::min(frames_in_texture, std::max(frames, static_cast<std::size_t>(1)));
+    fs.frames = std::min(frames_in_texture, std::max<std::size_t>(frames, 1));
     m_frames += fs.frames;
     m_textures.push_back(std::move(fs));
 }
@@ -222,7 +221,7 @@ void DynamicGraphic::AddFrames(std::shared_ptr<Texture> texture, std::size_t fra
 
     FrameSet fs;
     fs.texture = std::move(texture);
-    fs.frames = std::min(frames_in_texture, std::max(frames, static_cast<std::size_t>(1)));
+    fs.frames = std::min(frames_in_texture, std::max<std::size_t>(frames, 1));
     m_frames += fs.frames;
     m_textures.push_back(std::move(fs));
 }
@@ -393,13 +392,10 @@ void DynamicGraphic::SetStyle(Flags<GraphicStyle> style)
 std::size_t DynamicGraphic::FramesInTexture(const Texture* t) const
 {
     const int INT_MARGIN = m_margin;
-    std::size_t cols = Value(t->DefaultWidth() / (m_frame_width + INT_MARGIN));
-    std::size_t rows = Value(t->DefaultHeight() / (m_frame_height + INT_MARGIN));
+    std::size_t cols = t->DefaultWidth() / (m_frame_width + INT_MARGIN);
+    std::size_t rows = t->DefaultHeight() / (m_frame_height + INT_MARGIN);
     return cols * rows;
 }
-
-const std::vector<DynamicGraphic::FrameSet>& DynamicGraphic::Textures() const
-{ return m_textures; }
 
 std::size_t DynamicGraphic::CurrentTexture() const
 { return m_curr_texture; }

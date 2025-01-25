@@ -5,8 +5,6 @@
 
 #include <GG/WndEvent.h>
 
-#include <boost/cast.hpp>
-
 ////////////////////////////////////////////////////////////
 // PromptRow
 ////////////////////////////////////////////////////////////
@@ -30,7 +28,7 @@ void PromptRow::CompleteConstruction() {
 }
 
 void PromptRow::SizeMove(GG::Pt ul, GG::Pt lr)  {
-    const GG::Pt old_size = Size();
+    const auto old_size = Size();
     GG::ListBox::Row::SizeMove(ul, lr);
     if (!empty() && old_size != Size() && m_prompt)
         m_prompt->Resize(Size());
@@ -70,10 +68,10 @@ void QueueListBox::CompleteConstruction() {
         boost::bind(&QueueListBox::ItemRightClicked, this, ph::_1, ph::_2, ph::_3));
 }
 
-GG::X QueueListBox::RowWidth() const
+GG::X QueueListBox::RowWidth() const noexcept
 { return ClientWidth(); }
 
-void QueueListBox::KeyPress(GG::Key key, std::uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys)
+void QueueListBox::KeyPress(GG::Key key, uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys)
 {
     if (Disabled()) {
         CUIListBox::KeyPress(key, key_code_point, mod_keys);
@@ -123,7 +121,7 @@ void QueueListBox::Render() {
 }
 
 void QueueListBox::SizeMove(GG::Pt ul, GG::Pt lr) {
-    const GG::Pt old_size = Size();
+    const auto old_size = Size();
     CUIListBox::SizeMove(ul, lr);
     if (old_size != Size() && !Empty()) {
         const GG::Pt row_size(RowWidth(), (*begin())->Height());
@@ -173,7 +171,7 @@ void QueueListBox::EnableOrderIssuing(bool enable) {
         row->Disable(!enable);
 }
 
-bool QueueListBox::DisplayingValidQueueItems()
+bool QueueListBox::DisplayingValidQueueItems() const noexcept
 { return !m_showing_prompt; }
 
 void QueueListBox::Clear() {

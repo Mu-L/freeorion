@@ -45,8 +45,8 @@ IDAllocator::IDAllocator(const int server_id,
     for (const auto empire_id : client_ids) {
         if (empire_id == m_server_id)
             continue;
-         AssigningEmpireForID(ii) = empire_id;
-         m_empire_id_to_next_assigned_object_id.emplace(empire_id, ii);
+        AssigningEmpireForID(ii) = empire_id;
+        m_empire_id_to_next_assigned_object_id.emplace(empire_id, ii);
         ++ii;
     }
 }
@@ -73,11 +73,10 @@ int IDAllocator::NewID(const Universe& universe) {
                       << " stride = " << m_stride;
 
     // Increment the next id if not exhausted
-    if (it->second >= m_exhausted_threshold) {
+    if (it->second >= m_exhausted_threshold)
         it->second = m_invalid_id;
-    } else if (it->second != m_invalid_id) {
+    else if (it->second != m_invalid_id)
         it->second += m_stride;
-    }
 
     if (retval == m_invalid_id)
         ErrorLogger() << "Object IDs are exhausted.  No objects can be added to the Universe.";
@@ -102,9 +101,8 @@ std::pair<bool, bool> IDAllocator::IsIDValidAndUnused(const ID_t checked_id,
         return hard_fail;
     }
 
-    if (checked_id == m_temp_id) {
+    if (checked_id == m_temp_id)
         return complete_success;
-    }
 
     if (checked_id >= m_exhausted_threshold) {
         ErrorLogger() << " invalid id = " << checked_id << " is greater then the maximum id " << m_exhausted_threshold;
@@ -161,19 +159,19 @@ bool IDAllocator::UpdateIDAndCheckIfOwned(const ID_t checked_id) {
     auto assigning_empire = AssigningEmpireForID(checked_id);
     IncrementNextAssignedId(assigning_empire, checked_id);
 
-    return true;;
+    return true;
 }
 
 IDAllocator::ID_t& IDAllocator::AssigningEmpireForID(ID_t id)
 { return m_offset_to_empire_id[(id - m_zero) % m_stride]; }
 
 void IDAllocator::IncrementNextAssignedId(const int assigning_empire, const int checked_id) {
-    auto&& empire_and_next_id = m_empire_id_to_next_assigned_object_id.find(assigning_empire);
-    if (empire_and_next_id == m_empire_id_to_next_assigned_object_id.end())
+    auto empire_and_next_id_it = m_empire_id_to_next_assigned_object_id.find(assigning_empire);
+    if (empire_and_next_id_it == m_empire_id_to_next_assigned_object_id.end())
         return;
 
-    auto& next_id = empire_and_next_id->second;
-    auto init_next_id = next_id;
+    auto& next_id = empire_and_next_id_it->second;
+    const auto init_next_id = next_id;
 
     while (next_id <= checked_id && next_id != m_invalid_id) {
         next_id += m_stride;
@@ -197,7 +195,7 @@ void IDAllocator::ObfuscateBeforeSerialization() {
 
     // Ignore on clients.
     if (m_empire_id != m_server_id)
-        return;;
+        return;
 
     TraceLogger(IDallocator) << "Before obfuscation " << StateString();
 
@@ -228,7 +226,6 @@ void IDAllocator::ObfuscateBeforeSerialization() {
     }
 
     // Advance each client to its own random offset.
-    ID_t assigning_empire_offset_modulus = 0;
     for (const auto assigning_empire : m_offset_to_empire_id) {
         auto empire_random_offset = RandInt(0, max_random_offset);
         auto new_next_id = empire_random_offset + m_zero;
@@ -249,9 +246,8 @@ void IDAllocator::ObfuscateBeforeSerialization() {
                 << "[(offset, empire id), " << [this]() {
                 std::stringstream ss;
                 std::size_t offset = 0;
-                for (auto& empire_id : m_offset_to_empire_id) {
+                for (auto& empire_id : m_offset_to_empire_id)
                     ss << " (" << offset++ << ", " << empire_id << "), ";
-                }
                 return ss.str();
             }() << "]"
                 << " Empire " << assigning_empire
@@ -259,8 +255,6 @@ void IDAllocator::ObfuscateBeforeSerialization() {
         }
 
         m_empire_id_to_next_assigned_object_id[assigning_empire] = new_next_id;
-
-        ++assigning_empire_offset_modulus;
     }
 
     TraceLogger(IDallocator) << "After obfuscation " << StateString();

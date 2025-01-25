@@ -93,7 +93,7 @@ namespace parse {
             ;
 
         variable_scope_rule = detail::variable_scope(tok);
-        container_type_rule = detail::container_type(tok);
+        container_type_rule = detail::container(tok);
         detail::initialize_bound_variable_parser<std::string>(
             bound_variable, unwrapped_bound_variable, value_wrapped_bound_variable,
             bound_variable_name, variable_scope_rule, container_type_rule,
@@ -197,18 +197,20 @@ namespace parse {
     detail::value_ref_rule<std::string> expr;
     detail::value_ref_rule<std::string> primary_expr;
     detail::reference_token_rule variable_scope_rule;
-    detail::name_token_rule container_type_rule;
+    detail::container_token_rule container_type_rule;
 
 
     bool string_free_variable(std::string& text) {
         boost::spirit::qi::in_state_type in_state;
 
+        const auto& tok = GetLexer();
+
         text_iterator first = text.begin();
         text_iterator last = text.end();
-        token_iterator it = lexer::tok.begin(first, last);
+        token_iterator it = tok.begin(first, last);
 
         bool success = boost::spirit::qi::phrase_parse(
-            it, lexer::tok.end(), lexer::tok.GalaxySeed_, in_state("WS")[lexer::tok.self]);
+            it, tok.end(), tok.GalaxySeed_, in_state("WS")[tok.self]);
 
         return success;
     }

@@ -76,6 +76,9 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>../../</OutDir>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
+    <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
+    <EnableMicrosoftCodeAnalysis>true</EnableMicrosoftCodeAnalysis>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -149,8 +152,11 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ForcedIncludeFiles>StdAfx.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
       <ShowIncludes>false</ShowIncludes>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <TreatAngleIncludeAsExternal>true</TreatAngleIncludeAsExternal>
+      <DisableAnalyzeExternal>true</DisableAnalyzeExternal>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -233,9 +239,7 @@
     <ClCompile Include="..\..\server\SaveLoad.cpp" />
     <ClCompile Include="..\..\server\ServerApp.cpp" />
     <ClCompile Include="..\..\server\ServerFramework.cpp" />
-    <ClCompile Include="..\..\server\ServerFSM.cpp">
-      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4244; 4251; 4275; 4996; 4646</DisableSpecificWarnings>
-    </ClCompile>
+    <ClCompile Include="..\..\server\ServerFSM.cpp" />
     <ClCompile Include="..\..\server\ServerNetworking.cpp" />
     <ClCompile Include="..\..\server\ServerWrapper.cpp" />
     <ClCompile Include="..\..\server\UniverseGenerator.cpp" />

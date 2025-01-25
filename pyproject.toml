@@ -35,10 +35,10 @@ client
 target-version = ["py39"]
 line-length=120
 
-[tool.ruff.mccabe]
+[tool.ruff.lint.mccabe]
 max-complexity = 10
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "*auth/auth.py" = ["E402"]
 "*chat/chat.py" = ["E402"]
 "*universe_generation/universe_generator.py" = ["E402"]
@@ -53,44 +53,20 @@ max-complexity = 10
     "E402",
     "F401",
 ]
+# Limitations for FOCS skeletons, it would be nice to solve this
+"default/scripting/*" =  ["F403", "F405"]
 
-[tool.ruff.isort]
+# Since imports are empty we need to use asterisk import between skeletons
+"default/scripting/focs/*" = ["F405"]
+"default/scripting/game_rules.focs.py"=["F821"]
+"test-scripting/game_rules.focs.py"=["F821"]
+"test-scripting/*"=["F405", "F403"]
+
+[tool.ruff.lint.isort]
 extra-standard-library=["freeorion", "freeOrionAIInterface"]
 
 
-[tool.ruff]
-
-src = [
-    "default/python",
-    "default/python/AI",
-    "default/python/universe_generation",
-    "default/python/charting",
-    "default/scripting",
-    "test-scripting"
-]
-
-
-target-version = "py39"
-line-length=120
-exclude = [
-    "*_venv/",
-    "venv_*/",
-    "venv/",
-]
-ignore = [
-    "E501",
-    # Annotation won't fix
-    "ANN101", "ANN202", "ANN204", "ANN102",
-
-    # Annotation nice to fix
-    "ANN0",
-    "ANN201",
-    "ANN205",
-    "ANN401",
-
-
-
-]
+[tool.ruff.lint]
 select = [
     "C9",
     "E",
@@ -101,181 +77,72 @@ select = [
     "ANN",
 ]
 
-builtins = [
-    "Abs",
-    "AddSpecial",
-    "Adequate",
-    "AllyOf",
-    "AnyEmpire",
-    "AsteroidsType",
-    "Barren",
-    "BlackHole",
-    "Blue",
-    "BuildBuilding",
-    "BuildShip",
-    "CanColonize",
-    "Capital",
-    "Category",
-    "Conditional",
-    "ContainedBy",
-    "Contains",
-    "ContentFocus",
-    "CreateShip",
-    "CurrentContent",
-    "CurrentTurn",
-    "Desert",
-    "DesignHasPart",
-    "Destroy",
-    "DirectDistanceBetween",
-    "EffectsGroup",
-    "EmpireHasAdoptedPolicy",
-    "EmpireMeterValue",
-    "EmpireStockpile",
-    "EnemyOf",
-    "Enqueued",
-    "Fleet",
-    "Floor",
-    "Focus",
-    "FocusType",
-    "GalaxyMaxAIAggression",
-    "GalaxySize",
-    "GameRule",
-    "GasGiantType",
-    "GenerateSitRepMessage",
-    "GiveEmpireTech",
-    "Good",
-    "Happiness",
-    "HasEmpireStockpile",
-    "HasSpecial",
-    "HasSpecies",
-    "HasTag",
-    "Homeworld",
-    "Hostile",
-    "Huge",
-    "InSystem",
-    "Inferno",
-    "Influence",
-    "IsBuilding",
-    "IsHuman",
-    "IsRootCandidate",
-    "IsSource",
-    "IsTarget",
-    "Item",
-    "JumpsBetween",
-    "Large",
-    "LocalCandidate",
-    "Location",
-    "Max",
-    "MaxOf",
-    "Medium",
-    "Min",
-    "MinOf",
-    "Mode",
-    "Monster",
-    "MoveTo",
-    "MoveTowards",
-    "NamedReal",
-    "NamedRealLookup",
-    "Neutron",
-    "NoEffect",
-    "NoOp",
-    "NoStar",
-    "NumPoliciesAdopted",
-    "Number",
-    "Object",
-    "Ocean",
-    "OneOf",
-    "OnPlanet",
-    "Orange",
-    "OwnedBy",
-    "OwnerHasTech",
-    "PartCapacity",
-    "PartSecondaryStat",
-    "PartsInShipDesign",
-    "Planet",
-    "Poor",
-    "Population",
-    "ProductionCenter",
-    "Radiated",
-    "Random",
-    "Red",
-    "RemoveSpecial",
-    "ResourceSupplyConnected",
-    "ResupplyableBy",
-    "RootCandidate",
-    "SetCapacity",
-    "SetConstruction",
-    "SetDefense",
-    "SetDetection",
-    "SetEmpireMeter",
-    "SetEmpireStockpile",
-    "SetHappiness",
-    "SetIndustry",
-    "SetInfluence",
-    "SetMaxCapacity",
-    "SetMaxDefense",
-    "SetMaxFuel",
-    "SetMaxSecondaryStat",
-    "SetMaxShield",
-    "SetMaxStockpile",
-    "SetMaxStructure",
-    "SetMaxSupply",
-    "SetMaxTroops",
-    "SetOwner",
-    "SetPlanetSize",
-    "SetPopulation",
-    "SetRebelTroops",
-    "SetResearch",
-    "SetShield",
-    "SetStarType",
-    "SetStealth",
-    "SetStockpile",
-    "SetStructure",
-    "SetSupply",
-    "SetTargetConstruction",
-    "SetTargetHappiness",
-    "SetTargetIndustry",
-    "SetTargetInfluence",
-    "SetTargetPopulation",
-    "SetTargetResearch",
-    "SetTroops",
-    "Ship",
-    "Small",
-    "Source",
-    "Species",
-    "SpeciesCensusOrdering",
-    "SpeciesDislikes",
-    "SpeciesLikes",
-    "Star",
-    "Stationary",
-    "Statistic",
-    "StatisticCount",
-    "StatisticIf",
-    "Structure",
-    "Swamp",
-    "System",
-    "Target",
-    "TargetIndustry",
-    "TargetPopulation",
-    "Tech",
-    "Terran",
-    "Tiny",
-    "Toxic",
-    "Tundra",
-    "Turn",
-    "TurnTechResearched",
-    "Uninhabitable",
-    "UnlockBuilding",
-    "UnlockPolicy",
-    "UnlockShipHull",
-    "UnlockShipPart",
-    "Unowned",
-    "UserString",
-    "Value",
-    "Victory",
-    "VisibleToEmpire",
-    "White",
-    "WithinDistance",
-    "WithinStarlaneJumps",
-    "Yellow",
+ignore = [
+    "E501",
+    # Annotation won't fix
+    "ANN101", "ANN202", "ANN204", "ANN102",
+
+    # Annotation nice to fix
+    "ANN0",
+    "ANN201",
+    "ANN205",
+    "ANN401",
 ]
+
+[tool.ruff]
+
+
+src = [
+    "default/python",
+    "default/python/AI",
+    "default/python/universe_generation",
+    "default/python/charting",
+    "default/scripting",
+    "test-scripting",
+    "check"
+]
+
+
+target-version = "py39"
+line-length=120
+exclude = [
+    "*_venv/",
+    "venv_*/",
+    "venv/",
+]
+
+
+builtins = []
+
+
+[tool.mypy]
+exclude = [
+    # Temp and tech dirs
+    "^(venv|venv_)",
+    # Not scripting directories
+    '^default/data',
+    '^default.python',
+    '^test-scripting',
+    '^check',
+    '^doc',
+    '^cmake',
+    '^msvc',
+    '^scripting/common',
+]
+
+explicit_package_bases = true
+no_site_packages = true
+
+mypy_path = "default/scripting"
+disable_error_code = ['name-defined', 'var-annotated']
+fast_module_lookup = true
+
+[tool.pyright]
+include = ["default/scripting/", "check/check_file_changed"]
+exclude=[]
+pythonVersion = "3.9"
+strictListInference = true
+strictDictionaryInference = true
+strictSetInference = true
+reportUndefinedVariable = false
+

@@ -273,11 +273,11 @@ void FreeOrionNode::HandleMessage(Message&& msg) {
             break;
         }
         case Message::MessageType::ERROR_MSG: {
-            std::string problem;
-            bool fatal;
-            int player_id;
-            ExtractErrorMessageData(msg, player_id, problem, fatal);
-            emit_signal("error", godot::String(problem.c_str()), fatal);
+            std::string problem_key, unlocalized_info;
+            bool fatal = false;
+            int player_id = Networking::INVALID_PLAYER_ID;
+            ExtractErrorMessageData(msg, player_id, problem_key, unlocalized_info, fatal);
+            emit_signal("error", godot::String(problem_key.c_str()), fatal);
             break;
         }
         case Message::MessageType::CHAT_HISTORY: {
@@ -330,6 +330,12 @@ void FreeOrionNode::HandleMessage(Message&& msg) {
                         text_color,
                         pm);
 
+            break;
+        }
+        case Message::MessageType::CHECKSUM: {
+            bool result = this->m_app->VerifyCheckSum(msg);
+            if (!result)
+                emit_signal("error", godot::String(UserString("ERROR_CHECKSUM_MISMATCH").c_str()), false);
             break;
         }
         default:

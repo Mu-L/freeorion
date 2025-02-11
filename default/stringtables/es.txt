@@ -1261,12 +1261,6 @@ Valor empleado para ajustarse a los cambios de [[METER_POPULATION]] en planetas 
 #*RULE_SHIP_PART_BASED_UPKEEP_DESC
 #* <not translated 1970-01-01 01:00:00>
 
-#*RULE_ENABLE_ALLIED_REPAIR
-#* <not translated 1970-01-01 01:00:00>
-
-#*RULE_ENABLE_ALLIED_REPAIR_DESC
-#* <not translated 1970-01-01 01:00:00>
-
 #*RULE_DIPLOMACY
 #* <not translated 1970-01-01 01:00:00>
 
@@ -10353,14 +10347,6 @@ DESC_WITHIN_STARLANE_JUMPS
 DESC_WITHIN_STARLANE_JUMPS_NOT
 ''' que no está a más de %1% saltos de cualquier objeto%2%'''
 
-# %1% textual description of the far endpoint system the starlane connects to.
-DESC_CAN_ADD_STARLANE_CONNECTION
-''' que puede añadírsele rutas estelares que le conecten a todos los sistemas que contienen objectos%1%'''
-
-# %1% textual description of the far endpoint system the starlane connects to.
-DESC_CAN_ADD_STARLANE_CONNECTION_NOT
-''' que no puede añadírsele rutas estelares que le conecten a todos los sistemas que contienen objectos%1%'''
-
 # %1% textual description of the empire.
 DESC_EXPLORED_BY_EMPIRE
 ''' que ha sido explorado por el imperio %1%'''
@@ -15241,11 +15227,6 @@ SHIPDESIGN_PLANET_INVASION
 # %1% FIXME
 # %2% FIXME
 #*NATIVE_PLANETARY_SHIELDS_LABEL
-#* <not translated 1970-01-01 01:00:00>
-
-# %1% FIXME
-# %2% FIXME
-#*NATIVE_PLANETARY_TROOPS_LABEL
 #* <not translated 1970-01-01 01:00:00>
 
 #*VERY_BRIGHT_STAR

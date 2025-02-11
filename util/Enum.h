@@ -2,8 +2,9 @@
 #define _Enum_h_
 
 #include <algorithm>
-#include <iostream>
 #include <array>
+#include <cstdint>
+#include <iostream>
 #include <string>
 
 #include <boost/preprocessor/comparison/equal.hpp>
@@ -140,7 +141,7 @@ BOOST_PP_CAT(FO_ENUM_NAME_FROM_TYPENAME(typeName), Values)() noexcept {\
 
 /** @brief Implementation detail for FO_ENUM */
 #define FO_DEF_ENUM_FROM_STRING(typeName) \
-inline constexpr auto \
+constexpr auto \
 BOOST_PP_CAT(FO_ENUM_NAME_FROM_TYPENAME(typeName), FromString)( \
     std::string_view sv, \
     FO_ENUM_NAME_FROM_TYPENAME(typeName) not_found_result = FO_ENUM_NAME_FROM_TYPENAME(typeName)(0) \

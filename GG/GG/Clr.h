@@ -33,16 +33,16 @@ namespace GG {
     (little-endian) or opaque yellow (big-endian).*/
 struct Clr
 {
-    constexpr Clr() = default;
+    [[nodiscard]] constexpr Clr() = default;
 
     /** ctor that constructs a Clr from four ints that represent the color channels */
-    constexpr Clr(uint8_t r_, uint8_t g_, uint8_t b_, uint8_t a_) noexcept :
+    [[nodiscard]] constexpr Clr(uint8_t r_, uint8_t g_, uint8_t b_, uint8_t a_ = 255u) noexcept :
         r(r_), g(g_), b(b_), a(a_)
     {}
 
     /** ctor that constructs a Clr from std::array that represents the color channels */
-    constexpr Clr(std::array<uint8_t, 4> clr) noexcept :
-        Clr{std::get<0>(clr), std::get<1>(clr), std::get<2>(clr), std::get<3>(clr)}
+    [[nodiscard]] constexpr Clr(std::array<uint8_t, 4> clr) noexcept :
+        Clr(clr[0], clr[1], clr[2], clr[3])
     {}
 
     /** ctor that constructs a Clr from a string that represents the color
@@ -51,71 +51,109 @@ struct Clr
         value FF is assumed. When characters out of the range 0-9 and A-F are
         passed, results are undefined.
     */
-    constexpr Clr(std::string_view hex_colour)
+    [[nodiscard]] constexpr Clr(std::string_view hex_colour)
     {
         const auto sz = hex_colour.size();
-
-        auto val_from_two_hex_chars = [](std::string_view chars) -> uint8_t {
-            auto digit0 = chars[0];
-            auto digit1 = chars[1];
-            uint8_t val0 = 16 * (digit0 >= 'A' ? (digit0 - 'A' + 10) : (digit0 - '0'));
-            uint8_t val1 = (digit1 >= 'A' ? (digit1 - 'A' + 10) : (digit1 - '0'));
-            return val0 + val1;
-        };
-        static_assert(val_from_two_hex_chars("01") == 1);
-        static_assert(val_from_two_hex_chars("FF") == 255);
-        static_assert(val_from_two_hex_chars("A0") == 160);
-        constexpr auto huh = val_from_two_hex_chars("!.");
-        static_assert(huh == 14u);
-
-        r = (sz >= 2) ? val_from_two_hex_chars(hex_colour.substr(0, 2)) : 0;
-        g = (sz >= 4) ? val_from_two_hex_chars(hex_colour.substr(2, 2)) : 0;
-        b = (sz >= 6) ? val_from_two_hex_chars(hex_colour.substr(4, 2)) : 0;
-        a = (sz >= 8) ? val_from_two_hex_chars(hex_colour.substr(6, 2)) : 255;
+        r = (sz >= 2) ? ValFromTwoHexChars(hex_colour.substr(0, 2)) : 0;
+        g = (sz >= 4) ? ValFromTwoHexChars(hex_colour.substr(2, 2)) : 0;
+        b = (sz >= 6) ? ValFromTwoHexChars(hex_colour.substr(4, 2)) : 0;
+        a = (sz >= 8) ? ValFromTwoHexChars(hex_colour.substr(6, 2)) : 255;
     }
 
-    explicit constexpr operator uint32_t() const noexcept
+    [[nodiscard]] explicit constexpr operator uint32_t() const noexcept
+    { return (r << 24) + (g << 16) + (b << 8) + a; }
+
+    [[nodiscard]] constexpr auto ToCharArray() const noexcept
     {
-        uint32_t retval = r << 24;
-        retval += g << 16;
-        retval += b << 8;
-        retval += a;
-        return retval;
+        //                                 "255"  ' '   0
+        std::array<std::string::value_type, 4*3 + 3*1 + 1> buf{};
+        auto it = buf.data();
+
+        it = UInt8ToChars(it, r);
+        *it++ = ' ';
+        it = UInt8ToChars(it, g);
+        *it++ = ' ';
+        it = UInt8ToChars(it, b);
+        *it++ = ' ';
+        it = UInt8ToChars(it, a);
+
+        return buf;
     }
 
-    explicit operator std::string() const
+    [[nodiscard]] explicit operator std::string() const
     {
-        std::string retval;
-        retval.reserve(1 + 4*3 + 3*2 + 1 + 1);
-        retval.append("(").append(std::to_string(+r)).append(", ").append(std::to_string(+g))
-              .append(", ").append(std::to_string(+b)).append(", ").append(std::to_string(+a))
-              .append(")");
-        return retval;
+        const auto data = ToCharArray();
+        return std::string{data.data()};
     }
 
-    constexpr std::array<uint8_t, 4> RGBA() const noexcept
+    [[nodiscard]] constexpr std::array<uint8_t, 4> RGBA() const noexcept
     { return {r, g, b, a}; }
+
+#if defined(__cpp_impl_three_way_comparison)
+    [[nodiscard]] constexpr auto operator<=>(const Clr&) const noexcept = default;
+#else
+    [[nodiscard]] constexpr bool operator==(const Clr& rhs) const noexcept
+    { return r == rhs.r && g == rhs.g && b == rhs.b && a == rhs.a; };
+    [[nodiscard]] constexpr bool operator!=(const Clr& rhs) const noexcept
+    { return r != rhs.r || g != rhs.g || b != rhs.b || a != rhs.a; };
+#endif
 
     uint8_t r = 0;    ///< the red channel
     uint8_t g = 0;    ///< the green channel
     uint8_t b = 0;    ///< the blue channel
     uint8_t a = 0;    ///< the alpha channel
+
+    [[nodiscard]] static constexpr auto ToHexChars(uint8_t bits) noexcept
+    {
+        using val_t = std::string_view::value_type;
+        const uint8_t high_bits = bits >> 4;
+        val_t high_char = (high_bits > 9) ? ('A' + high_bits - 10) : ('0' + high_bits);
+        const uint8_t low_bits = bits & 0xF;
+        val_t low_char = (low_bits > 9) ? ('A' + low_bits - 10) : ('0' + low_bits);
+        return std::array<val_t, 2>{high_char, low_char};
+    };
+
+    [[nodiscard]] constexpr std::array<std::string_view::value_type, 8> Hex() const noexcept
+    {
+        const auto rhex = ToHexChars(r);
+        const auto ghex = ToHexChars(g);
+        const auto bhex = ToHexChars(b);
+        const auto ahex = ToHexChars(a);
+        return {rhex[0], rhex[1], ghex[0], ghex[1], bhex[0], bhex[1], ahex[0], ahex[1]};
+    }
+
+    [[nodiscard]] static constexpr uint8_t ValFromTwoHexChars(std::string_view chars) noexcept
+    {
+        auto digit0 = chars[0];
+        auto digit1 = chars[1];
+        uint8_t val0 = 16 * (digit0 >= 'A' ? (digit0 - 'A' + 10) : (digit0 - '0'));
+        uint8_t val1 = (digit1 >= 'A' ? (digit1 - 'A' + 10) : (digit1 - '0'));
+        return val0 + val1;
+    };
+
+    static constexpr std::string::value_type* UInt8ToChars(
+        std::string::value_type* out_it, const uint8_t num) noexcept
+    {
+        const uint8_t hundreds = num / 100u;
+        const uint8_t less_than_100 = num - hundreds*100u;
+        const uint8_t tens = less_than_100 / 10u;
+        const uint8_t ones = less_than_100 - tens*10u;
+        if (hundreds > 0)
+            *out_it++ = (hundreds + '0');
+        if (tens > 0 || hundreds > 0)
+            *out_it++ = (tens + '0');
+        *out_it++ = (ones + '0');
+        return out_it;
+    };
+
+    [[nodiscard]] static constexpr auto UInt8ToCharArray(uint8_t num) noexcept
+    {
+        static_assert(std::array<std::string::value_type, 4>{}.back() == 0);
+        std::array<std::string::value_type, 4> buf{};
+        UInt8ToChars(buf.data(), num);
+        return buf;
+    };
 };
-
-static_assert(uint32_t{Clr{0,0,0,1}} == 1u);
-static_assert(uint32_t{Clr{0,0,2,3}} == 2*256u + 3u);
-static_assert(uint32_t{Clr{255,1,0,0}} == 256*256*256*255u + 256*256*1u);
-
-/** Returns true iff \a rhs and \a lhs are identical. */
-constexpr bool operator==(Clr rhs, Clr lhs) noexcept
-{ return rhs.r == lhs.r && rhs.g == lhs.g && rhs.b == lhs.b && rhs.a == lhs.a; }
-
-/** Returns true iff \a rhs and \a lhs are different. */
-constexpr bool operator!=(Clr rhs, Clr lhs) noexcept
-{ return !(rhs == lhs); }
-
-static_assert(Clr("A0FF01") == Clr{160, 255, 1, 255});
-static_assert(Clr("12345678") == Clr{16*1+2, 16*3+4, 16*5+6, 16*7+8});
 
 inline std::ostream& operator<<(std::ostream& os, Clr clr)
 {
@@ -128,9 +166,9 @@ inline std::ostream& operator<<(std::ostream& os, Clr clr)
 constexpr Clr LightenClr(Clr clr, float factor = 2.0) noexcept
 {
     return Clr(
-        static_cast<uint8_t>(std::min(static_cast<int>(clr.r * factor), 255)),
-        static_cast<uint8_t>(std::min(static_cast<int>(clr.g * factor), 255)),
-        static_cast<uint8_t>(std::min(static_cast<int>(clr.b * factor), 255)),
+        static_cast<uint8_t>(std::max(std::min(clr.r*factor, 255.0f), 0.0f)),
+        static_cast<uint8_t>(std::max(std::min(clr.g*factor, 255.0f), 0.0f)),
+        static_cast<uint8_t>(std::max(std::min(clr.b*factor, 255.0f), 0.0f)),
         clr.a);
 }
 
@@ -139,56 +177,32 @@ constexpr Clr LightenClr(Clr clr, float factor = 2.0) noexcept
 constexpr Clr DarkenClr(const Clr clr, float factor = 2.0) noexcept
 {
     return Clr(
-        static_cast<uint8_t>(clr.r / factor),
-        static_cast<uint8_t>(clr.g / factor),
-        static_cast<uint8_t>(clr.b / factor),
+        static_cast<uint8_t>(std::max(std::min(clr.r / factor, 255.0f), 0.0f)),
+        static_cast<uint8_t>(std::max(std::min(clr.g / factor, 255.0f), 0.0f)),
+        static_cast<uint8_t>(std::max(std::min(clr.b / factor, 255.0f), 0.0f)),
         clr.a);
 }
 
 constexpr Clr InvertClr(const Clr clr) noexcept
 { return Clr(255 - clr.r, 255 - clr.g, 255 - clr.b, clr.a); }
 
-constexpr Clr BlendClr(Clr src, Clr dst, float factor) noexcept
+constexpr Clr BlendClr(Clr src, Clr dst, float factor = 0.5f) noexcept
 {
-    return Clr(static_cast<uint8_t>(src.r * factor + dst.r * (1 - factor)),
-               static_cast<uint8_t>(src.g * factor + dst.g * (1 - factor)),
-               static_cast<uint8_t>(src.b * factor + dst.b * (1 - factor)),
-               static_cast<uint8_t>(src.a * factor + dst.a * (1 - factor)));
+    const auto ifactor = 1.0f - factor;
+    return Clr(static_cast<uint8_t>(std::max(std::min(src.r*factor + dst.r*ifactor, 255.0f), 0.0f)),
+               static_cast<uint8_t>(std::max(std::min(src.g*factor + dst.g*ifactor, 255.0f), 0.0f)),
+               static_cast<uint8_t>(std::max(std::min(src.b*factor + dst.b*ifactor, 255.0f), 0.0f)),
+               static_cast<uint8_t>(std::max(std::min(src.a*factor + dst.a*ifactor, 255.0f), 0.0f)));
 }
 
 /** Named ctor that constructs a Clr from four floats that represent the color
     channels (each must be >= 0.0 and <= 1.0). */
 constexpr Clr FloatClr(float r, float g, float b, float a) noexcept
 {
-    return Clr(static_cast<uint8_t>(r * 255),
-               static_cast<uint8_t>(g * 255),
-               static_cast<uint8_t>(b * 255),
-               static_cast<uint8_t>(a * 255));
-}
-
-/** Returns the input Clr scaned by the input factor \a s. */
-constexpr Clr operator*(Clr lhs, float s) noexcept
-{
-    return Clr(static_cast<uint8_t>(lhs.r * s),
-               static_cast<uint8_t>(lhs.g * s),
-               static_cast<uint8_t>(lhs.b * s),
-               static_cast<uint8_t>(lhs.a * s));
-}
-
-/** Returns the component-wise sum of input Clrs. */
-constexpr Clr operator+(Clr lhs, Clr rhs) noexcept
-{ return Clr(lhs.r + rhs.r, lhs.g + rhs.g, lhs.b + rhs.b, lhs.a + rhs.a); }
-
-/** Clr comparisons */
-constexpr bool operator<(Clr lhs, Clr rhs) noexcept
-{
-    if (rhs.r != lhs.r)
-        return rhs.r < lhs.r;
-    if (rhs.g != lhs.g)
-        return rhs.g < lhs.g;
-    if (rhs.b != lhs.b)
-        return rhs.b < lhs.b;
-    return rhs.a < lhs.a;
+    return Clr(static_cast<uint8_t>(std::max(std::min(r, 1.0f) * 255, 0.0f)),
+               static_cast<uint8_t>(std::max(std::min(g, 1.0f) * 255, 0.0f)),
+               static_cast<uint8_t>(std::max(std::min(b, 1.0f) * 255, 0.0f)),
+               static_cast<uint8_t>(std::max(std::min(a, 1.0f) * 255, 0.0f)));
 }
 
 }

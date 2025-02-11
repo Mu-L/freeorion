@@ -140,7 +140,7 @@
 // The logging levels.
 enum class LogLevel : uint8_t {trace, debug, info, warn, error, min = trace, max = error};
 
-constexpr LogLevel default_log_level_threshold = LogLevel::debug;
+inline constexpr LogLevel default_log_level_threshold = LogLevel::debug;
 
 namespace LoggerDetails {
     constexpr std::array<std::string_view, 5> log_level_names{"trace", "debug", "info", "warn", "error"};
@@ -154,7 +154,7 @@ constexpr const char* to_string(LogLevel level) {
 }
 
 namespace LoggerDetails {
-    constexpr std::array<std::pair<std::string_view, LogLevel>, 14> valid_names_and_levels{{
+    inline constexpr std::array<std::pair<std::string_view, LogLevel>, 14> valid_names_and_levels{{
         {to_string(LogLevel::trace), LogLevel::trace},
         {"TRACE",                    LogLevel::trace},
         {to_string(LogLevel::debug), LogLevel::debug},
@@ -218,14 +218,14 @@ FO_COMMON_API void ShutdownLoggingSystemFileSink();
     remove the ovverride and allow subsequent SetLoggerThreshold() to work as normal. */
 FO_COMMON_API void OverrideAllLoggersThresholds(boost::optional<LogLevel> threshold);
 
-FO_COMMON_API const std::string& DefaultExecLoggerName();
+FO_COMMON_API const std::string& DefaultExecLoggerName() noexcept;
 
 /** A type for loggers (sources) that allows for severity and a logger name (channel in
     boost parlance) and supports multithreading.*/
 using NamedThreadedLogger = boost::log::sources::severity_channel_logger_mt<
     LogLevel,     ///< the type of the severity level
     std::string   ///< the channel name of the logger
-    >;
+>;
 
 // Setup file sink, formatting, and \p name channel filter for \p logger.
 FO_COMMON_API void ConfigureLogger(NamedThreadedLogger& logger, const std::string& name);
@@ -258,7 +258,7 @@ FO_COMMON_API std::vector<std::string> CreatedLoggersNames();
     BOOST_LOG_INLINE_GLOBAL_LOGGER_INIT(                                    \
         FO_GLOBAL_LOGGER_NAME(__VA_ARGS__), NamedThreadedLogger)            \
     {                                                                       \
-        constexpr auto channel = BOOST_PP_IF(                               \
+        static constexpr auto channel = BOOST_PP_IF(                        \
             BOOST_PP_AND(                                                   \
                 FO_LOGGER_WIN32_WORKAROUND,                                 \
                 BOOST_PP_IS_EMPTY(__VA_ARGS__)),                            \

@@ -2,7 +2,7 @@ Français
 
 # This is the French String Table file for FreeOrion.
 #
-# Traduction par alchemy, shivu, zareif, nilstilar et Ouaz. Traduction achevée le 12 Juillet 2015 et couramment maintenue/améliorée par Ouaz (http://github.com/Ouaz/freeorion).
+# Traduction par alchemy, shivu, zareif, nilstilar et Ouaz. Traduction achevée le 12 Juillet 2015 et couramment maintenue/améliorée par Ouaz (https://github.com/freeorion/freeorion/commits/master/default/stringtables/fr.txt).
 #
 # Notes: to avoid potential conflict with functional keys in other files, do not make
 # any stringtable keys beginning with "FUNCTIONAL_".
@@ -1213,6 +1213,36 @@ Activer Expérimentateurs
 RULE_ENABLE_EXPERIMENTORS_DESC
 Active les Expérimentateurs lors de la génération de la galaxie
 
+RULE_EXPERIMENTORS_SPAWN_BASE_TURN
+Tour apparition des Expérimentateurs
+
+RULE_EXPERIMENTORS_SPAWN_BASE_TURN_DESC
+Tour minimum avant l'apparition des Expérimentateurs. Dépend de la taille de la galaxie et du Niveau d'Agressivité de l'IA.
+
+RULE_NESTS_ALWAYS_SPAWN_WILD
+Monstres sauvages éclosent toujours des nids
+
+RULE_NESTS_ALWAYS_SPAWN_WILD_DESC
+Les nids de monstres feront toujours apparaître des monstres sauvages, même si exilés
+
+RULE_WANDERING_MONSTERS_CAN_STOP_INSYSTEM
+Arrêt occasionnel des monstres errants dans système
+
+RULE_WANDERING_MONSTERS_CAN_STOP_INSYSTEM_DESC
+Les monstres errants peuvent s'arrêter occasionnellement dans un système
+
+RULE_WILD_NEST_MONSTER_SPAWN_FACTOR
+Facteur apparition monstres sauvages dans nids
+
+RULE_WILD_NEST_MONSTER_SPAWN_FACTOR_DESC
+Multiplie la probabilité qu'un monstre sauvage éclose dans un nid
+
+RULE_DOMESTIC_NEST_MONSTER_SPAWN_FACTOR
+Facteur apparition monstres domestiqués dans nids
+
+RULE_DOMESTIC_NEST_MONSTER_SPAWN_FACTOR_DESC
+Multiplie la probabilité qu'un monstre domestiqué éclose dans un nid
+
 RULE_ENABLE_SUPER_TESTER
 Activer Invasion Super-Testeurs
 
@@ -1224,6 +1254,12 @@ Autoriser les doublons d'espèces
 
 RULE_ALLOW_REPEATED_SPECIES_DESC
 Autorise les doublons d'espèces si le nombre de joueurs est inférieur au nombre d'espèces jouables. Quand le nombre de joueurs est supérieur au nombre d'espèces jouables, les doublons d'espèces sont toujours activés.
+
+RULE_ENSURE_HABITABLE_PLANET_HW_VICINITY
+Garantir planète habitable proche du monde natal
+
+RULE_ENSURE_HABITABLE_PLANET_HW_VICINITY_DESC
+Garantit au moins 1 planète d'environnement convenable ou mieux à proximité du monde natal. Est appliqué avant le placement des espèces indigènes ou des particularités.
 
 RULE_STOCKPILE_IMPORT_LIMITED
 Limite Import Stock
@@ -1267,6 +1303,12 @@ Détection extrasolaire par les astronefs
 RULE_EXTRASOLAR_SHIP_DETECTION_DESC
 Les astronefs à l'extérieur des systèmes participent à la Détection.
 
+RULE_OVERRIDE_VIS_LEVEL
+Visibilité des Blocus Furtifs
+
+RULE_OVERRIDE_VIS_LEVEL_DESC
+Niveau de visibilité auquel les flottes et astronefs furtifs sont révélés à l'empire possédant une flotte soumise au blocus.
+
 RULE_UNSEEN_STEALTHY_PLANETS_INVISIBLE
 Planètes Furtives Indétectables
 
@@ -1282,6 +1324,22 @@ RULE_BASIC_VIS_SYSTEM_INFO_SHOWN_DESC
 '''<u>Si activé</u>: Les systèmes détectés par un empire uniquement à un niveau de visibilité basique ont leur nom et leur type d'étoile révélés à cet empire. Peut causer un problème d'affichage rendant difficile de déterminer si les Voies spatiales d'un système sont connues ou non.
 
 <u>Si désactivé</u>: Les systèmes d'un niveau de visibilité basique n'ayant jamais été détectés à un niveau de visibilité supérieure ont un nom et un type d'étoile inconnus.'''
+
+RULE_HIDDEN_POLICIES
+Cacher Politiques des empires
+
+RULE_HIDDEN_POLICIES_DESC
+'''<u>Si activé</u>: Les joueurs n'étant pas alliés avec un empire ne peuvent pas voir les politiques disponibles ou adoptées par les autres empires.
+
+<u>Si désactivé</u>: Tous les joueurs peuvent voir les politiques disponibles ou adoptées par les autres empires.'''
+
+RULE_HIDDEN_TECHS_QUEUES_AVAILABILITIES
+Cacher Technologies, Files d'attente, et Objets disponibles des empires
+
+RULE_HIDDEN_TECHS_QUEUES_AVAILABILITIES_DESC
+'''<u>Si activé</u>: Les joueurs n'étant pas alliés avec un empire ne peuvent pas voir les technologies recherchées, les files d'attente, les équipements, coques, et structures disponibles des autres empires.
+
+<u>Si désactivé</u>: Tous les joueurs peuvent voir les technologies recherchées, les files d'attente, et objets disponibles des autres empires.'''
 
 RULE_HABITABLE_SIZE_TINY
 Zone habitable Minuscules Planètes
@@ -1312,6 +1370,30 @@ Stabilité planétaire de base
 
 RULE_BASELINE_PLANET_STABILITY_DESC
 Niveau de base de la [[METER_HAPPINESS]] d'une planète.
+
+RULE_BASELINE_SPECIES_EMPIRE_OPINION
+Opinion de base des espèces sur l'empire
+
+RULE_BASELINE_SPECIES_EMPIRE_OPINION_DESC
+Niveau de base des opinions des espèces sur les empires.
+
+RULE_INVASION_OPINION_PENALTY_SCALING
+Variation opinion d'une espèce après invasion planétaire
+
+RULE_INVASION_OPINION_PENALTY_SCALING_DESC
+Définit la pénalité d'opinion d'une espèce sur l'empire étant l'envahisseur le plus récent de planètes abritant l'espèce.
+
+RULE_SHIPS_LOST_DESTROYED_PENALTY_SCALING
+Variation opinion d'une espèce après perte ou destruction d'astronefs
+
+RULE_SHIPS_LOST_DESTROYED_PENALTY_SCALING_DESC
+Définit la pénalité d'opinion d'une espèce sur l'empire perdant ou détruisant des astronefs de combat de l'espèce.
+
+RULE_COLONIES_FOUNDED_BONUS_SCALING
+Variation opinion après colonisation
+
+RULE_COLONIES_FOUNDED_BONUS_SCALING_DESC
+Définit le bonus d'opinion d'une espèce sur l'empire fondant des colonies avec cette espèce.
 
 RULE_PROTECTION_FOCUS_STABILITY
 Bonus Stabilité du Focus Protection
@@ -1403,6 +1485,24 @@ Nombre maximum de colonies pour capituler
 RULE_CONCEDE_COLONIES_THRESHOLD_DESC
 Les empires contrôlant un nombre de colonies supérieur à cette valeur ne peuvent pas capituler.
 
+RULE_CONCEDE_DESTROY_COLONIES
+Dépopulation des colonies après capitulation
+
+RULE_CONCEDE_DESTROY_COLONIES_DESC
+Si activé, les colonies appartenant aux empires ayant capitulé perdent leur population. Si désactivé, les astronefs deviennent libres (sans propriétaire).
+
+RULE_CONCEDE_DESTROY_BUILDINGS
+Destruction des structures après capitulation
+
+RULE_CONCEDE_DESTROY_BUILDINGS_DESC
+Si activé, les structures appartenant aux empires ayant capitulé sont détruites. Si désactivé, les structures deviennent libres (sans propriétaire).
+
+RULE_CONCEDE_DESTROY_SHIPS
+Destruction des astronefs après capitulation
+
+RULE_CONCEDE_DESTROY_SHIPS_DESC
+Si activé, les astronefs appartenant aux empires ayant capitulé sont détruits. Si désactivé, les astronefs deviennent libres (sans propriétaire).
+
 RULE_THRESHOLD_HUMAN_PLAYER_WIN
 Maximum de joueurs humains vainqueurs
 
@@ -1421,12 +1521,6 @@ Activer Entretien des Équipements
 RULE_SHIP_PART_BASED_UPKEEP_DESC
 Calculer le coût d'entretien selon les équipements de l'astronef plutôt que selon le modèle d'astronef lui-même.
 
-RULE_ENABLE_ALLIED_REPAIR
-Réparation en Cale Sèche et Spatiale pour astronefs alliés
-
-RULE_ENABLE_ALLIED_REPAIR_DESC
-Autorise la structure Cale Sèche Orbitale et la technologie Réparation Spatiale à réparer les astronefs des empires alliés.
-
 RULE_DIPLOMACY
 Interactions Diplomatie
 
@@ -1438,6 +1532,36 @@ Toutes autorisées
 
 RULE_DIPLOMACY_FORBIDDEN_FOR_ALL
 Toutes interdites
+
+RULE_ANNEX_COST_OPINION_EXP_BASE
+Annexion (opinion): coût exponentiel de base
+
+RULE_ANNEX_COST_OPINION_EXP_BASE_DESC
+Valeur exponentielle de base déterminant la mise à l'échelle des coûts d'annexion selon l'opinion de l'espèce sur l'empire.
+
+RULE_ANNEX_COST_SCALING
+Annexion (population): échelle des coûts
+
+RULE_ANNEX_COST_SCALING_DESC
+Facteur d'échelle déterminant les coûts d'annexion selon la population de la planète.
+
+RULE_ANNEX_COST_STABILITY_EXP_BASE
+Annexion (stabilité): coût exponentiel de base
+
+RULE_ANNEX_COST_STABILITY_EXP_BASE_DESC
+Valeur exponentielle de base déterminant la mise à l'échelle des coûts d'annexion selon la stabilité de la planète.
+
+RULE_BUILDING_ANNEX_COST_SCALING
+Annexion (structure): coût exponentiel de base
+
+RULE_BUILDING_ANNEX_COST_SCALING_DESC
+Facteur d'échelle déterminant les coûts d'annexion selon le coût de production des structures.
+
+RULE_ANNEX_COST_MINIMUM
+Annexion: coût minimum
+
+RULE_ANNEX_COST_MINIMUM_DESC
+Coût minimum pour annexer une planète.
 
 
 ##
@@ -3450,6 +3574,9 @@ Fichiers de musiques
 OPTIONS_SOUND_FILE
 Fichiers de sons
 
+OPTIONS_FONT_FILE
+Fichiers de police
+
 OPTIONS_DUMP_EFFECTS_GROUPS_DESC
 Génération automatique des descriptions d'effets
 
@@ -3861,6 +3988,45 @@ Panneau planétaire
 PL_ASTEROID_BELT_OF_SYSTEM
 Astéroïdes %1%
 
+# %1% cost in IP to annex this planet
+PL_ANNEX
+Annexer (%1% PI)
+
+PL_ANNEX_FREE
+Annexer
+
+# %1% cost in IP to annex this planet
+PL_ANNEXABLE
+Annexable pour %1% PI
+
+PL_ANNEXATION_RESTRICTED
+Non annexable
+
+# %1% cost in IP to annex this planet
+PL_CANCEL_ANNEX
+Annuler Annexion (%1% PI)
+
+# %1% planet species name
+# %2% name of client empire
+# %3% species on planet opinion of client empire
+# %4% name of owner empire or "unowned"
+# %5% species opinion of onwer empire
+# %6% stability of planet
+# %7% population of planet
+# %8% PP cost for client empire of buildings on planet
+# %9% annexation cost by client empire
+# %10% description of conditions for annexation
+ANNEX_BUTTON_TOOLTIP
+'''Opinion de %1% sur %2% : %3%
+Opinion de %1% sur %4% : %5%
+Stabilité planète : %6%
+Population planète : %7%
+Coûts production structures : %8%
+Coût d'annexion pour %2% : %9%
+
+Conditions:
+%10%'''
+
 # %1% size of the population this planet is colonized with.
 # %2% maximum population this planet can support.
 PL_COLONIZE
@@ -3897,6 +4063,12 @@ PL_TYPE_SIZE
 # %4% species name for which suitability applies (Human, Trith, ...).
 PL_TYPE_SIZE_ENV
 %1% %2% (%4% : %3%)
+
+VISIBILITY
+Visibilité
+
+LAST_VISIBILITY_TURN
+Dern. Tour Visible
 
 PL_NO_VISIBILITY
 La planète n'est pas visible actuellement.
@@ -5313,17 +5485,17 @@ ENC_GALAXY_SETUP
 # %10% upper AI aggression level in this galaxy.
 # %11% game UID
 ENC_GALAXY_SETUP_SETTINGS
-'''Graine: %1%
-Nombre de systèmes: %2%
-Forme: %3%
-Âge: %4%
-Voies spatiales: %5%
-Planètes: %6%
-Événements: %7%
-Monstres: %8%
-Indigènes: %9%
-Agressivité max de l'IA: %10%
-UID Partie: %11%
+'''Graine : %1%
+Nombre de systèmes : %2%
+Forme : %3%
+Âge : %4%
+Voies spatiales : %5%
+Planètes : %6%
+Événements : %7%
+Monstres : %8%
+Indigènes : %9%
+Agressivité max de l'IA : %10%
+UID Partie : %11%
 '''
 
 ENC_GAME_RULES
@@ -5458,6 +5630,12 @@ ID Empire
 EMPIRE_METERS
 Indicateurs :
 
+UNKNOWN_SPECIES
+Espèce inconnue
+
+UNKNOWN_EMPIRE
+Empire inconnu (%1%)
+
 RESEARCHED_TECHS
 '''Technologies recherchées : '''
 
@@ -5479,6 +5657,9 @@ Déplacement Flotte %1% vers %2%
 ORDER_FLEET_TRANSFER
 Transfert Flotte %1% dans %2%
 
+ORDER_ANNEX
+Annexer %1%
+
 ORDER_COLONIZE
 Coloniser %1% avec %2%
 
@@ -5497,8 +5678,17 @@ Adopter Politique %1% de la catégorie %2% choix %3%
 ORDER_POLICY_ABANDON
 Abandonner Politique %1%
 
-ORDER_RESEARCH
-Recherche
+ORDER_RESEARCH_REMOVE
+Retirer %1%
+
+ORDER_RESEARCH_PAUSE
+Mettre en pause %1%
+
+ORDER_RESEARCH_RESUME
+Reprendre %1%
+
+ORDER_RESEARCH_ENQUEUE_AT
+Rechercher %1% à l'index %2%
 
 ORDER_PRODUCTION  # translated
 Production
@@ -5531,7 +5721,7 @@ ADOPTED_POLICIES
 '''Politiques adoptées : '''
 
 NO_POLICIES_ADOPTED
-Aucune Politique adoptée
+Aucune Politique connue adoptée
 
 AVAILABLE_PARTS
 '''Équipements disponibles : '''
@@ -5939,6 +6129,11 @@ Les forces [[NEUTRAL]]s ne peuvent pas initialement détecter :
 # %3 link to the empire that owns the defending unit.
 ENC_COMBAT_STEALTH_DECLOAK_ATTACK
 %2% détecte %1% durant l'attaque.
+
+# %1 link to the launching unit
+# %2 link to the empire that detects the launcher
+ENC_COMBAT_STEALTH_DECLOAK_LAUNCH
+%2% détecte %1% durant le lancement des chasseurs.
 
 # %1% unused
 # %2% name of empire detecting decloacking ship
@@ -7342,7 +7537,7 @@ FINAL_DEST
 Système Destination Finale
 
 PREV_TO_FINAL_DEST
-Système Préc. vers Destination Finale
+Système Préc. vers Dest. Finale
 
 NEXT_SYSTEM
 Système Suiv.
@@ -7371,8 +7566,14 @@ Dern. Tour Colonisation
 LAST_TURN_CONQUERED
 Dern. Tour Conquête
 
+LAST_TURN_ANNEXED
+Dern. Tour Annexion
+
 LAST_TURN_ATTACKED_BY_SHIP
 Dern. Tour Attaque par Astronef
+
+ANNEXATION_COST_BY_ME
+Coût Annexion
 
 ARRIVED_ON_TURN
 Arrivé au Tour
@@ -7393,7 +7594,7 @@ ORIGINAL_TYPE
 Type d'origine de la Planète
 
 NEXT_TOWARDS_ORIGINAL_TYPE
-Prochain vers Type d'origine de la Planète
+Prochain vers Type d'orig. de la Planète
 
 PLANET_SIZE
 Équilibrage:Planète
@@ -7624,6 +7825,12 @@ Tous les armements %shippart% des astronefs à portée d'approvisionnement ont �
 SITREP_WEAPONS_UPGRADED_LABEL
 Amélioration technologique Armement
 
+SITREP_WEAPON_SHOTS_UPGRADED
+Tous les armements %shippart% des astronefs à portée d'approvisionnement ont été améliorés par la technologie %tech%. Les armements améliorés effectuent %rawtext:shots% tir additionnel par passe de combat (%rawtext:shotsum%).
+
+SITREP_WEAPON_SHOTS_UPGRADED_LABEL
+Amélioration technologique Armement
+
 SITREP_COMBAT_SYSTEM
 Dans %system% : un %combat% a eu lieu.
 
@@ -7759,6 +7966,18 @@ La population de la planète %planet% a été totalement décimée!
 SITREP_PLANET_DEPOPULATED_LABEL
 Planète détruite
 
+SITREP_PLANET_ANNEXED
+La planète %planet% a été annexée par %empire%.
+
+SITREP_PLANET_ANNEXED_LABEL
+Planète neutre annexée
+
+SITREP_PLANET_ANNEXED_FROM_OTHER_EMPIRE
+La planète %planet% a été annexée par %empire:annexer% (appartenait à %empire:original%).
+
+SITREP_PLANET_ANNEXED_FROM_OTHER_EMPIRE_LABEL
+Planète d'un empire annexée
+
 SITREP_PLANET_COLONIZED
 La planète %planet% a été colonisée par l'espèce %species%.
 
@@ -7875,6 +8094,21 @@ La flotte '%fleet%' de %empire% (%rawtext% astronefs) a atteint le système %sys
 
 SITREP_FOREIGN_FLEET_ARRIVED_AT_DESTINATION_LABEL
 Flotte étrangère arrivée à destination
+
+SITREP_FLEET_BLOCKADED
+Dans %system% : la flotte %fleet% de %empire:blockaded% a été stoppée par un blocus de %empire:blockader%.
+
+SITREP_FLEET_BLOCKADED_NEUTRAL
+Dans %system% : la flotte %fleet% a été stoppée par un blocus.
+
+SITREP_FLEET_BLOCKADED_LABEL
+Flotte soumise à un blocus
+
+SITREP_FLEET_BLOCKADED_NO_EMPIRE
+Dans %system% : la flotte %fleet% a été stoppée par un blocus.
+
+SITREP_FLEET_BLOCKADED_NO_EMPIRE_LABEL
+Flotte soumise à un blocus
 
 SITREP_POP_THRESHOLD
 Sur %planet% : la colonie a atteint la taille et la [[metertype METER_HAPPINESS]] prérequise pour entreprendre la colonisation d'autres planètes. L'[[metertype METER_INDUSTRY]] et la [[metertype METER_RESEARCH]] peuvent commencer à croître.
@@ -8460,6 +8694,9 @@ Opinions des Empires :
 
 OPINIONS_OF_OTHER_SPECIES
 Opinions des autres Espèces :
+
+SPECIES_OPINIONS
+Opinions de l'Espèce :
 
 
 ##
@@ -10941,10 +11178,10 @@ DESC_VAR_TARGET
 cible
 
 DESC_VAR_LOCAL_CANDIDATE
-éligible aux conditions locales
+éligible
 
 DESC_VAR_ROOT_CANDIDATE
-éligible aux conditions d'origine
+éligible de base
 
 DESC_STAT_TYPE
 type de statistique
@@ -11120,6 +11357,18 @@ propriétaire
 DESC_VAR_AGE
 âge en tours
 
+DESC_VAR_TURNSSINCEFOCUSCHANGE
+tours depuis modif. focus
+
+DESC_VAR_TURNSSINCEANNEXATION
+tours depuis annexion
+
+DESC_VAR_TURNSSINCECOLONIZATION
+tours depuis colonisation
+
+DESC_VAR_TURNSSINCELASTCONQUERED
+tours depuis conquête
+
 DESC_VAR_PRODUCEDBYEMPIREID
 empire producteur
 
@@ -11147,6 +11396,15 @@ id prochain système
 DESC_VAR_PREVIOUSSYSTEMID
 id système précédent
 
+DESC_VAR_PREVIOUSTOFINALDESTINATIONID
+id dest. finale précédente
+
+DESC_VAR_ARRIVALSTARLANEID
+id voie spatiale d'arrivée
+
+DESC_VAR_LASTTURNMOVEORDERED
+id dern. tour ordre déplac.
+
 DESC_VAR_NUMSHIPS
 nombre d'astronefs
 
@@ -11172,25 +11430,49 @@ DESC_VAR_AVAILABLE_FOCI
 foci disponibles
 
 DESC_VAR_OWNERLEASTEXPENSIVEENQUEUEDTECH
-technologie la moins coûteuse mise en attente de recherche
+tech. la moins coûteuse mise en file de rech.
 
 DESC_VAR_OWNERMOSTEXPENSIVEENQUEUEDTECH
-technologie la plus coûteuse mise en attente de recherche
+tech. la plus coûteuse mise en file de rech.
 
 DESC_VAR_OWNERMOSTRPCOSTLEFTENQUEUEDTECH
-technologie au coût résiduel le plus important
+tech. au coût résiduel le plus important
 
 DESC_VAR_OWNERMOSTRPSPENTENQUEUEDTECH
-technologie au coût déjà engagé le plus important
+tech. au coût déjà engagé le plus important
 
 DESC_VAR_OWNERTOPPRIORITYENQUEUEDTECH
 technologie prioritaire
 
 DESC_VAR_LASTTURNBATTLEHERE
-dernier tour où une bataille s'est déroulée ici
+dern. tour où bataille a eu lieu ici
+
+DESC_VAR_LASTTURNATTACKEDBYSHIP
+dern. tour attaque par astronef
+
+DESC_VAR_LASTTURNCOLONIZED
+dern. tour colonisation
+
+DESC_VAR_LASTTURNCONQUERED
+dern. tour conquête
+
+DESC_VAR_LASTTURNANNEXED
+dern. tour annexion
+
+DESC_VAR_ORDEREDGIVENTOEMPIRE
+ordre donné à empire
+
+DESC_VAR_OWNERBEFORELASTCONQUERED
+propriétaire avant dern. conquête
+
+DESC_VAR_LASTINVADEDBYEMPIRE
+dern. invasion par empire
+
+DESC_VAR_LASTCOLONIZEDBYEMPIRE
+dern. colonisation par empire
 
 DESC_VAR_JUMPSBETWEEN
-voies spatiales entre les systèmes contenant les objets avec les ids %1% et %2%
+voies spatiales entre systèmes contenant objets avec ids %1% et %2%
 
 DESC_VAR_STATISTIC
 Statistique
@@ -11326,6 +11608,12 @@ DESC_NONE_NOT  # translated
 
 DESC_NOOP  # translated
 (NoOp)
+
+DESC_EMPIRE_HAS_ADOPTED_POLICY
+''' appartenant à un empire ayant adopté %1%'''
+
+DESC_EMPIRE_HAS_ADOPTED_POLICY_NOT
+''' appartenant à un empire n'ayant pas adopté %1%'''
 
 # %1% name of the empire this condition applies to.
 DESC_EMPIRE_AFFILIATION_SELF
@@ -11778,12 +12066,42 @@ DESC_WITHIN_STARLANE_JUMPS_NOT
 ''' n'étant pas à moins de %1% voies spatiales de tout objet%2%'''
 
 # %1% textual description of the far endpoint system the starlane connects to.
-DESC_CAN_ADD_STARLANE_CONNECTION
-''' auquel on peut ajouter des voies spatiales vers tous les systèmes contenant des objets%1%'''
+DESC_HAS_STARLANE_TO
+''' ayant une voie spatiale vers un lieu avec tout objet%1%'''
 
 # %1% textual description of the far endpoint system the starlane connects to.
-DESC_CAN_ADD_STARLANE_CONNECTION_NOT
-''' auquel on ne peut pas ajouter des voies spatiales vers tous les systèmes contenant des objets%1%'''
+DESC_HAS_STARLANE_TO_NOT
+''' n'ayant pas une voie spatiale vers un lieu avec tout objet%1%'''
+
+# %1% textual description of the other endpoint system the starlane connects to.
+DESC_STARLANE_TO_WOULD_CROSS_EXISTING_LANE
+''' qui croiserait une voie spatiale existante si ajout d'une voie spatiale entre la source et un lieu avec tout objet %1%'''
+
+# %1% textual description of the other endpoint system the starlane connects to.
+DESC_STARLANE_TO_WOULD_CROSS_EXISTING_LANE_NOT
+''' qui ne croiserait pas une voie spatiale existante si ajout d'une voie spatiale entre la source et un lieu avec tout objet %1%'''
+
+# %1% textual description of the other endpoint system the starlane connects to.
+# %2% textual description max dot product of normalized lane vectors to consider "close".
+DESC_STARLANE_TO_WOULD_BE_ANGULARLY_CLOSE
+''' duquel une nouvelle voie spatiale serait angulairement proche (produit scalaire > %2%) d'une voie spatiale existante à une extrémité, avec l'autre extrémité ayant tout objet %1%'''
+
+# %1% textual description of the other endpoint system the starlane connects to.
+# %2% textual description max dot product of normalized lane vectors to consider "close".
+DESC_STARLANE_TO_WOULD_BE_ANGULARLY_CLOSE_NOT
+''' duquel une nouvelle voie spatiale ne serait pas angulairement proche (produit scalaire > %2%) d'une voie spatiale existante à une extrémité, avec l'autre extrémité ayant tout objet %1%'''
+
+# %1% textual description of the other endpoint objects(s) the starlane(s) connect(s) to.
+# %2% textual description max distance from a lane to consider "close".
+# %3% textual description of the object(s) that the lane would be close to
+DESC_STARLANE_TO_WOULD_BE_CLOSE
+''' duquel une nouvelle voie spatiale depuis un objet dont %1% serait proche (distance < %2%) d'un objet %3%'''
+
+# %1% textual description of the other endpoint object(s) the starlane(s) connect(s) to.
+# %2% textual description max distance from a lane to consider "close".
+# %3% textual description of the object(s) that the lane would be close to
+DESC_STARLANE_TO_WOULD_BE_CLOSE_NOT
+''' duquel une nouvelle voie spatiale depuis un objet dont %1% ne serait pas proche (distance < %2%) d'un objet %3%'''
 
 # %1% textual description of the empire.
 DESC_EXPLORED_BY_EMPIRE
@@ -11846,6 +12164,12 @@ DESC_ORDERED_BOMBARDED
 # %1% textual description of the bombarding object.
 DESC_ORDERED_BOMBARDED_NOT
 ''' n'étant pas bombardé par un objet %1%'''
+
+DESC_ORDERED_ANNEXED
+''' étant annexé'''
+
+DESC_ORDERED_ANNEXED_NOT
+''' n'étant pas annexé'''
 
 # %1% content type description, eg. species, building, focus, tech
 # %2% name of specific scripted content, eg. Human, Imperial Palace, Industry Focus, The Physicsal Brain
@@ -12018,37 +12342,49 @@ DESC_NUMBER_OF_NOT
 # %2% FIXME
 # %3% FIXME
 DESC_MAX_NUMBER_OF
-''' qui est un des objets %1% ayant la plus grande valeur de%2% et de%3%'''
+''' étant un des %1% objets ayant la plus grande valeur de%2% et%3%'''
 
 # %1% FIXME
 # %2% FIXME
 # %3% FIXME
 DESC_MAX_NUMBER_OF_NOT
-''' n'étant pas un des objets %1% ayant la plus grande valeur de%2% et de%3%'''
+''' n'étant pas un des %1% objets ayant la plus grande valeur de%2% et%3%'''
 
 # %1% FIXME
 # %2% FIXME
 # %3% FIXME
 DESC_MIN_NUMBER_OF
-''' qui est un des objets %1% ayant la plus faible valeur de%2% et de%3%'''
+''' étant un des %1% objets ayant la plus faible valeur de%2% et%3%'''
 
 # %1% FIXME
 # %2% FIXME
 # %3% FIXME
 DESC_MIN_NUMBER_OF_NOT
-''' n'étant pas un des objets %1% ayant la plus faible valeur de%2% et de%3%'''
+''' n'étant pas un des %1% objets ayant la plus faible valeur de%2% et%3%'''
 
-# %1% FIXME
-# %2% FIXME
-# %3% FIXME
+# %1% number of objects to match (upper limit)
+# %2% description of the sort key determined for each object
+# %3% description of the selection condition for potentially matched objects
 DESC_MODE_NUMBER_OF
-''' qui est un des objets %1% ayant la valeur la plus répandue de%2% et de%3%'''
+''' étant un des %1% objets ayant la(les) valeur(s) la plus répandue de%2% et%3%'''
 
-# %1% FIXME
-# %2% FIXME
-# %3% FIXME
+# %1% number of objects to match (upper limit)
+# %2% description of the sort key determined for each object
+# %3% description of the selection condition for potentially matched objects
 DESC_MODE_NUMBER_OF_NOT
-''' n'étant pas un des objets %1% ayant la valeur la plus répandue de%2% et de%3%'''
+''' n'étant pas un des %1% objets ayant la(les) valeur(s) la plus répandue de%2% et%3%'''
+
+# %1% number of objects to match (upper limit)
+# %2% description of the sort key determined for each object
+# %3% description of the selection condition for potentially matched objects
+DESC_UNIQUE_OF
+''' étant un des %1% objets ayant des valeurs uniques de%2% et%3%'''
+
+# %1% number of objects to match (upper limit)
+# %2% description of the sort key determined for each object
+# %3% description of the selection condition for potentially matched objects
+DESC_UNIQUE_OF_NOT
+''' n'étant pas un des %1% objets ayant des valeurs uniques de%2% et%3%'''
 
 # %1% FIXME
 DESC_VALUE_TEST
@@ -12183,12 +12519,12 @@ Centralisation
 
 PLC_CENTRALIZATION_DESC
 '''Améliore la capacité de production de la Capitale, quel que soit le Focus:
-• Augmente la [[metertype METER_TARGET_RESEARCH]] de [[value PLC_CENTRALIZATION_TARGET_RESEARCH_PERPOP]] par [[metertype METER_POPULATION]].
-• Augmente la [[metertype METER_TARGET_INDUSTRY]] de [[value PLC_CENTRALIZATION_TARGET_INDUSTRY_PERPOP]] par Population.
+• Augmente la [[metertype METER_TARGET_RESEARCH]] de [[value PLC_CENTRALIZATION_TARGET_RESEARCH_PERPOP]] par [[metertype METER_POPULATION]], multiplié par combien la Stabilité est supérieure à [[value PLC_CENTRALIZATION_MIN_STABILITY]], jusqu'à un maximum de [[value PLC_CENTRALIZATION_MAX_STABILITY]] en Stabilité.
+• Augmente la [[metertype METER_TARGET_INDUSTRY]] de [[value PLC_CENTRALIZATION_TARGET_INDUSTRY_PERPOP]] par [[metertype METER_POPULATION]], multiplié par combien la Stabilité est supérieure à [[value PLC_CENTRALIZATION_MIN_STABILITY]], jusqu'à un maximum de [[value PLC_CENTRALIZATION_MAX_STABILITY]] en Stabilité.
 • Augmente la [[metertype METER_TARGET_CONSTRUCTION]] de [[value PLC_CENTRALIZATION_TARGET_CONSTRUCTION_FLAT]].
 Cet effet requiert une [[metertype METER_HAPPINESS]] de [[value PLC_CENTRALIZATION_MIN_STABILITY]].
 
-Toutefois, réduit également la portée de l'[[metertype METER_SUPPLY]] ([[value PLC_CENTRALIZATION_MAX_SUPPLY_FLAT]]) ainsi que la [[metertype METER_STOCKPILE]] ([[value PLC_CENTRALIZATION_MAX_STOCKPILE_FLAT]]), et augmente le coût d'[[metertype METER_INFLUENCE]] des colonies de l'empire:
+Toutefois, réduit également la [[metertype METER_STOCKPILE]] ([[value PLC_CENTRALIZATION_MAX_STOCKPILE_FLAT]]), la portée de l'[[metertype METER_SUPPLY]] ([[value PLC_CENTRALIZATION_MAX_SUPPLY_FLAT]]) de toutes les colonies, et augmente le coût d'[[metertype METER_INFLUENCE]] des colonies de l'empire:
 • Les colonies connectées par lignes d'[[metertype METER_SUPPLY]] subissent une pénalité de [[value PLC_CENTRALIZATION_TARGET_INFLUENCE_PERJUMP]] par Voies spatiales les séparant de la Capitale, plafonnée à [[value PLC_CENTRALIZATION_TARGET_INFLUENCE_MAX]].
 • Les colonies non-connectées par lignes d'[[metertype METER_SUPPLY]] à la Capitale subissent la pénalité maximale ([[value PLC_CENTRALIZATION_TARGET_INFLUENCE_MAX]]).
 Le coût des équipements de colonisation pour astronefs augmente également de 33%.
@@ -12253,7 +12589,8 @@ Recrutement de Troupes
 
 PLC_MARINE_RECRUITMENT_DESC
 '''• Diminue de 50% le coût des équipements d'Infanterie pour astronefs.
-• Augmente le taux de régénération de l'Infanterie planétaire de [[value PLC_MARINE_RECRUITMENT_TROOP_GROWTH_FLAT]].'''
+• Augmente le taux de régénération de l'Infanterie planétaire de [[value PLC_MARINE_RECRUITMENT_TROOP_GROWTH_FLAT]].
+• Supprime la pénalité de l'Infanterie sur les avant-postes.'''
 
 PLC_MARINE_RECRUITMENT_SHORT_DESC
 Diminue le coût de l'Infanterie
@@ -12314,8 +12651,8 @@ Environnementalisme
 
 PLC_ENVIRONMENTALISM_DESC
 '''• Diminue l'[[metertype METER_CONSTRUCTION]] de [[value PLC_ENVIRONMENTALISM_TARGET_CONSTRUCTION_TERRAFORMED_FLAT]], la [[metertype METER_TARGET_HAPPINESS]] de [[value PLC_ENVIRONMENTALISM_TARGET_HAPPINESS_FLAT]] et la [[metertype METER_TARGET_INFLUENCE]] de [[value PLC_ENVIRONMENTALISM_TARGET_INFLUENCE_FLAT]] sur les planètes ayant été terraformées, ou dont l'environnement d'origine a été modifié.
-• Diminue la [[metertype METER_TARGET_INDUSTRY]] de [[value PLC_ENVIRONMENTALISM_TARGET_INDUSTRY_FLAT]] et l'[[metertype METER_CONSTRUCTION]] de [[value PLC_ENVIRONMENTALISM_TARGET_CONSTRUCTION_FLAT]] sur les planètes non-astéroïdales.
-• Améliore la [[metertype METER_TARGET_HAPPINESS]] de [[value PLC_ENVIRONMENTALISM_TARGET_HAPPINESS_ORIGINAL_FLAT]], la [[metertype METER_TARGET_INFLUENCE]] de [[value PLC_ENVIRONMENTALISM_TARGET_INFLUENCE_ORIGINAL_FLAT]], la [[metertype METER_TARGET_RESEARCH]] de [[value PLC_ENVIRONMENTALISM_TARGET_RESEARCH_ORIGINAL_FLAT]] et la [[metertype METER_STEALTH]] de [[value PLC_ENVIRONMENTALISM_STEALTH_ORIGINAL_FLAT]] sur les planètes qui ne sont pas des Astéroïdes ou Géantes Gazeuses, n'ayant pas été terraformées, n'abritant aucune structure, et n'étant pas en Focus Industrie.
+• Diminue la [[metertype METER_TARGET_INDUSTRY]] de [[value PLC_ENVIRONMENTALISM_TARGET_INDUSTRY_FLAT]] et l'[[metertype METER_CONSTRUCTION]] de [[value PLC_ENVIRONMENTALISM_TARGET_CONSTRUCTION_FLAT]] sur les planètes habitées.
+• Améliore la [[metertype METER_TARGET_HAPPINESS]] de [[value PLC_ENVIRONMENTALISM_TARGET_HAPPINESS_ORIGINAL_FLAT]], la [[metertype METER_TARGET_INFLUENCE]] de [[value PLC_ENVIRONMENTALISM_TARGET_INFLUENCE_ORIGINAL_FLAT]], la [[metertype METER_TARGET_RESEARCH]] de [[value PLC_ENVIRONMENTALISM_TARGET_RESEARCH_ORIGINAL_FLAT]] et la [[metertype METER_STEALTH]] de [[value PLC_ENVIRONMENTALISM_STEALTH_ORIGINAL_FLAT]] sur les planètes n'ayant pas été terraformées, n'abritant aucune structure, et n'étant pas en Focus Industrie.
 • Rend la Terraformation d'une planète 3x plus coûteuse.'''
 
 PLC_ENVIRONMENTALISM_SHORT_DESC
@@ -12360,14 +12697,14 @@ PLC_CHECKPOINTS
 Postes-Frontières
 
 PLC_CHECKPOINTS_DESC
-'''Diminue la [[metertype METER_STEALTH]] des planètes et astronefs étrangers se trouvant dans la zone d'[[metertype METER_SUPPLY]] d'au plus [[value PLC_CHECKPOINTS_MAX_STEALTH_MALUS]]. Les planètes et astronefs n'appartenant pas ou n'étant pas alliés à l'empire sont considérés comme étrangers. Les planètes non-colonisées et les monstres sont également des entités étrangères.
+'''Diminue la [[metertype METER_STEALTH]] des astronefs étrangers se trouvant dans la zone d'[[metertype METER_SUPPLY]] d'au plus [[value PLC_CHECKPOINTS_MAX_STEALTH_MALUS]].
 
 La diminution dépend de la durée d'adoption de cette Politique, diminuant la [[metertype METER_STEALTH]] de 1 par tour, jusqu'à un maximum de [[value PLC_CHECKPOINTS_MAX_STEALTH_MALUS]].
 
-Réduit la génération d'[[metertype METER_INFLUENCE]] ([[value PLC_CHECKPOINTS_TARGET_INFLUENCE_FLAT]]).'''
+Diminue la [[metertype METER_TARGET_INFLUENCE]] de ([[value PLC_CHECKPOINTS_TARGET_INFLUENCE_FLAT]]) sur les planètes habitées appartenant à l'empire.'''
 
 PLC_CHECKPOINTS_SHORT_DESC
-Améliore la Détection / Entrave l'Approvisionnement
+Améliore la Détection / Coûte de l'Influence
 
 PLC_DIVERSITY
 Diversité
@@ -12534,18 +12871,28 @@ PLC_TERROR_SUPPRESSION
 Suppression du Terrorisme
 
 PLC_TERROR_SUPPRESSION_DESC
-'''• Augmente la [[metertype METER_TARGET_HAPPINESS]] des planètes habitées de [[value PLC_TERROR_SUPPRESSION_TARGET_STABILITY_SCALE]] par le nombre d'astronefs présents dans le système et appartenant à l'empire, armés, et dont l'équipage est de la même espèce que celle peuplant la Capitale impériale.
-• Diminue l'[[metertype METER_REBEL_TROOPS]] sur ces planètes de [[value PLC_TERROR_SUPPRESSION_REBEL_REDUCTION_SCALE]] par astronef.
-• Ces astronefs coûtent [[value PLC_TERROR_SUPPRESSION_SHIP_INFLUENCE_FLAT]] en [[metertype METER_INFLUENCE]].'''
+'''• Augmente la [[metertype METER_TARGET_HAPPINESS]] des planètes habitées d'un empire de [[value PLC_TERROR_SUPPRESSION_TARGET_STABILITY_SCALE]] par le nombre d'astronefs présents dans le système et appartenant à l'empire, armés, étant dans une flotte avec ordre d'engager le combat, et dont l'équipage est de la même espèce que celle peuplant la Capitale impériale.
+• Diminue l'[[metertype METER_REBEL_TROOPS]] sur les planètes possédées et celles ennemies de [[value PLC_TERROR_SUPPRESSION_REBEL_REDUCTION_SCALE]] par astronef (armé, engageant le combat, et avec espèce de la Capitale).
+• Diminue la [[metertype METER_TARGET_HAPPINESS]] des planètes habitées de l'empire ennemi (par une espèce autre que celle de la Capitale dans l'astronef de l'empire) de [[value PLC_TERROR_SUPPRESSION_TARGET_STABILITY_SCALE]] par astronef (armé, engageant le combat, et avec espèce de la Capitale).
+• Ces astronefs (armés, équipage de la même espèce que celle de la Capitale) coûtent [[value PLC_TERROR_SUPPRESSION_SHIP_INFLUENCE_FLAT]] en [[metertype METER_INFLUENCE]] (qu'ils aient ou non l'ordre d'engager le combat).'''
 
 PLC_TERROR_SUPPRESSION_SHORT_DESC
 Augmente la Stabilité à l'aide d'astronefs armés
+
+PLC_INSURGENCY
+Insurrection
+
+PLC_INSURGENCY_DESC
+Diminue la [[metertype METER_TARGET_HAPPINESS]] de [[value PLC_INSURGENCY_EFFECT]] sur les planètes appartenant à tout ennemi et se situant dans le réseau d'approvisionnement de l'empire adoptant cette politique.
+
+PLC_INSURGENCY_SHORT_DESC
+Diminue la Stabilité ennemie
 
 PLC_DREAM_RECURSION
 Récursivité Imaginaire
 
 PLC_DREAM_RECURSION_DESC
-'''Augmente la [[metertype METER_TARGET_HAPPINESS]] des planètes habitées de la valeur nécessaire pour atteindre [[value PLC_INDOCTRINATION_STRENGTH_BASE]]. Cette limite est augmentée de [[value PLC_INDOCTRINATION_STRENGTH_PER_COLLECTIVE_NET]] pour chaque structure [[buildingtype BLD_COLLECTIVE_NET]] contrôlée par l'empire ayant adopté cette Politique.
+'''Si l'empire n'a pas de dette d'[[RE_INFLUENCE]] (c-à-d. un [[IP_STOCKPILE]] d'au moins zéro), augmente la [[metertype METER_TARGET_HAPPINESS]] des planètes habitées de la valeur nécessaire pour atteindre [[value PLC_INDOCTRINATION_STRENGTH_BASE]]. Cette valeur de projection est augmentée de [[value PLC_INDOCTRINATION_STRENGTH_PER_COLLECTIVE_NET]] pour chaque structure [[buildingtype BLD_COLLECTIVE_NET]] contrôlée par l'empire ayant adopté cette Politique.
 
 Réduit l'[[metertype METER_INFLUENCE]] de chaque planète de la racine carrée de la valeur augmentant leur [[metertype METER_TARGET_HAPPINESS]].'''
 
@@ -12576,7 +12923,7 @@ PLC_TRAFFIC_CONTROL
 Gestion du Trafic
 
 PLC_TRAFFIC_CONTROL_DESC
-Augmente de 20 la [[metertype METER_SPEED]] des astronefs lorsque ces derniers se trouvent à moins de 50 uu d'une planète appartenant à l'empire.
+Augmente de 20 la [[metertype METER_SPEED]] des astronefs non-ennemis lorsque ces derniers se trouvent à moins de 50 uu d'une planète appartenant à l'empire.
 
 PLC_TRAFFIC_CONTROL_SHORT_DESC
 Vitesse des astronefs à proximité des planètes de l'empire
@@ -12675,9 +13022,8 @@ PLC_AUGMENTATION  # translated
 Augmentation
 
 PLC_AUGMENTATION_DESC
-'''• Augmente la [[metertype METER_TARGET_POPULATION]] des planètes [[PE_HOSTILE]]s selon leur taille: ([[SZ_TINY]] +2) ([[SZ_SMALL]] +4) ([[SZ_MEDIUM]] +6) ([[SZ_LARGE]] +8) ([[SZ_HUGE]] +10).
+'''• Définit le minimum de [[metertype METER_TARGET_POPULATION]] de toutes les planètes habitables selon leur taille: ([[SZ_TINY]] = 1) ([[SZ_SMALL]] = 2) ([[SZ_MEDIUM]] = 3) ([[SZ_LARGE]] = 4) ([[SZ_HUGE]] = 5).
 • Augmente l'[[metertype METER_TROOPS]] max sur toutes les planètes de [[value CYBORG_MAX_TROOPS_PERPOP]] par [[metertype METER_POPULATION]].
-• Augmente ou diminue le taux de croissance de la Population, selon que l'[[metertype METER_CONSTRUCTION]] de la planète est supérieure ou inférieure à [[value AUGMENTATION_FULL_GROWTH_INFRASTRUCTURE_REQUIREMENT]].
 
 La cyborgification engendre la fusion hautement polyvalente d'organismes vivants, de corps inorganiques et de machines, capable de s'adapter rapidement aux circonstances changeantes. La génération spontanée d'organes spécialisés, de mécanismes, et d'une adaptabilité environnementale, permet aux cyborgs d'évoluer et de prospérer dans quasiment tous les types d'environnement.'''
 
@@ -12688,9 +13034,9 @@ PLC_ISOLATION  # translated
 Isolation
 
 PLC_ISOLATION_DESC
-'''• Augmente la [[metertype METER_TARGET_HAPPINESS]] des colonies situées à plus de [[value PLC_ISOLATION_THRESHOLD_DISTANCE]] uu d'une autre planète habitée.
-• Diminue la [[metertype METER_TARGET_HAPPINESS]] des colonies situées à moins de [[value PLC_ISOLATION_THRESHOLD_DISTANCE]] uu d'une autre planète habitée.
-• Augmente la [[metertype METER_STEALTH]] des colonies de [[value PLC_ISOLATION_STEALTH]].'''
+'''• Augmente la [[metertype METER_TARGET_HAPPINESS]] des colonies d'au plus [[value PLC_ISOLATION_MAX_STABILITY_MODIFIER]] si elles sont situées à plus de [[value PLC_ISOLATION_THRESHOLD_DISTANCE]] uu d'une autre planète habitée.
+• Diminue la [[metertype METER_TARGET_HAPPINESS]] des colonies d'au plus [[value PLC_ISOLATION_MAX_STABILITY_MODIFIER]] si elles sont situées à moins de [[value PLC_ISOLATION_THRESHOLD_DISTANCE]] uu d'une autre planète habitée.
+• Augmente la [[metertype METER_STEALTH]] des colonies et avant-postes de [[value PLC_ISOLATION_STEALTH]].'''
 
 PLC_ISOLATION_SHORT_DESC
 Améliore les planètes isolées
@@ -14109,19 +14455,19 @@ SHP_FIGHTERS_2
 Chasseurs et Rampes de Lancement 2
 
 SHP_FIGHTERS_2_DESC
-Améliore les chasseurs de tous les transporteurs à portée d'[[metertype METER_SUPPLY]] en les dotant d'un armement Laser. Les [[encyclopedia DAMAGE_TITLE]] infligés par les chasseurs d'un [[shippart FT_HANGAR_2]] augmentent de 12, augmentent de 18 pour un [[shippart FT_HANGAR_3]] et de 36 pour un [[shippart FT_HANGAR_4]]. Pour les chasseurs d'un [[shippart FT_HANGAR_1]], la capacité ainsi que la cadence de lancement de la [[shippart FT_BAY_1]] augmentent de 1.
+Améliore les chasseurs de tous les transporteurs à portée d'[[metertype METER_SUPPLY]] en les dotant d'un armement Laser. Les [[encyclopedia DAMAGE_TITLE]] infligés par les chasseurs d'un [[shippart FT_HANGAR_2]] augmentent de 12, augmentent de 18 pour un [[shippart FT_HANGAR_3]] et de 36 pour un [[shippart FT_HANGAR_4]]. Pour les chasseurs d'un [[shippart FT_HANGAR_1]], la capacité augmente de 1, et la cadence de lancement de la [[shippart FT_BAY_1]] augmente de 1.
 
 SHP_FIGHTERS_3
 Chasseurs et Rampes de Lancement 3
 
 SHP_FIGHTERS_3_DESC
-Améliore les chasseurs de tous les transporteurs à portée d'[[metertype METER_SUPPLY]] en les dotant d'un armement Plasma. Les [[encyclopedia DAMAGE_TITLE]] infligés par les chasseurs d'un [[shippart FT_HANGAR_2]] augmentent de 12, augmentent de 18 pour un [[shippart FT_HANGAR_3]] et de 36 pour un [[shippart FT_HANGAR_4]]. Pour les chasseurs d'un [[shippart FT_HANGAR_1]], la capacité ainsi que la cadence de lancement de la [[shippart FT_BAY_1]] augmentent de 1.
+Améliore les chasseurs de tous les transporteurs à portée d'[[metertype METER_SUPPLY]] en les dotant d'un armement Plasma. Les [[encyclopedia DAMAGE_TITLE]] infligés par les chasseurs d'un [[shippart FT_HANGAR_2]] augmentent de 12, augmentent de 18 pour un [[shippart FT_HANGAR_3]] et de 36 pour un [[shippart FT_HANGAR_4]]. Pour les chasseurs d'un [[shippart FT_HANGAR_1]], la capacité augmente de 1, et la cadence de lancement de la [[shippart FT_BAY_1]] augmente de 1.
 
 SHP_FIGHTERS_4
 Chasseurs et Rampes de Lancement 4
 
 SHP_FIGHTERS_4_DESC
-Améliore les chasseurs de tous les transporteurs à portée d'[[metertype METER_SUPPLY]] en les dotant d'un armement Gamma. Les [[encyclopedia DAMAGE_TITLE]] infligés par les chasseurs d'un [[shippart FT_HANGAR_2]] augmentent de 12, augmentent de 18 pour un [[shippart FT_HANGAR_3]] et de 36 pour un [[shippart FT_HANGAR_4]]. Pour les chasseurs d'un [[shippart FT_HANGAR_1]], la capacité ainsi que la cadence de lancement de la [[shippart FT_BAY_1]] augmentent de 1.
+Améliore les chasseurs de tous les transporteurs à portée d'[[metertype METER_SUPPLY]] en les dotant d'un armement Gamma. Les [[encyclopedia DAMAGE_TITLE]] infligés par les chasseurs d'un [[shippart FT_HANGAR_2]] augmentent de 12, augmentent de 18 pour un [[shippart FT_HANGAR_3]] et de 36 pour un [[shippart FT_HANGAR_4]]. Pour les chasseurs d'un [[shippart FT_HANGAR_1]], la capacité augmente de 1, et la cadence de lancement de la [[shippart FT_BAY_1]] augmente de 1.
 
 SHP_WEAPON_1_2
 Canon Mitrailleur 2
@@ -14133,7 +14479,9 @@ SHP_WEAPON_1_3
 Canon Mitrailleur 3
 
 SHP_WEAPON_1_3_DESC
-Améliore l'équipement [[shippart SR_WEAPON_1_1]] de tous les astronefs situés en zone d'[[metertype METER_SUPPLY]] (ou s'ils s'y rendent ultérieurement). Les [[encyclopedia DAMAGE_TITLE]] par tir sont de [[value SHP_WEAPON_1_3_UPGRADED_DAMAGE]] une fois l'équipement amélioré.
+'''Améliore l'équipement [[shippart SR_WEAPON_1_1]] de tous les astronefs situés en zone d'[[metertype METER_SUPPLY]] (ou s'ils s'y rendent ultérieurement). Les [[encyclopedia DAMAGE_TITLE]] par tir sont de [[value SHP_WEAPON_1_3_UPGRADED_DAMAGE]] une fois l'équipement amélioré.
+
+Améliore également l'équipement [[shippart SR_WEAPON_0_1]] de tous les astronefs situés en zone d'[[metertype METER_SUPPLY]] (ou s'ils s'y rendent ultérieurement). L'équipement amélioré effectue [[value SHP_WEAPON_1_3_UPGRADE_SHOTS]] tirs additionnels par passe de combat.'''
 
 SHP_WEAPON_1_4
 Canon Mitrailleur 4
@@ -14157,7 +14505,9 @@ SHP_WEAPON_2_3
 Canon Laser 3
 
 SHP_WEAPON_2_3_DESC
-Améliore l'équipement [[shippart SR_WEAPON_2_1]] de tous les astronefs situés en zone d'[[metertype METER_SUPPLY]] (ou s'ils s'y rendent ultérieurement). Les [[encyclopedia DAMAGE_TITLE]] par tir sont de [[value SHP_WEAPON_2_3_UPGRADED_DAMAGE]] une fois l'équipement amélioré.
+'''Améliore l'équipement [[shippart SR_WEAPON_2_1]] de tous les astronefs situés en zone d'[[metertype METER_SUPPLY]] (ou s'ils s'y rendent ultérieurement). Les [[encyclopedia DAMAGE_TITLE]] par tir sont de [[value SHP_WEAPON_2_3_UPGRADED_DAMAGE]] une fois l'équipement amélioré.
+
+Améliore également l'équipement [[shippart SR_WEAPON_0_1]] de tous les astronefs situés en zone d'[[metertype METER_SUPPLY]] (ou s'ils s'y rendent ultérieurement). L'équipement amélioré effectue [[value SHP_WEAPON_2_3_UPGRADE_SHOTS]] tirs additionnels par passe de combat.'''
 
 SHP_WEAPON_2_4
 Canon Laser 4
@@ -14181,7 +14531,9 @@ SHP_WEAPON_3_3
 Canon Plasma 3
 
 SHP_WEAPON_3_3_DESC
-Améliore l'équipement [[shippart SR_WEAPON_3_1]] de tous les astronefs situés en zone d'[[metertype METER_SUPPLY]] (ou s'ils s'y rendent ultérieurement). Les [[encyclopedia DAMAGE_TITLE]] par tir sont de [[value SHP_WEAPON_3_3_UPGRADED_DAMAGE]] une fois l'équipement amélioré.
+'''Améliore l'équipement [[shippart SR_WEAPON_3_1]] de tous les astronefs situés en zone d'[[metertype METER_SUPPLY]] (ou s'ils s'y rendent ultérieurement). Les [[encyclopedia DAMAGE_TITLE]] par tir sont de [[value SHP_WEAPON_3_3_UPGRADED_DAMAGE]] une fois l'équipement amélioré.
+
+Améliore également l'équipement [[shippart SR_WEAPON_0_1]] de tous les astronefs situés en zone d'[[metertype METER_SUPPLY]] (ou s'ils s'y rendent ultérieurement). L'équipement amélioré effectue [[value SHP_WEAPON_3_3_UPGRADE_SHOTS]] tirs additionnels par passe de combat.'''
 
 SHP_WEAPON_3_4
 Canon Plasma 4
@@ -14205,7 +14557,9 @@ SHP_WEAPON_4_3
 Rayon Gamma 3
 
 SHP_WEAPON_4_3_DESC
-Améliore l'équipement [[shippart SR_WEAPON_4_1]] de tous les astronefs situés en zone d'[[metertype METER_SUPPLY]] (ou s'ils s'y rendent ultérieurement). Les [[encyclopedia DAMAGE_TITLE]] par tir sont de [[value SHP_WEAPON_4_3_UPGRADED_DAMAGE]] une fois l'équipement amélioré.
+'''Améliore l'équipement [[shippart SR_WEAPON_4_1]] de tous les astronefs situés en zone d'[[metertype METER_SUPPLY]] (ou s'ils s'y rendent ultérieurement). Les [[encyclopedia DAMAGE_TITLE]] par tir sont de [[value SHP_WEAPON_4_3_UPGRADED_DAMAGE]] une fois l'équipement amélioré.
+
+Améliore également l'équipement [[shippart SR_WEAPON_0_1]] de tous les astronefs situés en zone d'[[metertype METER_SUPPLY]] (ou s'ils s'y rendent ultérieurement). L'équipement amélioré effectue [[value SHP_WEAPON_4_3_UPGRADE_SHOTS]] tirs additionnels par passe de combat.'''
 
 SHP_WEAPON_4_4
 Rayon Gamma 4
@@ -14427,7 +14781,7 @@ Couplage de Motorisation Améliorée
 SHP_IMPROVED_ENGINE_COUPLINGS_DESC
 '''[[COLONY_BUILDING_TIME_DECREASE]]
 
-De meilleurs éléments de motorisation, résultent de meilleurs moteurs. Augmente de 20 la [[metertype METER_SPEED]].'''
+De meilleurs éléments de motorisation, résultent de meilleurs moteurs.'''
 
 SHP_N_DIMENSIONAL_ENGINE_MATRIX
 Matrice de Motorisation Multidimensionnelle
@@ -14435,7 +14789,7 @@ Matrice de Motorisation Multidimensionnelle
 SHP_N_DIMENSIONAL_ENGINE_MATRIX_DESC
 '''[[COLONY_BUILDING_TIME_DECREASE]]
 
-La recherche concernant les espaces multidimensionnels a rendu possible le développement de meilleures matrices de motorisation. Augmente de 40 la [[metertype METER_SPEED]].'''
+La recherche concernant les espaces multidimensionnels a rendu possible le développement de meilleures matrices de motorisation.'''
 
 SHP_SINGULARITY_ENGINE_CORE
 Noyau de Motorisation à Singularité
@@ -14443,7 +14797,7 @@ Noyau de Motorisation à Singularité
 SHP_SINGULARITY_ENGINE_CORE_DESC
 '''[[COLONY_BUILDING_TIME_DECREASE]]
 
-Dispositif dérivé de la structure [[buildingtype BLD_HYPER_DAM]] et miniaturisé pour les astronefs, le Noyau de Motorisation à Singularité accroît considérablement la génération d'énergie. Augmente de 80 la [[metertype METER_SPEED]].'''
+Dispositif dérivé de la structure [[buildingtype BLD_HYPER_DAM]] et miniaturisé pour les astronefs, le Noyau de Motorisation à Singularité accroît considérablement la génération d'énergie.'''
 
 SHP_DEUTERIUM_TANK
 Carburant Deutérium
@@ -14916,7 +15270,7 @@ BLD_LIGHTHOUSE
 Phare Interstellaire
 
 BLD_LIGHTHOUSE_DESC
-'''Diminue la [[metertype METER_STEALTH]] de tous les astronefs situés dans le même système de [[value BLD_LIGHTHOUSE_IMMEDIATE_STEALTH_MALUS]]. De plus, le Phare Interstellaire diminue la [[metertype METER_STEALTH]] de tous les objets d'une valeur égale au nombre de tours depuis sa mise en fonction, jusqu'à un maximum de [[value BLD_LIGHTHOUSE_CATALOG_STEALTH_MALUS]]. Il augmente également la [[metertype METER_SPEED]] des astronefs alliés débutant leur tour dans un périmètre de [[value BLD_LIGHTHOUSE_SPEEDUP_DISTANCE]] uu de [[value BLD_LIGHTHOUSE_SPEEDUP]] pour ce tour. [[BUILDING_AVAILABLE_ON_OUTPOSTS]] et peut rendre optimale l'utilisation d'un [[buildingtype BLD_PLANET_DRIVE]].
+'''Diminue la [[metertype METER_STEALTH]] de tous les astronefs situés dans le même système de [[value BLD_LIGHTHOUSE_IMMEDIATE_STEALTH_MALUS]]. De plus, le Phare Interstellaire diminue la [[metertype METER_STEALTH]] de tous les objets d'une valeur égale au nombre de tours depuis sa mise en fonction, jusqu'à un maximum de [[value BLD_LIGHTHOUSE_CATALOG_STEALTH_MALUS]]. Il augmente également la [[metertype METER_SPEED]] des astronefs non-ennemis débutant leur tour dans un périmètre de [[value BLD_LIGHTHOUSE_SPEEDUP_DISTANCE]] uu de [[value BLD_LIGHTHOUSE_SPEEDUP]] pour ce tour. [[BUILDING_AVAILABLE_ON_OUTPOSTS]] et peut rendre optimale l'utilisation d'un [[buildingtype BLD_PLANET_DRIVE]].
 
 Cette structure émet des ondes complexes de pulsations EM et de jets de particules afin de révéler l'emplacement des objets dans un système. Une fois le processus achevé, tous les objets communs dans un système sont enregistrés dans un catalogue, permettant ainsi d'identifier plus efficacement les occurrences inhabituelles.
 
@@ -15674,7 +16028,13 @@ Canon Antiaérien
 SR_WEAPON_0_1_DESC
 '''Le Canon Antiaérien est peu coûteux et efficace pour contrer les chasseurs, mais ne permet pas de cibler les astronefs et planètes.
 
-Chaque Canon Antiaérien monté sur un astronef construit par une espèce présentant l'attribut "Pilotes", aura un nombre additionnel de tirs égal à 1 par rang de Pilotes (-1 tir pour "Mauvais Pilotes").'''
+Chaque Canon Antiaérien monté sur un astronef construit par une espèce présentant l'attribut "Pilotes", aura un nombre additionnel de tirs égal à 1 par rang de Pilotes (-1 tir pour "Mauvais Pilotes").
+La recherche de technologies d'armement avancé octroie également des tirs additionnels:
+- [[tech SHP_WEAPON_1_3]] [[value SHP_WEAPON_1_3_UPGRADE_SHOTS]]
+- [[tech SHP_WEAPON_2_3]] [[value SHP_WEAPON_2_3_UPGRADE_SHOTS]]
+- [[tech SHP_WEAPON_3_3]] [[value SHP_WEAPON_3_3_UPGRADE_SHOTS]]
+- [[tech SHP_WEAPON_4_3]] [[value SHP_WEAPON_4_3_UPGRADE_SHOTS]]
+'''
 
 SR_WEAPON_1_1
 Canon Mitrailleur
@@ -15974,7 +16334,7 @@ FU_RAMSCOOP
 Réservoir Collecteur
 
 FU_RAMSCOOP_DESC
-Génère lentement du [[metertype METER_FUEL]] lorsque l'astronef se trouve dans un système stellaire, en collectant l'hydrogène diffus se trouvant dans l'espace.
+Génère lentement du [[metertype METER_FUEL]] lorsque l'astronef se trouve dans un système stellaire, en collectant l'hydrogène diffus se trouvant dans l'espace. Régénère le [[metertype METER_FUEL]] de [[value FU_RAMSCOOP_REFUEL]] si l'astronef est stationnaire.
 
 ST_CLOAK_1
 Affaiblisseur Électromagnétique
@@ -16395,7 +16755,7 @@ SH_LOGISTICS_FACILITATOR
 Coque Logistique
 
 SH_LOGISTICS_FACILITATOR_DESC
-'''Destinée aux astronefs amiraux d'intendance, cette coque est conçue pour gérer de manière optimale les transferts d'équipage et de matériel durant les situations de combat. Elle dispose de sept niches externes, de deux niches internes et d'une niche centrale. Sa flotte intégrée de cargos furtifs rend possible le transfert en toute discrétion de personnel et de matériel pendant les combats, permettant ainsi à tous les astronefs alliés d'effectuer des réparations partielles même durant les tours où un combat a eu lieu. Si aucun combat n'est engagé, la [[metertype METER_STRUCTURE]] des astronefs sera restaurée au double de leur valeur actuelle, ce qui signifie que les astronefs disposant encore au minimum de la moitié de leur [[metertype METER_STRUCTURE]], seront complètement réparés.
+'''Destinée aux astronefs amiraux d'intendance, cette coque est conçue pour gérer de manière optimale les transferts d'équipage et de matériel durant les situations de combat. Elle dispose de six niches externes, de deux niches internes et d'une niche centrale. Sa flotte intégrée de cargos furtifs rend possible le transfert en toute discrétion de personnel et de matériel pendant les combats, permettant ainsi à tous les astronefs alliés d'effectuer des réparations partielles même durant les tours où un combat a eu lieu. Si aucun combat n'est engagé, la [[metertype METER_STRUCTURE]] des astronefs sera restaurée au double de leur valeur actuelle, ce qui signifie que les astronefs disposant encore au minimum de la moitié de leur [[metertype METER_STRUCTURE]], seront complètement réparés.
 
 Sa [[metertype METER_STEALTH]] est standard de même que son [[metertype METER_DETECTION]], tandis que sa [[metertype METER_SPEED]] est moyenne.
 
@@ -16498,9 +16858,9 @@ SH_ORGANIC_DESC
 '''Une coque vivante disposant d'une niche externe et d'une niche interne.
 Croissance Organique: débute avec une [[metertype METER_STRUCTURE]] égale à 24, mais bénéficie d'un bonus additionnel de 24 après 25 tours.
 
-Sa [[metertype METER_STEALTH]] est standard, son [[metertype METER_DETECTION]] est faible et sa [[metertype METER_SPEED]] élevée.
+Sa [[metertype METER_STEALTH]] est standard, son [[metertype METER_DETECTION]] est standard et sa [[metertype METER_SPEED]] élevée.
 
-Coque économique et polyvalente capable d'endosser de nombreux rôles au sein d'une flotte, mais qui tend à devenir obsolète à mesure que la technologie évolue. Son faible Champ de Détection la rend peu adaptée pour la reconnaissance mais ses autres attributs en font un bon astronef de guerre.
+Coque économique et polyvalente capable d'endosser de nombreux rôles au sein d'une flotte. Sa régénération en carburant et son haut [[encyclopedia FUEL_EFFICIENCY_TITLE]] font que la coque organique est bien adaptée à l'exploration lointaine de l'espace.
 
 [[LIVING_HULL_AUTO_REGEN]]
 
@@ -16743,6 +17103,12 @@ Corps Dragon
 
 SH_STRONG_MONSTER_BODY_DESC
 Corps massif disposant d'armes naturelles terrifiantes et d'une carapace résistante.
+
+SH_GUARD_ACIREMA_BODY
+Coque Gardien Acirema
+
+SH_GUARD_ACIREMA_BODY_DESC
+[[SH_ENERGY_FRIGATE_DESC]]
 
 SH_GUARD_MONSTER_BODY
 Coque Gardien
@@ -17319,6 +17685,15 @@ GASEOUS_DESC
 '''+	Vie sur Géantes Gazeuses
 +	Ravitaillement Carburant sur Géantes Gazeuses 0.2 par tour'''
 
+ABADDONI_STARTING_UNLOCKS_DESC
++	Débute avec la technologie [[tech GRO_SUBTER_HAB]] recherchée
+
+FULVER_STARTING_UNLOCKS_DESC
++	Débute avec la technologie [[tech PRO_GENERIC_SUPPLIES]] recherchée
+
+SLY_STARTING_UNLOCKS_DESC
++	Débute avec la politique [[policy PLC_CONFEDERATION]] débloquée
+
 EXTREMELY_BAD_POPULATION_DESC
 −−−	Extrêmement Mauvais en [[metertype METER_POPULATION]] : 25%
 
@@ -17891,11 +18266,6 @@ NATIVE_PLANETARY_DEFENSE_LABEL
 # %2% FIXME
 NATIVE_PLANETARY_SHIELDS_LABEL
 %2% Boucliers planétaires natifs
-
-# %1% FIXME
-# %2% FIXME
-NATIVE_PLANETARY_TROOPS_LABEL
-%2% Infanterie planétaire native
 
 VERY_BRIGHT_STAR
 Étoile très lumineuse

@@ -10,7 +10,10 @@ Policy
         EffectsGroup
             scope = And [
                 Ship
-                OwnedBy empire = Source.Owner
+                Not Or [
+                    OwnedBy affiliation = EnemyOf empire = Source.Owner
+                    Unowned
+                ]
                 Speed low = 1 // Immobile objects do not get the starlane speed boost.
                 WithinDistance distance = 50 condition = And [
                     Planet
@@ -21,6 +24,6 @@ Policy
     ]
     graphic = "icons/policies/economic_traffic_control.png"
 
-#include "/scripting/common/base_prod.macros"
-#include "/scripting/common/priorities.macros"
+#include "/scripting/macros/base_prod.macros"
+#include "/scripting/macros/priorities.macros"
 #include "/scripting/policies/policies.macros"

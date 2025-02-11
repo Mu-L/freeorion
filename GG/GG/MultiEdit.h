@@ -107,23 +107,15 @@ protected:
         none). */
     Y BottomMargin() const noexcept;
 
-    /** Returns row and character index of \a pt, or (0, 0) if \a pt falls
-        outside the text.  \a pt is in client-space coordinates. */
-    std::pair<std::size_t, CPSize> CharAt(Pt pt) const;
+    /** Returns row and rendered character (glyph) index of \a pt,
+        or (0, 0) if \a pt falls outside the text.
+        \a pt is in client-space coordinates. */
+    std::pair<std::size_t, CPSize> GlyphAt(Pt pt) const;
 
-    /** Returns row and character index of char at \a idx, or (0, 0) if \a idx
-        falls outside the text, or if \a idx refers to a non-visible
-        character. */
-    std::pair<std::size_t, CPSize> CharAt(CPSize idx) const;
-
-    /** Returns the code point index of the start of the UTF-8 sequence for
-        the code point at \a <i>char_idx</i> in row \a row, using \a line_data
-        instead of the current line data, if it is supplied.  If \a row, \a
-        char_idx refers to a character preceeded by formatting tags, the index
-        of the first character of the first formatting tag is returned instead.
-        Not range-checked. */
-    CPSize CharIndexOf(std::size_t row, CPSize char_idx,
-                       const std::vector<Font::LineData>* line_data = nullptr) const;
+    /** Returns row and rendered character (glyph) index of char at \a idx,
+        or (0, 0) if \a idx falls outside the text, or if \a idx refers to
+        a non-visible character. */
+    std::pair<std::size_t, CPSize> GlyphAt(CPSize idx) const;
 
     /** Returns the x-coordinate of the beginning of row \a row, in
         cleint-space coordinates.  Not range-checked. */
@@ -139,7 +131,7 @@ protected:
 
     /** Returns the index of the character in row \a row that falls under X
         coordinate \a x.  \a x must be in client-space coordinates. */
-    CPSize CharAt(std::size_t row, X x) const;
+    CPSize GlyphAt(std::size_t row, X x) const;
 
     /** Returns the index of the first visible row, or 0 if none. */
     std::size_t FirstVisibleRow() const;
@@ -170,7 +162,7 @@ protected:
     void LButtonDown(Pt pt, Flags<ModKey> mod_keys) override;
     void LDrag(Pt pt, Pt move, Flags<ModKey> mod_keys) override;
     void MouseWheel(Pt pt, int move, Flags<ModKey> mod_keys) override;
-    void KeyPress(Key key, std::uint32_t key_code_point, Flags<ModKey> mod_keys) override;
+    void KeyPress(Key key, uint32_t key_code_point, Flags<ModKey> mod_keys) override;
     void TextInput(const std::string& text) override;
 
     /** Recreates the vertical and horizontal scrolls as needed. */
@@ -197,14 +189,14 @@ private:
 
     Flags<MultiEditStyle> m_style;
 
-    std::pair<std::size_t, CPSize> m_cursor_begin; ///< The row and character index of the first character in the hilited selection
-    std::pair<std::size_t, CPSize> m_cursor_end;   ///< The row and character index + 1 of the last character in the hilited selection
+    std::pair<std::size_t, CPSize> m_cursor_begin; ///< The row and glyph index of the first character in the hilited selection
+    std::pair<std::size_t, CPSize> m_cursor_end;   ///< The row and glyph index + 1 of the last character in the hilited selection
     // if m_cursor_begin == m_cursor_end, the caret is draw at m_cursor_end
 
     Pt              m_contents_sz;          ///< The size of the entire text block in the control (not just the visible part)
 
-    X               m_first_col_shown{0};   ///< The position (counted from the left side of the text) of the first pixel shown
-    Y               m_first_row_shown{0};   ///< The position (counted from the top of the text) of the first pixel shown
+    X               m_first_col_shown_x_from_left_of_text{X0};  ///< The position (counted from the left side of the text) of the first pixel shown
+    Y               m_first_row_shown_y_from_top_of_text{Y0};   ///< The position (counted from the top of the text) of the first pixel shown
 
     std::size_t     m_max_lines_history;
 

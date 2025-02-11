@@ -20,6 +20,8 @@ TextBlock::TextBlock(X x, Y y, X w, std::string str,
                      Flags<WndFlag> flags) :
     BlockControl(x, y, w, flags)
 {
+    SetName("TextBlock: " + str.substr(0, 16));
+
     // Construct the text control. Activate full text wrapping features,
     // and make it stick to the top.
     // With these setting the height is largely ignored, so we set it to one.
@@ -48,17 +50,19 @@ Pt TextBlock::SetMaxWidth(X width)
 class TextBlockFactory: public RichText::IBlockControlFactory {
 public:
     //! Create a Text block from a plain text tag.
-    std::shared_ptr<BlockControl> CreateFromTag(const RichText::TAG_PARAMS& params,
+    std::shared_ptr<BlockControl> CreateFromTag(const RichText::TAG_PARAMS&,
                                                 std::string content,
                                                 std::shared_ptr<Font> font,
                                                 Clr color,
-                                                Flags<TextFormat> format) override
+                                                Flags<TextFormat> format) const override
     {
         return Wnd::Create<TextBlock>(X0, Y0, X1, std::move(content), std::move(font),
                                       color, format, NO_WND_FLAGS);
     }
 };
 
-// Register text block as the default plaintext handler.
-static int dummy = RichText::RegisterDefaultBlock(std::string{RichText::PLAINTEXT_TAG},
-                                                  std::make_shared<TextBlockFactory>());
+namespace {
+    // Register text block as the default plaintext handler.
+    const auto dummy = RichText::RegisterDefaultBlock(RichText::PLAINTEXT_TAG,
+                                                      std::make_shared<TextBlockFactory>());
+}

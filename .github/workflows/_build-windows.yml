@@ -2,8 +2,10 @@ name: "Windows"
 
 on:
   workflow_call:
-    secrets:
-      DEPLOY_SSH_PASSWORD:
+    inputs:
+      weekly-deploy:
+        type: boolean
+        default: false
 jobs:
   windows-2022-cmake:
     name: MSVS 2022 on Windows CMake
@@ -13,12 +15,12 @@ jobs:
         uses: actions/checkout@v3
       - name: Download SDK
         id: download-sdk
-        uses: suisei-cn/actions-download-file@v1.3.0
+        uses: suisei-cn/actions-download-file@v1.4.0
         with:
-          url: https://github.com/freeorion/freeorion-sdk/releases/download/v14/FreeOrionSDK_14_MSVC-v143-Win32.zip
+          url: https://github.com/freeorion/freeorion-sdk/releases/download/v15/FreeOrionSDK_15_MSVC-v143-Win32.zip
           target: ../
       - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v1.1
+        uses: microsoft/setup-msbuild@v1.3.1
         with:
           vs-prerelease: true
       - name: Configure
@@ -42,13 +44,13 @@ jobs:
           cmake --build . --config "Release" --target unittest
       - name: Download Godot
         id: download-godot
-        uses: suisei-cn/actions-download-file@v1.3.0
+        uses: suisei-cn/actions-download-file@v1.4.0
         with:
-          url: https://downloads.tuxfamily.org/godotengine/3.2.3/Godot_v3.2.3-stable_win32.exe.zip
+          url: https://github.com/godotengine/godot-builds/releases/download/3.2.3-stable/Godot_v3.2.3-stable_win32.exe.zip 
           target: ../
       - name: Download Mesa
         id: download-mesa
-        uses: suisei-cn/actions-download-file@v1.3.0
+        uses: suisei-cn/actions-download-file@v1.4.0
         with:
           url: https://downloads.fdossena.com/geth.php?r=mesa-latest
           target: ../
@@ -67,18 +69,12 @@ jobs:
       - name: Generate binaries only
         run: |
           pushd build
-          cpack -V -C Release -G ZIP -D CPACK_ARCHIVE_COMPONENT_INSTALL=ON -D CPACK_MONOLITHIC_INSTALL=OFF -D CPACK_COMPONENTS_ALL=binaries
-      - name: Upload weekly-test binaries only
-        if: github.ref == 'refs/heads/weekly-test-builds' && github.event_name == 'push'
-        run: bash -c 'scp build/FreeOrion_*.zip o01eg@frs.sourceforge.net:/home/frs/project/freeorion/FreeOrion/Test/'
-      - name: Decrypt deploy SSH key
-        if: github.ref == 'refs/heads/weekly-test-builds' && github.event_name == 'push'
-        run: bash .github/pre-deploy.sh
-        env:
-          DEPLOY_SSH_PASSWORD: ${{ secrets.DEPLOY_SSH_PASSWORD }}
-      - name: Upload binaries artefacts
-        uses: actions/upload-artifact@v3
+          cpack -V -C Release -G ZIP -D CPACK_ARCHIVE_COMPONENT_INSTALL=ON -D CPACK_MONOLITHIC_INSTALL=OFF -D "CPACK_COMPONENTS_ALL=binaries;binaries-test"
+      - name: Upload binaries artifacts
+        uses: actions/upload-artifact@v4
+        if: ${{ inputs.weekly-deploy }}
         with:
-          name: freeorion-binaries-win32-build-${{ github.run_number }}
+          name: weekly-artifacts-windows-${{ github.run_number }}
           path: build/FreeOrion_*.zip
-          retention-days: 7
+          if-no-files-found: error
+          retention-days: 1

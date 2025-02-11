@@ -19,6 +19,8 @@ void CUILinkTextBlock::CompleteConstruction() {
 
     m_link_text->SetColor(GG::CLR_ZERO);
     m_link_text->SetInteriorColor(GG::CLR_ZERO);
+
+    SetName("CUILinkTextBlock");
 }
 
 GG::Pt CUILinkTextBlock::SetMaxWidth(GG::X width) {
@@ -38,7 +40,7 @@ GG::Pt CUILinkTextBlock::SetMaxWidth(GG::X width) {
 
 std::shared_ptr<GG::BlockControl> CUILinkTextBlock::Factory::CreateFromTag(
     const GG::RichText::TAG_PARAMS&, std::string content,
-    std::shared_ptr<GG::Font>, GG::Clr color, GG::Flags<GG::TextFormat> format)
+    std::shared_ptr<GG::Font>, GG::Clr color, GG::Flags<GG::TextFormat> format) const
 {
     auto block = GG::Wnd::Create<CUILinkTextBlock>(std::move(content), format, color, GG::NO_WND_FLAGS);
 

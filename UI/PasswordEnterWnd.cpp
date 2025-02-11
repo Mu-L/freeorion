@@ -7,12 +7,12 @@
 #include "../client/human/GGHumanClientApp.h"
 
 namespace {
-    constexpr GG::X WINDOW_WIDTH(300);
-    constexpr GG::Y WINDOW_HEIGHT(250);
+    constexpr GG::X WINDOW_WIDTH{300};
+    constexpr GG::Y WINDOW_HEIGHT{250};
 }
 
 PasswordEnterWnd::PasswordEnterWnd() :
-    CUIWnd(UserString("AUTHENTICATION_WINDOW_TITLE"), GG::X(80), GG::Y(130),
+    CUIWnd(UserString("AUTHENTICATION_WINDOW_TITLE"), GG::X{80}, GG::Y{130},
            WINDOW_WIDTH, WINDOW_HEIGHT,
            GG::INTERACTIVE | GG::DRAGABLE | GG::MODAL)
 {}
@@ -68,7 +68,7 @@ GG::Rect PasswordEnterWnd::CalculatePosition() const {
 void PasswordEnterWnd::ModalInit()
 { GG::GUI::GetGUI()->SetFocusWnd(m_password_edit); }
 
-void PasswordEnterWnd::KeyPress(GG::Key key, std::uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys) {
+void PasswordEnterWnd::KeyPress(GG::Key key, uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys) {
     if (key == GG::Key::GGK_ESCAPE) { // Same behaviour as if "Cancel" was pressed
         CancelClicked();
     } else if (key == GG::Key::GGK_RETURN || key == GG::Key::GGK_KP_ENTER) {

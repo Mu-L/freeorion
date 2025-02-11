@@ -29,4 +29,5 @@ Special
     ]
     graphic = "icons/sitrep/empire_eliminated.png"
 
-#include "/scripting/common/misc.macros"
+#include "/scripting/macros/misc.macros"
+#include "/scripting/macros/priorities.macros"

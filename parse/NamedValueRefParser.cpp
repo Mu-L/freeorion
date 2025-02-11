@@ -39,7 +39,8 @@ namespace parse {
         // given named_refs reference, but instead register directly here...
         auto vref = ref_envelope.OpenEnvelope(pass);
         // Signal to log an error if CurrentContent is used
-        vref->SetTopLevelContent("THERE_IS_NO_TOP_LEVEL_CONTENT");
+        if constexpr (std::is_same_v<std::decay_t<T>, std::string>)
+            vref->SetTopLevelContent(std::string{ValueRef::Constant<std::string>::no_current_content});
         ::RegisterValueRef<T>(name, std::move(vref));
     }
 
@@ -49,10 +50,8 @@ namespace parse {
     using start_rule_signature = void(start_rule_payload&);
 
     struct grammar : public parse::detail::grammar<start_rule_signature> {
-        grammar(const parse::lexer& tok,
-                const std::string& filename,
-                const parse::text_iterator& first,
-                const parse::text_iterator& last) :
+        grammar(const parse::lexer& tok, const std::string& filename,
+                const parse::text_iterator first, const parse::text_iterator last) :
             grammar::base_type(start, "named_value_ref_grammar"),
             condition_parser(tok, label),
             planet_type_rules(tok, label, condition_parser),
@@ -134,7 +133,7 @@ namespace parse {
         ScopedTimer timer("Named ValueRef Parsing");
 
         for (const auto& file : ListDir(path, IsFOCScript))
-            detail::parse_file<grammar, start_rule_payload>(lexer::tok, file, named_value_refs);
+            detail::parse_file<grammar, start_rule_payload>(GetLexer(), file, named_value_refs);
 
         for (auto& k_v : named_value_refs)
             ErrorLogger() << "Should have not returned anything: named_value_refs : " << k_v.first;

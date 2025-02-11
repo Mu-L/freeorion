@@ -538,7 +538,7 @@ void ShipDamageBrowseWnd::UpdateSummary() {
     if (!ship)
         return;
 
-    const ScriptingContext context;
+    const ScriptingContext& context = ClientApp::GetApp()->GetContext();
 
     // unpaired meter total for breakdown summary
     float total_structure_damage = ship->TotalWeaponsShipDamage(context, 0.0f, false);
@@ -553,21 +553,23 @@ void ShipDamageBrowseWnd::UpdateSummary() {
 }
 
 void ShipDamageBrowseWnd::UpdateEffectLabelsAndValues(GG::Y& top) {
+    const ScriptingContext& context = ClientApp::GetApp()->GetContext();
+
     // clear existing labels
-    for (const auto& effect_label : m_effect_labels_and_values) {
-        DetachChild(effect_label.first);
-        DetachChild(effect_label.second);
+    for (const auto& [label, value] : m_effect_labels_and_values) {
+        DetachChild(label);
+        DetachChild(value);
     }
     m_effect_labels_and_values.clear();
 
     // get object and meter, aborting if not valid
-    auto ship = Objects().getRaw<Ship>(m_object_id);
+    auto ship = context.ContextObjects().getRaw<Ship>(m_object_id);
     if (!ship) {
         ErrorLogger() << "ShipDamageBrowseWnd::UpdateEffectLabelsAndValues couldn't get ship with id " << m_object_id;
         return;
     }
 
-    const ShipDesign* design = GetUniverse().GetShipDesign(ship->DesignID());
+    const ShipDesign* design = context.ContextUniverse().GetShipDesign(ship->DesignID());
     if (!design)
         return;
 
@@ -584,9 +586,9 @@ void ShipDamageBrowseWnd::UpdateEffectLabelsAndValues(GG::Y& top) {
             continue;
 
         // get the attack power for each weapon part
-        const ScriptingContext context{ship};
-        float part_attack = ship->WeaponPartShipDamage(part, context);
-        float part_fighters_shot = ship->WeaponPartFighterDamage(part, context);
+        const ScriptingContext source_context{context, ScriptingContext::Source{}, ship};
+        float part_attack = ship->WeaponPartShipDamage(part, source_context);
+        float part_fighters_shot = ship->WeaponPartFighterDamage(part, source_context);
 
         auto text = boost::io::str(FlexibleFormat(label_template) % name % UserString(part_name));
 
@@ -755,7 +757,7 @@ void ShipFightersBrowseWnd::UpdateEffectLabelsAndValues(GG::Y& top) {
     m_bay_list->DetachChildren();
     m_hangar_list->DetachChildren();
 
-    ScriptingContext context;
+    const ScriptingContext& context = ClientApp::GetApp()->GetContext();
     const Universe& u = context.ContextUniverse();
     const ObjectMap& o = context.ContextObjects();
 

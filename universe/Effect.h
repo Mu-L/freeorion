@@ -2,6 +2,7 @@
 #define _Effect_h_
 
 
+#include <compare>
 #include <map>
 #include <memory>
 #include <string>
@@ -35,6 +36,14 @@ FO_ENUM(
     ((ECT_POLICY))
 )
 
+#if !defined(CONSTEXPR_STRING)
+#  if defined(__cpp_lib_constexpr_string) && ((!defined(__GNUC__) || (__GNUC__ > 11))) && ((!defined(_MSC_VER) || (_MSC_VER >= 1934)))
+#    define CONSTEXPR_STRING constexpr
+#  else
+#    define CONSTEXPR_STRING
+#  endif
+#endif
+
 namespace Effect {
     struct AccountingInfo;
     class EffectsGroup;
@@ -47,9 +56,9 @@ namespace Effect {
     /** Description of cause of an effect: the general cause type, and the
       * specific cause.  eg. Building and a particular BuildingType. */
     struct FO_COMMON_API EffectCause {
-        EffectCause() = default;
+        CONSTEXPR_STRING EffectCause() = default;
 
-        explicit EffectCause(EffectsCauseType cause_type_) noexcept(noexcept(std::string{})) :
+        CONSTEXPR_STRING explicit EffectCause(EffectsCauseType cause_type_) noexcept(noexcept(std::string{})) :
             cause_type(cause_type_)
         {}
 
@@ -80,9 +89,12 @@ namespace Effect {
 
     /** Combination of an EffectsGroup and the id of a source object. */
     struct SourcedEffectsGroup {
-        SourcedEffectsGroup() = default;
-        SourcedEffectsGroup(int source_object_id_, const EffectsGroup* effects_group_);
-        bool operator<(const SourcedEffectsGroup& right) const;
+        constexpr SourcedEffectsGroup() = default;
+        constexpr SourcedEffectsGroup(int source_object_id_, const EffectsGroup* effects_group_) noexcept :
+            source_object_id(source_object_id_),
+            effects_group(effects_group_)
+        {}
+        constexpr auto operator<=>(const SourcedEffectsGroup&) const noexcept = default;
         int source_object_id = INVALID_OBJECT_ID;
         const EffectsGroup* effects_group = nullptr;
     };
@@ -117,8 +129,7 @@ namespace Effect {
                              bool include_empire_meter_effects = false,
                              bool only_generate_sitrep_effects = false) const;
 
-        virtual bool operator==(const Effect& rhs) const;
-        bool         operator!=(const Effect& rhs) const { return !(*this == rhs); }
+        [[nodiscard]] virtual bool operator==(const Effect& rhs) const;
 
         [[nodiscard]] virtual std::string Dump(uint8_t ntabs = 0) const = 0;
 
@@ -170,7 +181,7 @@ namespace Effect {
             running_meter_total(running_meter_total_)
         {}
 
-        bool operator==(const AccountingInfo& rhs) const noexcept;
+        [[nodiscard]] bool operator==(const AccountingInfo& rhs) const noexcept;
 
         int     source_id = INVALID_OBJECT_ID;  ///< source object of effect
         float   meter_change = 0.0f;            ///< net change on meter due to this effect, as best known by client's empire
@@ -201,9 +212,7 @@ namespace Effect {
 
         EffectsGroup(EffectsGroup&& rhs) = default;
 
-        bool operator==(const EffectsGroup& rhs) const;
-        bool operator!=(const EffectsGroup& rhs) const
-        { return !(*this == rhs); }
+        [[nodiscard]] bool operator==(const EffectsGroup& rhs) const;
 
         /** execute all effects in group */
         void Execute(ScriptingContext& source_context,

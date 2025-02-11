@@ -1,6 +1,7 @@
 import pytest
 
 import savegame_codec
+from CombatRatingsAI import ShipCombatStats
 
 
 class DummyTestClass:
@@ -52,10 +53,10 @@ class SetStateTester:
 
 @pytest.fixture(
     params=[
-        int(),
-        float(),
+        0,
+        0.0,
         "",
-        bool(),
+        False,
         1,
         1.2,
         1.2e4,
@@ -78,6 +79,17 @@ def simple_object(
     request,
 ):
     return request.param
+
+
+def test_class_with_protected_attribute(trusted_scope):
+    foo = ShipCombatStats()
+    retval = savegame_codec.encode(foo)
+    assert retval
+    assert isinstance(retval, str)
+
+    restored_obj = savegame_codec.decode(retval)
+    assert type(restored_obj) == type(foo)
+    assert restored_obj == foo
 
 
 def check_encoding(obj):

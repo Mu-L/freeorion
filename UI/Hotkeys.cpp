@@ -20,6 +20,7 @@
 
 #include "../util/OptionsDB.h"
 #include "../util/Logger.h"
+#include "../util/ranges.h"
 
 
 /////////////////////////////////////////////////////////
@@ -52,15 +53,14 @@ namespace {
 void Hotkey::AddHotkey(const std::string& name, const std::string& description,
                        GG::Key key, GG::Flags<GG::ModKey> mod)
 {
-    auto [it, inserted] = hotkeys.emplace(name, Hotkey(name, description, key, mod));
-    (void)it; // suppress unused variable warning
+    auto inserted = hotkeys.emplace(name, Hotkey(name, description, key, mod)).second;
     if (!inserted)
         InfoLogger() << "Hotkey::AddHotkey skipped creating a new hotkey with name " << name;
 }
 
 std::string Hotkey::HotkeyToString(GG::Key key, GG::Flags<GG::ModKey> mod) {
     std::string retval;
-    const std::size_t sz = ((mod != GG::MOD_KEY_NONE) + (key > GG::Key::GGK_NONE)) * 24; // guesstimate
+    const std::size_t sz = ((mod != GG::MOD_KEY_NONE ? 1u : 0u) + (key > GG::Key::GGK_NONE ? 1u : 0u)) * 24; // guesstimate
     retval.reserve(sz);
     if (mod != GG::MOD_KEY_NONE)
         retval.append(GG::to_string(mod)).append("+");
@@ -194,8 +194,7 @@ std::string Hotkey::PrettyPrint() const
 { return ::PrettyPrint(m_key, m_mod_keys); }
 
 void Hotkey::ReadFromOptions(OptionsDB& db) {
-    for (auto& [ignored, hotkey] : hotkeys) {
-        (void)ignored;
+    for (auto& hotkey : hotkeys | range_values) {
         std::string options_db_name = hotkey.m_name + ".hotkey";
         if (!db.OptionExists(options_db_name)) {
             ErrorLogger() << "Hotkey::ReadFromOptions : no option for " << options_db_name;
@@ -275,13 +274,12 @@ void Hotkey::ClearHotkey(const Hotkey& old_hotkey)
 //////////////////////////////////////////////////////////////////////
 // HotkeyManager
 //////////////////////////////////////////////////////////////////////
-HotkeyManager* HotkeyManager::s_singleton = nullptr;
-
-HotkeyManager* HotkeyManager::GetManager() {
-    if (!s_singleton)
-        s_singleton = new HotkeyManager;
-    return s_singleton;
+namespace {
+    HotkeyManager hkm;
 }
+
+HotkeyManager& HotkeyManager::GetManager()
+{ return hkm; }
 
 void HotkeyManager::RebuildShortcuts() {
     m_internal_connections.clear(); // should disconnect scoped connections
@@ -307,15 +305,6 @@ void HotkeyManager::AddConditionalConnection(const std::string& name,
                                              std::function<bool()> cond)
 { m_connections[name].emplace_back(std::move(conn), std::move(cond)); }
 
-GG::GUI::AcceleratorSignalType& HotkeyManager::NamedSignal(const std::string& name) {
-    /// Unsure why GG::AcceleratorSignal implementation uses shared
-    /// pointers. Maybe I should, too ?
-    auto& sig = m_signals[name];
-    if (!sig)
-        sig = new GG::GUI::AcceleratorSignalType;
-    return *sig;
-}
-
 bool HotkeyManager::ProcessNamedShortcut(const std::string& name, GG::Key key,
                                          GG::Flags<GG::ModKey> mod)
 {
@@ -330,6 +319,5 @@ bool HotkeyManager::ProcessNamedShortcut(const std::string& name, GG::Key key,
     conds.erase(std::remove_if(conds.begin(), conds.end(), not_connected), conds.end());
 
     // Then, return the value of the signal !
-    GG::GUI::AcceleratorSignalType* sig = m_signals[name];
-    return (*sig)();
+    return m_signals[name]();
 }

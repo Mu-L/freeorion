@@ -40,8 +40,13 @@ public:
     SetMeter(MeterType meter,
              std::unique_ptr<ValueRef::ValueRef<double>>&& value,
              boost::optional<std::string> accounting_label = boost::none);
+    SetMeter(MeterType meter,
+             std::unique_ptr<ValueRef::ValueRef<double>>&& value,
+             const char* accounting_label) :
+        SetMeter(meter, std::move(value), std::string{accounting_label})
+    {}
 
-    bool operator==(const Effect& rhs) const override;
+    [[nodiscard]] bool operator==(const Effect& rhs) const override;
 
     void Execute(ScriptingContext& context) const override;
 
@@ -85,7 +90,7 @@ public:
                      std::unique_ptr<ValueRef::ValueRef<std::string>>&& part_name,
                      std::unique_ptr<ValueRef::ValueRef<double>>&& value);
 
-    bool operator==(const Effect& rhs) const override;
+    [[nodiscard]] bool operator==(const Effect& rhs) const override;
 
     void Execute(ScriptingContext& context) const override;
     void Execute(ScriptingContext& context, const TargetSet& targets) const override;
@@ -123,7 +128,7 @@ public:
     SetEmpireMeter(std::unique_ptr<ValueRef::ValueRef<int>>&& empire_id, std::string& meter,
                    std::unique_ptr<ValueRef::ValueRef<double>>&& value);
 
-    bool operator==(const Effect& rhs) const override;
+    [[nodiscard]] bool operator==(const Effect& rhs) const override;
 
     void Execute(ScriptingContext& context) const override;
     void Execute(ScriptingContext& context, const TargetSet& targets) const override;
@@ -160,7 +165,7 @@ public:
                        ResourceType stockpile,
                        std::unique_ptr<ValueRef::ValueRef<double>>&& value);
 
-    bool operator==(const Effect& rhs) const override;
+    [[nodiscard]] bool operator==(const Effect& rhs) const override;
 
     void Execute(ScriptingContext& context) const override;
     [[nodiscard]] std::string Dump(uint8_t ntabs = 0) const override;
@@ -183,7 +188,7 @@ public:
     SetEmpireCapital();
     explicit SetEmpireCapital(std::unique_ptr<ValueRef::ValueRef<int>>&& empire_id);
 
-    bool operator==(const Effect& rhs) const override;
+    [[nodiscard]] bool operator==(const Effect& rhs) const override;
 
     void        Execute(ScriptingContext& context) const override;
     std::string Dump(uint8_t ntabs = 0) const override;
@@ -256,6 +261,23 @@ private:
 
 /** Sets the species on the target to \a species_name.  This works on planets
   * and ships, but has no effect on other objects. */
+class FO_COMMON_API SetFocus final : public Effect {
+public:
+    explicit SetFocus(std::unique_ptr<ValueRef::ValueRef<std::string>>&& focus);
+
+    void Execute(ScriptingContext& context) const override;
+    [[nodiscard]] std::string Dump(uint8_t ntabs = 0) const override;
+    void SetTopLevelContent(const std::string& content_name) override;
+    [[nodiscard]] uint32_t GetCheckSum() const override;
+
+    [[nodiscard]] std::unique_ptr<Effect> Clone() const override;
+
+private:
+    std::unique_ptr<ValueRef::ValueRef<std::string>> m_focus_name;
+};
+
+/** Sets the species on the target to \a species_name.  This works on planets
+  * and ships, but has no effect on other objects. */
 class FO_COMMON_API SetSpecies final : public Effect {
 public:
     explicit SetSpecies(std::unique_ptr<ValueRef::ValueRef<std::string>>&& species);
@@ -294,10 +316,13 @@ class FO_COMMON_API SetSpeciesEmpireOpinion final : public Effect {
 public:
     SetSpeciesEmpireOpinion(std::unique_ptr<ValueRef::ValueRef<std::string>>&& species_name,
                             std::unique_ptr<ValueRef::ValueRef<int>>&& empire_id,
-                            std::unique_ptr<ValueRef::ValueRef<double>>&& opinion);
+                            std::unique_ptr<ValueRef::ValueRef<double>>&& opinion,
+                            bool target_opinion);
 
     void Execute(ScriptingContext& context) const override;
     [[nodiscard]] std::string Dump(uint8_t ntabs = 0) const override;
+    [[nodiscard]] bool IsMeterEffect() const noexcept override { return true; }
+    [[nodiscard]] bool IsEmpireMeterEffect() const noexcept override { return true; }
     void SetTopLevelContent(const std::string& content_name) override;
     [[nodiscard]] uint32_t GetCheckSum() const override;
 
@@ -307,6 +332,7 @@ private:
     std::unique_ptr<ValueRef::ValueRef<std::string>>    m_species_name;
     std::unique_ptr<ValueRef::ValueRef<int>>            m_empire_id;
     std::unique_ptr<ValueRef::ValueRef<double>>         m_opinion;
+    bool                                                m_target;
 };
 
 /** Sets the opinion of Species \a opinionated_species for other species
@@ -315,10 +341,13 @@ class FO_COMMON_API SetSpeciesSpeciesOpinion final : public Effect {
 public:
     SetSpeciesSpeciesOpinion(std::unique_ptr<ValueRef::ValueRef<std::string>>&& opinionated_species_name,
                              std::unique_ptr<ValueRef::ValueRef<std::string>>&& rated_species_name,
-                             std::unique_ptr<ValueRef::ValueRef<double>>&& opinion);
+                             std::unique_ptr<ValueRef::ValueRef<double>>&& opinion,
+                             bool target_opinion);
 
     void Execute(ScriptingContext& context) const override;
     [[nodiscard]] std::string Dump(uint8_t ntabs = 0) const override;
+    [[nodiscard]] bool IsMeterEffect() const noexcept override { return true; }
+    [[nodiscard]] bool IsEmpireMeterEffect() const noexcept override { return true; }
     void SetTopLevelContent(const std::string& content_name) override;
     [[nodiscard]] uint32_t GetCheckSum() const override;
 
@@ -328,6 +357,7 @@ private:
     std::unique_ptr<ValueRef::ValueRef<std::string>>    m_opinionated_species_name;
     std::unique_ptr<ValueRef::ValueRef<std::string>>    m_rated_species_name;
     std::unique_ptr<ValueRef::ValueRef<double>>         m_opinion;
+    bool                                                m_target;
 };
 
 /** Creates a new Planet with specified \a type and \a size at the system with
@@ -814,7 +844,9 @@ private:
 /** Applies a texture to Planets. */
 class FO_COMMON_API SetTexture final : public Effect {
 public:
-    explicit SetTexture(std::string& texture);
+    explicit SetTexture(auto&& texture) :
+        m_texture(std::forward<decltype(texture)>(texture))
+    {}
 
     void Execute(ScriptingContext& context) const override;
 

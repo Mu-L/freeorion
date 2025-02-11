@@ -5,6 +5,7 @@
 #include "../../util/i18n.h"
 #include "../../util/Logger.h"
 #include "../../util/VarText.h"
+#include "../../universe/ScriptingContext.h"
 #include "../../universe/ShipDesign.h"
 #include "../../universe/Universe.h"
 
@@ -63,7 +64,7 @@ public:
 
     void DoLayout() {
         // Leave space for the resize tab.
-        m_tabs->SizeMove(GG::Pt(GG::X0, GG::Y0),
+        m_tabs->SizeMove(GG::Pt0,
                          GG::Pt(m_wnd.ClientWidth(),
                                 m_wnd.ClientHeight() - GG::Y(INNER_BORDER_ANGLE_OFFSET)));
 
@@ -72,7 +73,7 @@ public:
                dynamic_cast<GraphicalSummaryWnd*>(m_tabs->CurrentWnd())) {
             graphical_wnd->DoLayout();
         } else if (auto log_wnd = dynamic_cast<GG::ScrollPanel*>(m_tabs->CurrentWnd())) {
-            log_wnd->SizeMove(GG::Pt(GG::X0, GG::Y0),
+            log_wnd->SizeMove(GG::Pt0,
                          GG::Pt(m_wnd.ClientWidth(),
                                 m_wnd.ClientHeight() - GG::Y(INNER_BORDER_ANGLE_OFFSET)));
         }
@@ -103,7 +104,7 @@ public:
             } else if (link_type == VarText::DESIGN_ID_TAG) {
                 ClientUI::GetClientUI()->ZoomToShipDesign(lexical_cast<int>(data));
             } else if (link_type == VarText::PREDEFINED_DESIGN_TAG) {
-                if (const ShipDesign* design = GetUniverse().GetGenericShipDesign(data))
+                if (const ShipDesign* design = IApp::GetApp()->GetContext().ContextUniverse().GetGenericShipDesign(data))
                     ClientUI::GetClientUI()->ZoomToShipDesign(design->ID());
 
             } else if (link_type == VarText::TECH_TAG) {
@@ -150,7 +151,7 @@ private:
     GG::Pt                                  m_min_size; //< Minimum size according to the contents, is not constrained by the app window size
 
     void UpdateMinSize() {
-        m_min_size = GG::Pt(GG::X0, GG::Y0);
+        m_min_size = GG::Pt0;
         m_min_size += m_wnd.Size() - m_wnd.ClientSize();
 
         // The rest of this function could use m_tabs->MinUsableSize instead of
@@ -167,7 +168,7 @@ private:
             m_min_size += GG::Pt(ClientUI::GetFont()->SpaceWidth()*20, ClientUI::GetFont()->Height());
         }
 
-        auto&& layout_begin = m_tabs->GetLayout()->Children().begin();
+        auto layout_begin = m_tabs->GetLayout()->Children().begin();
         // First object in the layout should be the tab bar.
         if (layout_begin != m_tabs->GetLayout()->Children().end()) {
             GG::Pt tab_min_size = (*layout_begin)->MinUsableSize();
@@ -208,7 +209,7 @@ CombatReportWnd::CombatReportWnd(std::string_view config_name) :
 {}
 
 void CombatReportWnd::CompleteConstruction() {
-    m_impl.reset(new Impl(*this));
+    m_impl = std::make_unique<Impl>(*this);
     CUIWnd::CompleteConstruction();
 }
 

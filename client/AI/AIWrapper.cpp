@@ -30,6 +30,13 @@
 #include <boost/python/scope.hpp>
 #include <boost/uuid/random_generator.hpp>
 
+#include <utility>
+#if !defined(__cpp_lib_integer_comparison_functions)
+namespace std {
+    inline auto cmp_less_equal(auto&& lhs, auto&& rhs) { return lhs <= rhs; }
+}
+#endif
+
 namespace py = boost::python;
 
 
@@ -38,7 +45,7 @@ namespace py = boost::python;
 ////////////////////////
 namespace {
     // static string to save AI state
-    static std::string s_save_state_string("");
+    std::string s_save_state_string("");
 
     /** @brief Return the player name of the client identified by @a player_id
      *
@@ -118,19 +125,16 @@ namespace {
     auto AllEmpireIDs() -> std::vector<int>
     {
         const auto& players = AIClientApp::GetApp()->Players();
-        std::vector<int> empire_ids;
-        empire_ids.reserve(players.size());
-        for (auto& [player_id, player_info] : players) {
-            (void)player_id; // quiet warning
-            auto empire_id = player_info.empire_id;
-            if (empire_id != ALL_EMPIRES)
-                empire_ids.push_back(empire_id);
-        }
-        return empire_ids;
+        auto rng = players | range_transform([](const auto& id_pi) { return id_pi.second.empire_id; })
+            | range_filter([](int empire_id) { return empire_id != ALL_EMPIRES; });
+        std::vector<int> retval;
+        retval.reserve(players.size());
+        range_copy(rng, std::back_inserter(retval));
+        return retval;
     }
 
     void InitMeterEstimatesAndDiscrepancies() {
-        ScriptingContext context;
+        ScriptingContext& context = IApp::GetApp()->GetContext();
         context.ContextUniverse().InitMeterEstimatesAndDiscrepancies(context);
     }
 
@@ -146,7 +150,7 @@ namespace {
         std::vector<Planet*> unowned_planets;
         int player_id = -1;
 
-        ScriptingContext context;
+        ScriptingContext& context = IApp::GetApp()->GetContext();
         Universe& universe = context.ContextUniverse();
 
         if (pretend_to_own_unowned_planets) {
@@ -167,11 +171,11 @@ namespace {
             // to.
             unowned_planets.reserve(universe.Objects().size<Planet>());
             universe.InhibitUniverseObjectSignals(true);
-            for (auto planet : universe.Objects().allRaw<Planet>()) {
-                 if (planet->Unowned()) {
-                     unowned_planets.push_back(planet);
-                     planet->SetOwner(player_id);
-                 }
+            for (auto planet : universe.Objects().allRaw<Planet>()
+                 | range_filter([](const auto* p) { return p->Unowned(); }))
+            {
+                unowned_planets.push_back(planet);
+                planet->SetOwner(player_id);
             }
         }
 
@@ -187,36 +191,40 @@ namespace {
     }
 
     void UpdateResourcePools() {
-        ScriptingContext context;
-        int empire_id = AIClientApp::GetApp()->EmpireID();
+        ScriptingContext& context = IApp::GetApp()->GetContext();
+        const int empire_id = AIClientApp::GetApp()->EmpireID();
         auto empire = context.GetEmpire(empire_id);
         if (!empire) {
             ErrorLogger() << "UpdateResourcePools : couldn't get empire with id " << empire_id;
             return;
         }
-        empire->UpdateResourcePools(context);
+        empire->UpdateResourcePools(context,
+                                    empire->TechCostsTimes(context),
+                                    empire->PlanetAnnexationCosts(context),
+                                    empire->PolicyAdoptionCosts(context),
+                                    empire->ProductionCostsTimes(context));
     }
 
     void UpdateResearchQueue() {
-        ScriptingContext context;
+        ScriptingContext& context = IApp::GetApp()->GetContext();
         int empire_id = AIClientApp::GetApp()->EmpireID();
         auto empire = context.GetEmpire(empire_id);
         if (!empire) {
             ErrorLogger() << "UpdateResearchQueue : couldn't get empire with id " << empire_id;
             return;
         }
-        empire->UpdateResearchQueue(context);
+        empire->UpdateResearchQueue(context, empire->TechCostsTimes(context));
     }
 
     void UpdateProductionQueue() {
-        ScriptingContext context;
-        int empire_id = AIClientApp::GetApp()->EmpireID();
+        ScriptingContext& context = IApp::GetApp()->GetContext();
+        const int empire_id = AIClientApp::GetApp()->EmpireID();
         auto empire = context.GetEmpire(empire_id);
         if (!empire) {
             ErrorLogger() << "UpdateProductionQueue : couldn't get empire with id " << empire_id;
             return;
         }
-        empire->UpdateProductionQueue(context);
+        empire->UpdateProductionQueue(context, empire->ProductionCostsTimes(context));
     }
 
     auto GetUserStringList(const std::string& list_key) -> py::list
@@ -227,18 +235,16 @@ namespace {
         return ret_list;
     }
 
-    template<typename OrderType, typename... Args>
-    auto Issue(Args &&... args) -> int
+    template <typename OrderType, typename... Args>
+    auto Issue(Args&&... args) -> int
     {
-        auto app = ClientApp::GetApp();
-        ScriptingContext context;
+        auto* app = ClientApp::GetApp();
+        ScriptingContext& context = app->GetContext();
 
-        if (!OrderType::Check(app->EmpireID(), std::forward<Args>(args)..., context))
+        if (!OrderType::Check(app->EmpireID(), args..., context))
             return 0;
 
-        app->Orders().IssueOrder(
-            std::make_shared<OrderType>(app->EmpireID(), std::forward<Args>(args)..., context),
-            context);
+        app->Orders().IssueOrder<OrderType>(context, app->EmpireID(), std::forward<Args>(args)...);
 
         return 1;
     }
@@ -247,17 +253,16 @@ namespace {
     {
         std::vector<int> ship_ids{ship_id};
         auto app = ClientApp::GetApp();
-        ScriptingContext context;
+        ScriptingContext& context = IApp::GetApp()->GetContext();
 
         if (!NewFleetOrder::Check(app->EmpireID(), fleet_name, ship_ids,
                                   FleetAggression::FLEET_OBSTRUCTIVE, context))
         { return INVALID_OBJECT_ID; }
 
-        auto order = std::make_shared<NewFleetOrder>(app->EmpireID(), fleet_name, ship_ids,
-                                                     FleetAggression::FLEET_OBSTRUCTIVE, context);
-        app->Orders().IssueOrder(order, context);
+        const auto order = app->Orders().IssueOrder<NewFleetOrder>(
+            context, app->EmpireID(), fleet_name, ship_ids, FleetAggression::FLEET_OBSTRUCTIVE);
 
-        return order->FleetID();
+        return order ? order->FleetID() : INVALID_OBJECT_ID;
     }
 
     auto IssueFleetTransferOrder(int ship_id, int new_fleet_id) -> int
@@ -274,12 +279,8 @@ namespace {
             return 0;
         }
 
-        int empire_id = AIClientApp::GetApp()->EmpireID();
-
-        ScriptingContext context;
-        AIClientApp::GetApp()->Orders().IssueOrder(
-            std::make_shared<ResearchQueueOrder>(empire_id, tech_name, position),
-            context);
+        auto* app = AIClientApp::GetApp();
+        app->Orders().IssueOrder<ResearchQueueOrder>(app->GetContext(), app->EmpireID(), tech_name, position);
 
         return 1;
     }
@@ -292,12 +293,8 @@ namespace {
             return 0;
         }
 
-        int empire_id = AIClientApp::GetApp()->EmpireID();
-
-        ScriptingContext context;
-        AIClientApp::GetApp()->Orders().IssueOrder(
-            std::make_shared<ResearchQueueOrder>(empire_id, tech_name),
-            context);
+        auto* app = AIClientApp::GetApp();
+        app->Orders().IssueOrder<ResearchQueueOrder>(app->GetContext(), app->EmpireID(), tech_name);
 
         return 1;
     }
@@ -316,10 +313,11 @@ namespace {
             return 0;
         }
 
-        ScriptingContext context;
-
-        int empire_id = AIClientApp::GetApp()->EmpireID();
+        auto* app = AIClientApp::GetApp();
+        ScriptingContext& context = app->GetContext();
+        int empire_id = app->EmpireID();
         auto empire = context.GetEmpire(empire_id);
+
         if (!empire) {
             ErrorLogger() << "IssueAdoptPolicyOrder : couldn't get empire with id " << empire_id;
             return 0;
@@ -330,18 +328,17 @@ namespace {
             return 0;
         }
 
-        AIClientApp::GetApp()->Orders().IssueOrder(
-            std::make_shared<PolicyOrder>(empire_id, policy_name, category, true, slot),
-            context);
+        app->Orders().IssueOrder<PolicyOrder>(context, empire_id, policy_name, category, slot);
         return 1;
     }
 
     auto IssueDeadoptPolicyOrder(const std::string& policy_name) -> int
     {
-        int empire_id = AIClientApp::GetApp()->EmpireID();
-        ScriptingContext context;
-
+        auto* app = AIClientApp::GetApp();
+        ScriptingContext& context = app->GetContext();
+        int empire_id = app->EmpireID();
         auto empire = context.GetEmpire(empire_id);
+
         if (!empire) {
             ErrorLogger() << "IssueDeadoptPolicyOrder : couldn't get empire with id " << empire_id;
             return 0;
@@ -352,16 +349,13 @@ namespace {
             return 0;
         }
 
-        AIClientApp::GetApp()->Orders().IssueOrder(
-            std::make_shared<PolicyOrder>(empire_id, policy_name, "", false),
-            context);  // category and slot ignored for de-adtopting
+        app->Orders().IssueOrder<PolicyOrder>(context, empire_id, policy_name);
         return 1;
-
     }
 
     auto IsProducibleBuilding(const std::string& item_name, int location_id) -> bool
     {
-        ScriptingContext context;
+        ScriptingContext& context = IApp::GetApp()->GetContext();
         int empire_id = AIClientApp::GetApp()->EmpireID();
         auto empire = context.GetEmpire(empire_id);
         if (!empire) {
@@ -373,7 +367,7 @@ namespace {
 
     auto IsEnqueuableBuilding(const std::string& item_name, int location_id) -> bool
     {
-        ScriptingContext context;
+        ScriptingContext& context = IApp::GetApp()->GetContext();
         int empire_id = AIClientApp::GetApp()->EmpireID();
         auto empire = context.GetEmpire(empire_id);
         if (!empire) {
@@ -385,9 +379,10 @@ namespace {
 
     auto IssueEnqueueBuildingProductionOrder(const std::string& item_name, int location_id) -> int
     {
-        ScriptingContext context;
+        auto* app = AIClientApp::GetApp();
+        ScriptingContext& context = app->GetContext();
+        int empire_id = app->EmpireID();
 
-        int empire_id = AIClientApp::GetApp()->EmpireID();
         auto empire = context.GetEmpire(empire_id);
         if (!empire) {
             ErrorLogger() << "IssueEnqueueBuildingProductionOrder : couldn't get empire with id " << empire_id;
@@ -399,19 +394,19 @@ namespace {
             return 0;
         }
 
-        AIClientApp::GetApp()->Orders().IssueOrder(
-            std::make_shared<ProductionQueueOrder>(ProductionQueueOrder::ProdQueueOrderAction::PLACE_IN_QUEUE,
-                                                   empire_id,
-                                                   ProductionQueue::ProductionItem(BuildType::BT_BUILDING, item_name),
-                                                   1, location_id),
-            context);
+        app->Orders().IssueOrder<ProductionQueueOrder>(
+            context,
+            ProductionQueueOrder::ProdQueueOrderAction::PLACE_IN_QUEUE,
+            empire_id,
+            ProductionQueue::ProductionItem(BuildType::BT_BUILDING, item_name),
+            1, location_id);
 
         return 1;
     }
 
     auto IsEnqueuableShip(int design_id, int location_id) -> bool
     {
-        ScriptingContext context;
+        const ScriptingContext& context = IApp::GetApp()->GetContext();
         int empire_id = AIClientApp::GetApp()->EmpireID();
         auto empire = context.GetEmpire(empire_id);
         if (!empire) {
@@ -424,10 +419,11 @@ namespace {
 
     auto IssueEnqueueShipProductionOrder(int design_id, int location_id) -> int
     {
-        ScriptingContext context;
+        auto* app = AIClientApp::GetApp();
+        ScriptingContext& context = app->GetContext();
         const Universe& universe{context.ContextUniverse()};
+        int empire_id = app->EmpireID();
 
-        int empire_id = AIClientApp::GetApp()->EmpireID();
         auto empire = context.GetEmpire(empire_id);
         if (!empire) {
             ErrorLogger() << "IssueEnqueueShipProductionOrder : couldn't get empire with id " << empire_id;
@@ -439,21 +435,21 @@ namespace {
             return 0;
         }
 
-        AIClientApp::GetApp()->Orders().IssueOrder(
-            std::make_shared<ProductionQueueOrder>(ProductionQueueOrder::ProdQueueOrderAction::PLACE_IN_QUEUE,
-                                                   empire_id,
-                                                   ProductionQueue::ProductionItem(BuildType::BT_SHIP, design_id, universe),
-                                                   1, location_id),
-            context);
+        app->Orders().IssueOrder<ProductionQueueOrder>(
+            context,
+            ProductionQueueOrder::ProdQueueOrderAction::PLACE_IN_QUEUE,
+            empire_id,
+            ProductionQueue::ProductionItem(BuildType::BT_SHIP, design_id, universe),
+            1, location_id);
 
         return 1;
     }
 
     auto IssueChangeProductionQuantityOrder(int queue_index, int new_quantity, int new_blocksize) -> int
     {
-        ScriptingContext context;
-
-        int empire_id = AIClientApp::GetApp()->EmpireID();
+        auto* app = AIClientApp::GetApp();
+        ScriptingContext& context = app->GetContext();
+        int empire_id = app->EmpireID();
         auto empire = context.GetEmpire(empire_id);
         if (!empire) {
             ErrorLogger() << "IssueChangeProductionQuantityOrder : couldn't get empire with id " << empire_id;
@@ -461,7 +457,7 @@ namespace {
         }
 
         const ProductionQueue& queue = empire->GetProductionQueue();
-        if (queue_index < 0 || static_cast<int>(queue.size()) <= queue_index) {
+        if (queue_index < 0 || std::cmp_less_equal(queue.size(), queue_index)) {
             ErrorLogger() << "IssueChangeProductionQuantityOrder : passed queue_index outside range of items on queue.";
             return 0;
         }
@@ -473,11 +469,10 @@ namespace {
         auto queue_it = empire->GetProductionQueue().find(queue_index);
 
         if (queue_it != empire->GetProductionQueue().end())
-            AIClientApp::GetApp()->Orders().IssueOrder(
-                std::make_shared<ProductionQueueOrder>(
-                    ProductionQueueOrder::ProdQueueOrderAction::SET_QUANTITY_AND_BLOCK_SIZE,
-                    empire_id, queue_it->uuid, new_quantity, new_blocksize),
-                context);
+            app->Orders().IssueOrder<ProductionQueueOrder>(
+                context,
+                ProductionQueueOrder::ProdQueueOrderAction::SET_QUANTITY_AND_BLOCK_SIZE,
+                empire_id, queue_it->uuid, new_quantity, new_blocksize);
 
         return 1;
     }
@@ -489,9 +484,9 @@ namespace {
             return 0;
         }
 
-        ScriptingContext context;
-
-        int empire_id = AIClientApp::GetApp()->EmpireID();
+        auto* app = AIClientApp::GetApp();
+        ScriptingContext& context = app->GetContext();
+        int empire_id = app->EmpireID();
         auto empire = context.GetEmpire(empire_id);
         if (!empire) {
             ErrorLogger() << "IssueRequeueProductionOrder : couldn't get empire with id " << empire_id;
@@ -499,7 +494,7 @@ namespace {
         }
 
         const ProductionQueue& queue = empire->GetProductionQueue();
-        if (old_queue_index < 0 || static_cast<int>(queue.size()) <= old_queue_index) {
+        if (old_queue_index < 0 || std::cmp_less_equal(queue.size(), old_queue_index)) {
             ErrorLogger() << "IssueRequeueProductionOrder : passed old_queue_index outside range of items on queue.";
             return 0;
         }
@@ -511,7 +506,7 @@ namespace {
         if (old_queue_index < new_queue_index)
             actual_new_index = new_queue_index - 1;
 
-        if (new_queue_index < 0 || static_cast<int>(queue.size()) <= actual_new_index) {
+        if (new_queue_index < 0 || std::cmp_less_equal(queue.size(), actual_new_index)) {
             ErrorLogger() << "IssueRequeueProductionOrder : passed new_queue_index outside range of items on queue.";
             return 0;
         }
@@ -519,19 +514,19 @@ namespace {
         auto queue_it = empire->GetProductionQueue().find(old_queue_index);
 
         if (queue_it != empire->GetProductionQueue().end())
-            AIClientApp::GetApp()->Orders().IssueOrder(
-            std::make_shared<ProductionQueueOrder>(ProductionQueueOrder::ProdQueueOrderAction::MOVE_ITEM_TO_INDEX,
-                                                   empire_id, queue_it->uuid, new_queue_index),
-                context);
+            app->Orders().IssueOrder<ProductionQueueOrder>(
+                context,
+                ProductionQueueOrder::ProdQueueOrderAction::MOVE_ITEM_TO_INDEX,
+                empire_id, queue_it->uuid, new_queue_index);
 
         return 1;
     }
 
     auto IssueDequeueProductionOrder(int queue_index) -> int
     {
-        ScriptingContext context;
-
-        const int empire_id = AIClientApp::GetApp()->EmpireID();
+        auto* app = AIClientApp::GetApp();
+        ScriptingContext& context = app->GetContext();
+        int empire_id = app->EmpireID();
         auto empire = context.GetEmpire(empire_id);
         if (!empire) {
             ErrorLogger() << "IssueDequeueProductionOrder : couldn't get empire with id " << empire_id;
@@ -539,7 +534,7 @@ namespace {
         }
 
         const ProductionQueue& queue = empire->GetProductionQueue();
-        if (queue_index < 0 || static_cast<int>(queue.size()) <= queue_index) {
+        if (queue_index < 0 || std::cmp_less_equal(queue.size(), queue_index)) {
             ErrorLogger() << "IssueDequeueProductionOrder : passed queue_index outside range of items on queue.";
             return 0;
         }
@@ -547,20 +542,19 @@ namespace {
         auto queue_it = queue.find(queue_index);
 
         if (queue_it != queue.end())
-            AIClientApp::GetApp()->Orders().IssueOrder(
-                std::make_shared<ProductionQueueOrder>(
-                    ProductionQueueOrder::ProdQueueOrderAction::REMOVE_FROM_QUEUE,
-                    empire_id, queue_it->uuid),
-                context);
+            app->Orders().IssueOrder<ProductionQueueOrder>(
+                context,
+                ProductionQueueOrder::ProdQueueOrderAction::REMOVE_FROM_QUEUE,
+                empire_id, queue_it->uuid);
 
         return 1;
     }
 
     auto IssuePauseProductionOrder(int queue_index, bool pause) -> int
     {
-        ScriptingContext context;
-
-        int empire_id = AIClientApp::GetApp()->EmpireID();
+        auto* app = AIClientApp::GetApp();
+        ScriptingContext& context = app->GetContext();
+        int empire_id = app->EmpireID();
         auto empire = context.GetEmpire(empire_id);
         if (!empire) {
             ErrorLogger() << "IssuePauseProductionOrder : couldn't get empire with id " << empire_id;
@@ -568,28 +562,27 @@ namespace {
         }
 
         const ProductionQueue& queue = empire->GetProductionQueue();
-        if (queue_index < 0 || static_cast<int>(queue.size()) <= queue_index) {
+        if (queue_index < 0 || std::cmp_less_equal(queue.size(), queue_index)) {
             ErrorLogger() << "IssueChangeProductionPauseOrder : passed queue_index outside range of items on queue.";
             return 0;
         }
 
-        auto queue_it = empire->GetProductionQueue().find(queue_index);
+        auto queue_it = queue.find(queue_index);
 
-        if (queue_it != empire->GetProductionQueue().end())
-            AIClientApp::GetApp()->Orders().IssueOrder(
-                std::make_shared<ProductionQueueOrder>(
-                    ProductionQueueOrder::ProdQueueOrderAction::PAUSE_PRODUCTION,
-                    empire_id, queue_it->uuid),
-                context);
+        if (queue_it != queue.end())
+            app->Orders().IssueOrder<ProductionQueueOrder>(
+                context,
+                ProductionQueueOrder::ProdQueueOrderAction::PAUSE_PRODUCTION,
+                empire_id, queue_it->uuid);
 
         return 1;
     }
 
     auto IssueAllowStockpileProductionOrder(int queue_index, bool use_stockpile) -> int
     {
-        ScriptingContext context;
-
-        int empire_id = AIClientApp::GetApp()->EmpireID();
+        auto* app = AIClientApp::GetApp();
+        ScriptingContext& context = app->GetContext();
+        int empire_id = app->EmpireID();
         auto empire = context.GetEmpire(empire_id);
         if (!empire) {
             ErrorLogger() << "IssueAllowStockpileProductionOrder : couldn't get empire with id " << empire_id;
@@ -597,7 +590,7 @@ namespace {
         }
 
         const ProductionQueue& queue = empire->GetProductionQueue();
-        if (queue_index < 0 || static_cast<int>(queue.size()) <= queue_index) {
+        if (queue_index < 0 || std::cmp_less_equal(queue.size(), queue_index)) {
             ErrorLogger() << "IssueChangeProductionStockpileOrder : passed queue_index outside range of items on queue.";
             return 0;
         }
@@ -605,10 +598,10 @@ namespace {
         auto queue_it = empire->GetProductionQueue().find(queue_index);
 
         if (queue_it != empire->GetProductionQueue().end())
-            AIClientApp::GetApp()->Orders().IssueOrder(
-                std::make_shared<ProductionQueueOrder>(ProductionQueueOrder::ProdQueueOrderAction::ALLOW_STOCKPILE_USE,
-                                                       empire_id, queue_it->uuid),
-                context);
+            app->Orders().IssueOrder<ProductionQueueOrder>(
+                context,
+                ProductionQueueOrder::ProdQueueOrderAction::ALLOW_STOCKPILE_USE,
+                empire_id, queue_it->uuid);
 
         return 1;
     }
@@ -629,9 +622,9 @@ namespace {
         for (int i = 0; i < num_parts; i++)
             parts.push_back(py::extract<std::string>(parts_list[i]));
 
-        const int empire_id = AIClientApp::GetApp()->EmpireID();
-        ScriptingContext context;
-
+        auto* app = AIClientApp::GetApp();
+        ScriptingContext& context = app->GetContext();
+        int empire_id = app->EmpireID();
         const auto uuid = boost::uuids::random_generator()();
 
         // create design from stuff chosen in UI
@@ -639,9 +632,7 @@ namespace {
             auto design = std::make_unique<ShipDesign>(
                 std::invalid_argument(""), name, description, context.current_turn,
                 empire_id, hull, parts, icon, model, name_desc_in_stringtable, false, uuid);
-            AIClientApp::GetApp()->Orders().IssueOrder(
-                std::make_shared<ShipDesignOrder>(empire_id, *design, context),
-                context);
+            app->Orders().IssueOrder<ShipDesignOrder>(context, empire_id, *design);
             return 1;
 
         } catch (const std::invalid_argument&) {
@@ -731,12 +722,17 @@ namespace FreeOrionPython {
                 +[](int empire_id1, int empire_id2) -> const DiplomaticStatus { return AIClientApp::GetApp()->Empires().GetDiplomaticStatus(empire_id1, empire_id2); },
                 "Returns the diplomatic status between two empires");
 
-        py::def("getUniverse",              GetUniverse,       py::return_value_policy<py::reference_existing_object>(), "Returns the universe object (Universe)");
+        py::def("getUniverse",
+                +[]() -> const Universe& { return ClientApp::GetApp()->GetUniverse(); },
+                py::return_value_policy<py::reference_existing_object>(),
+                "Returns the universe object (Universe)");
 
-        py::def("currentTurn",              CurrentTurn,       "Returns the current game turn (int).");
+        py::def("currentTurn",
+                +[]() -> int { return ClientApp::GetApp()->CurrentTurn(); },
+                "Returns the current game turn (int).");
 
         py::def("getAIDir",
-                +[]() -> std::string { return (GetResourceDir() / GetOptionsDB().Get<std::string>("ai-path")).string(); },
+                +[]() -> std::string { return PathToString(GetResourceDir() / FilenameToPath(GetOptionsDB().Get<std::string>("ai-path"))); },
                 py::return_value_policy<py::return_by_value>());
 
         py::def("initMeterEstimatesDiscrepancies",
@@ -745,10 +741,10 @@ namespace FreeOrionPython {
                 "between actual meters and what the known universe should produce. "
                 "This is used later when updating meter estimates to incorporate "
                 "those discrepancies.");
-        py::def("updateMeterEstimates",                 UpdateMeterEstimates);
-        py::def("updateResourcePools",                  UpdateResourcePools);
-        py::def("updateResearchQueue",                  UpdateResearchQueue);
-        py::def("updateProductionQueue",                UpdateProductionQueue);
+        py::def("updateMeterEstimates",  UpdateMeterEstimates);
+        py::def("updateResourcePools",   UpdateResourcePools);
+        py::def("updateResearchQueue",   UpdateResearchQueue);
+        py::def("updateProductionQueue", UpdateProductionQueue);
 
         py::def("isProducibleBuilding",
                 IsProducibleBuilding,

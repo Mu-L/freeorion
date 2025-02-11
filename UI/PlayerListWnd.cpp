@@ -18,82 +18,82 @@
 namespace {
     constexpr int DATA_PANEL_BORDER = 1;
 
-    std::shared_ptr<GG::Texture> AIIcon() {
-        static std::shared_ptr<GG::Texture> retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "ai.png");
+    auto AIIcon() {
+        static auto retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "ai.png");
         return retval;
     }
 
-    std::shared_ptr<GG::Texture> MessageIcon() {
-        static std::shared_ptr<GG::Texture> retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "buttons" / "messages.png");
+    auto MessageIcon() {
+        static auto retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "buttons" / "messages.png");
         return retval;
     }
 
-    std::shared_ptr<GG::Texture> HumanIcon() {
-        static std::shared_ptr<GG::Texture> retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "human.png");
+    auto HumanIcon() {
+        static auto retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "human.png");
         return retval;
     }
-    std::shared_ptr<GG::Texture> ObserverIcon() {
-        static std::shared_ptr<GG::Texture> retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "observer.png");
+    auto ObserverIcon() {
+        static auto retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "observer.png");
         return retval;
     }
-    std::shared_ptr<GG::Texture> ModeratorIcon() {
-        static std::shared_ptr<GG::Texture> retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "moderator.png");
+    auto ModeratorIcon() {
+        static auto retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "moderator.png");
         return retval;
     }
-    std::shared_ptr<GG::Texture> HostIcon() {
-        static std::shared_ptr<GG::Texture> retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "host.png");
+    auto HostIcon() {
+        static auto retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "host.png");
         return retval;
     }
-    std::shared_ptr<GG::Texture> PlayingIcon() {
-        static std::shared_ptr<GG::Texture> retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "not_ready.png");
+    auto PlayingIcon() {
+        static auto retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "not_ready.png");
         return retval;
     }
-    std::shared_ptr<GG::Texture> WaitingIcon() {
-        static std::shared_ptr<GG::Texture> retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "ready.png");
+    auto WaitingIcon() {
+        static auto retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "ready.png");
         return retval;
     }
-    std::shared_ptr<GG::Texture> WarIcon() {
-        static std::shared_ptr<GG::Texture> retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "war.png");
+    auto WarIcon() {
+        static auto retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "war.png");
         return retval;
     }
-    std::shared_ptr<GG::Texture> PeaceIcon() {
-        static std::shared_ptr<GG::Texture> retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "peace.png");
+    auto PeaceIcon() {
+        static auto retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "peace.png");
         return retval;
     }
-    std::shared_ptr<GG::Texture> AlliedIcon() {
-        static std::shared_ptr<GG::Texture> retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "allied.png");
+    auto AlliedIcon() {
+        static auto retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "allied.png");
         return retval;
     }
-    std::shared_ptr<GG::Texture> UnknownIcon() {
-        static std::shared_ptr<GG::Texture> retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "unknown.png");
+    auto UnknownIcon() {
+        static auto retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "unknown.png");
         return retval;
     }
-    std::shared_ptr<GG::Texture> ShipIcon() {
-        static std::shared_ptr<GG::Texture> retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "sitrep" / "fleet_arrived.png");
+    auto ShipIcon() {
+        static auto retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "sitrep" / "fleet_arrived.png");
         return retval;
     }
-    std::shared_ptr<GG::Texture> ProductionIcon() {
-        static std::shared_ptr<GG::Texture> retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "meter" / "industry.png");
+    auto ProductionIcon() {
+        static auto retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "meter" / "industry.png");
         return retval;
     }
-    std::shared_ptr<GG::Texture> ResearchIcon() {
-        static std::shared_ptr<GG::Texture> retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "meter" / "research.png");
+    auto ResearchIcon() {
+        static auto retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "meter" / "research.png");
         return retval;
     }
-    std::shared_ptr<GG::Texture> InfluenceIcon() {
-        static std::shared_ptr<GG::Texture> retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "meter" / "influence.png");
+    auto InfluenceIcon() {
+        static auto retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "meter" / "influence.png");
         return retval;
     }
-    std::shared_ptr<GG::Texture> DetectionIcon() {
-        static std::shared_ptr<GG::Texture> retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "meter" / "detection.png");
+    auto DetectionIcon() {
+        static auto retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "meter" / "detection.png");
         return retval;
     }
-    std::shared_ptr<GG::Texture> WonIcon() {
-        static std::shared_ptr<GG::Texture> retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "sitrep" / "victory.png");
+    auto WonIcon() {
+        static auto retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "sitrep" / "victory.png");
         return retval;
     }
-    std::shared_ptr<GG::Texture> LostIcon() {
-        static std::shared_ptr<GG::Texture> retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "sitrep" / "empire_eliminated.png");
+    auto LostIcon() {
+        static auto retval = ClientUI::GetTexture(ClientUI::ArtDir() / "icons" / "sitrep" / "empire_eliminated.png");
         return retval;
     }
 
@@ -136,18 +136,21 @@ namespace {
                 ErrorLogger() << "DiplomaticStatusIndicator::Render couldn't get client app!";
                 return;
             }
+            const auto& empires = Empires();
 
             // add id for each empire with specified diplomatic status
             m_empire_ids.clear();
+            m_empire_ids.reserve(empires.NumEmpires());
 
-            for (const auto& empire : Empires()) {
-                int empire_id = empire.second->EmpireID();
+            std::string empires_names_text;
+            empires_names_text.reserve(static_cast<std::size_t>(empires.NumEmpires())*50); // guesstimate
 
-                if (empire.second->Eliminated()) continue;
+            for (const auto& [empire_id, empire] : empires) {
                 if (m_empire_id == empire_id) continue;
-
-                if (Empires().GetDiplomaticStatus(empire_id, m_empire_id) == m_diplo_status) {
-                    m_empire_ids.emplace_back(empire_id);
+                if (empire->Eliminated()) continue;
+                if (empires.GetDiplomaticStatus(empire_id, m_empire_id) == m_diplo_status) {
+                    m_empire_ids.insert(empire_id);
+                    empires_names_text.append(GG::RgbaTag(empire->Color())).append(empire->Name()).append("</rgba>\n");
                 }
             }
 
@@ -169,15 +172,10 @@ namespace {
                 break;
             }
 
-            if (m_empire_ids.size() == 0)
-                tooltip_text += UserString("NONE");
-
-            for (int empire_id : m_empire_ids) {
-                const Empire* empire = GetEmpire(empire_id);
-                if (!empire) continue;
-
-                tooltip_text += GG::RgbaTag(empire->Color()) + empire->Name() + "\n";
-            }
+            if (empires_names_text.empty())
+                tooltip_text.append(UserString("NONE"));
+            else
+                tooltip_text.append(empires_names_text);
 
             // add tooltip
             SetBrowseInfoWnd(GG::Wnd::Create<TextBrowseWnd>(tooltip_title, tooltip_text));
@@ -185,9 +183,9 @@ namespace {
         }
 
         void Render() override {
-            int ICON_SIZE = IconSize();
-            GG::Pt ul = UpperLeft();
-            const GG::Clr& border_clr = ClientUI::WndOuterBorderColor();
+            const int ICON_SIZE = IconSize();
+            const GG::Pt ul = UpperLeft();
+            const GG::Clr border_clr = ClientUI::WndOuterBorderColor();
 
             // diplomatic status icon
             glColor(GG::CLR_WHITE);
@@ -195,12 +193,12 @@ namespace {
 
             // empire color squares; move squares to the left if empire with lower id was eliminated
             int square_position = 0;
-            for (const auto& empire : Empires()) {
-                if (empire.second->Eliminated()) continue;
+            for (const auto& [empire_id, empire] : Empires()) {
+                if (empire->Eliminated()) continue;
                 square_position++;
-                if (std::find(m_empire_ids.begin(), m_empire_ids.end(), empire.first) != m_empire_ids.end()) {
-                    const GG::Clr& square_color = empire.second->Color();
-                    GG::Pt square_ul = ul + GG::Pt(GG::X(square_position * (ICON_SIZE + PAD)), GG::Y0);
+                if (std::find(m_empire_ids.begin(), m_empire_ids.end(), empire_id) != m_empire_ids.end()) {
+                    const GG::Clr square_color = empire->Color();
+                    const GG::Pt square_ul = ul + GG::Pt(GG::X(square_position * (ICON_SIZE + PAD)), GG::Y0);
                     GG::FlatRectangle(square_ul, square_ul + GG::Pt(GG::X(ICON_SIZE), GG::Y(ICON_SIZE)), square_color, border_clr, DATA_PANEL_BORDER);
                 }
             }
@@ -210,13 +208,13 @@ namespace {
         void RButtonDown(GG::Pt pt, GG::Flags<GG::ModKey> mod_keys) override { ForwardEventToParent(); }
 
     private:
-        int                                        m_empire_id;
-        std::vector<int>                           m_empire_ids;
-        DiplomaticStatus                           m_diplo_status;
-        std::shared_ptr<GG::Texture>               m_icon;
+        int                             m_empire_id;
+        boost::container::flat_set<int> m_empire_ids;
+        DiplomaticStatus                m_diplo_status;
+        std::shared_ptr<GG::Texture>    m_icon;
 
         int IconSize() const { return Value(Height()); }
-        int PAD = 3;
+        static constexpr int PAD = 3;
     };
 
 
@@ -279,10 +277,10 @@ namespace {
 
         /** Renders panel background, border with color depending on the current state. */
         void Render() override {
-            const GG::Clr& background_colour = ClientUI::WndColor();
-            const GG::Clr& unselected_colour = ClientUI::WndOuterBorderColor();
-            const GG::Clr& selected_colour = ClientUI::WndInnerBorderColor();
-            GG::Clr border_colour = m_selected ? selected_colour : unselected_colour;
+            const auto background_colour = ClientUI::WndColor();
+            const auto unselected_colour = ClientUI::WndOuterBorderColor();
+            const auto selected_colour = ClientUI::WndInnerBorderColor();
+            auto border_colour = m_selected ? selected_colour : unselected_colour;
             if (Disabled())
                 border_colour = DisabledColor(border_colour);
 
@@ -290,7 +288,7 @@ namespace {
 
             glColor(GG::CLR_WHITE);
 
-            GG::Pt ICON_SIZE = GG::Pt(GG::X(IconSize()), GG::Y(IconSize()));
+            GG::Pt ICON_SIZE = GG::Pt(GG::X{IconSize()}, GG::Y{IconSize()});
 
 
             ShipIcon()->OrthoBlit(UpperLeft() + m_ship_icon_ul, UpperLeft() + m_ship_icon_ul+ ICON_SIZE);
@@ -359,7 +357,7 @@ namespace {
         { m_selected = b; }
 
         void SizeMove(GG::Pt ul, GG::Pt lr) override {
-            const GG::Pt old_size = Size();
+            const auto old_size = Size();
             GG::Control::SizeMove(ul, lr);
             if (old_size != Size())
                 DoLayout();
@@ -474,30 +472,31 @@ namespace {
             m_allied_indicator->Update();
         }
     private:
-        int IconSize() const   { return Value(Height()) - 2; }
+        int IconSize() const { return Value(Height()) - 2; }
 
         void DoLayout() {
-            const GG::X PLAYER_NAME_WIDTH(ClientUI::Pts()       * 10);
-            const GG::X EMPIRE_NAME_WIDTH(ClientUI::Pts()       * 10);
-            const GG::X EMPIRE_SHIP_WIDTH(ClientUI::Pts()       * 16/5);
-            const GG::X EMPIRE_PLANET_WIDTH(ClientUI::Pts()     * 16/5);
-            const GG::X EMPIRE_PRODUCTION_WIDTH(ClientUI::Pts() * 16/5);
-            const GG::X EMPIRE_RESEARCH_WIDTH(ClientUI::Pts()   * 16/5);
-            const GG::X EMPIRE_INFLUENCE_WIDTH(ClientUI::Pts()  * 16/5);
-            const GG::X EMPIRE_DETECTION_WIDTH(ClientUI::Pts()  * 16/5);
+            const GG::X pts{ClientUI::Pts()};
+            //const GG::X PLAYER_NAME_WIDTH(pts       * 10); // uses below commented out
+            const GG::X EMPIRE_NAME_WIDTH(pts       * 10);
+            const GG::X EMPIRE_SHIP_WIDTH(pts       * 16/5);
+            const GG::X EMPIRE_PLANET_WIDTH(pts     * 16/5);
+            const GG::X EMPIRE_PRODUCTION_WIDTH(pts * 16/5);
+            const GG::X EMPIRE_RESEARCH_WIDTH(pts   * 16/5);
+            const GG::X EMPIRE_INFLUENCE_WIDTH(pts  * 16/5);
+            const GG::X EMPIRE_DETECTION_WIDTH(pts  * 16/5);
 
-            GG::X left(DATA_PANEL_BORDER);
-            GG::Y top(DATA_PANEL_BORDER);
-            GG::Y bottom(ClientHeight());
+            GG::X left{DATA_PANEL_BORDER};
+            GG::Y top{DATA_PANEL_BORDER};
+            GG::Y bottom{ClientHeight()};
             static constexpr GG::X PAD{3};
 
             int diplo_status_width = (Empires().NumEmpires() - Empires().NumEliminatedEmpires() + 1) * (IconSize() + Value(PAD));
 
             m_diplo_status_icon_ul = GG::Pt(left, top);
-            left += GG::X(IconSize()) + PAD;
+            left += IconSize() + PAD;
 
             m_diplo_msg_ul = GG::Pt(left, top);
-            left += GG::X(IconSize());
+            left += IconSize();
 
             //m_player_name_text->SizeMove(GG::Pt(left, top), GG::Pt(left + PLAYER_NAME_WIDTH, bottom));
             //left += PLAYER_NAME_WIDTH;
@@ -506,52 +505,52 @@ namespace {
             left += EMPIRE_NAME_WIDTH;
 
             m_ship_icon_ul = GG::Pt(left, top);
-            left += GG::X(IconSize()) + PAD;
+            left += IconSize() + PAD;
 
             m_empire_ship_text->SizeMove(GG::Pt(left, top), GG::Pt(left + EMPIRE_SHIP_WIDTH, bottom));
             left += EMPIRE_SHIP_WIDTH;
 
             m_planet_icon_ul = GG::Pt(left, top);
-            left += GG::X(IconSize()) + PAD;
+            left += IconSize() + PAD;
 
             m_empire_planet_text->SizeMove(GG::Pt(left, top), GG::Pt(left + EMPIRE_PLANET_WIDTH, bottom));
             left += EMPIRE_PLANET_WIDTH;
 
             m_production_icon_ul = GG::Pt(left, top);
-            left += GG::X(IconSize()) + PAD;
+            left += IconSize() + PAD;
 
             m_empire_production_text->SizeMove(GG::Pt(left, top), GG::Pt(left + EMPIRE_PRODUCTION_WIDTH, bottom));
             left += EMPIRE_PRODUCTION_WIDTH;
 
             m_research_icon_ul = GG::Pt(left, top);
-            left += GG::X(IconSize()) + PAD;
+            left += IconSize() + PAD;
 
             m_empire_research_text->SizeMove(GG::Pt(left, top), GG::Pt(left + EMPIRE_RESEARCH_WIDTH, bottom));
             left += EMPIRE_RESEARCH_WIDTH;
 
             m_influence_icon_ul = GG::Pt(left, top);
-            left += GG::X(IconSize()) + PAD;
+            left += IconSize() + PAD;
 
             m_empire_influence_text->SizeMove(GG::Pt(left, top), GG::Pt(left + EMPIRE_INFLUENCE_WIDTH, bottom));
             left += EMPIRE_INFLUENCE_WIDTH;
 
             m_detection_icon_ul = GG::Pt(left, top);
-            left += GG::X(IconSize()) + PAD;
+            left += IconSize() + PAD;
 
             m_empire_detection_text->SizeMove(GG::Pt(left, top), GG::Pt(left + EMPIRE_DETECTION_WIDTH, bottom));
             left += EMPIRE_DETECTION_WIDTH;
 
             m_player_status_icon_ul = GG::Pt(left, top);
-            left += GG::X(IconSize()) + PAD;
+            left += IconSize() + PAD;
 
             m_player_type_icon_ul = GG::Pt(left, top);
-            left += GG::X(IconSize()) + PAD;
+            left += IconSize() + PAD;
 
             m_host_icon_ul = GG::Pt(left, top);
-            left += GG::X(IconSize()) + PAD;
+            left += IconSize() + PAD;
 
             m_win_status_icon_ul = GG::Pt(left, top);
-            left += GG::X(IconSize()) + PAD;
+            left += IconSize() + PAD;
 
             m_war_indicator->SizeMove(GG::Pt(left, top), GG::Pt(GG::X(left + diplo_status_width), bottom));
             left += diplo_status_width;
@@ -564,8 +563,8 @@ namespace {
 
         }
 
-        int                                         m_player_id;
-        int                                         m_empire_id;
+        const int                                   m_player_id;
+        const int                                   m_empire_id;
         //std::shared_ptr<GG::Label>                  m_player_name_text;
         std::shared_ptr<GG::Label>                  m_empire_name_text;
         std::shared_ptr<GG::Label>                  m_empire_ship_text;
@@ -594,13 +593,13 @@ namespace {
 
         DiplomaticStatus        m_diplo_status;
         Networking::ClientType  m_player_type;
-        bool                    m_host = false;
         enum : uint8_t {
             WON,
             LOST,
             NEITHER
         }                       m_win_status = NEITHER;
 
+        bool                    m_host = false;
         bool                    m_selected = false;
     };
 
@@ -645,7 +644,7 @@ namespace {
         /** This function overridden because otherwise, rows don't expand
           * larger than their initial size when resizing the list. */
         void SizeMove(GG::Pt ul, GG::Pt lr) override {
-            const GG::Pt old_size = Size();
+            const auto old_size = Size();
             GG::ListBox::Row::SizeMove(ul, lr);
             //std::cout << "PlayerRow::SizeMove size: (" << Value(Width()) << ", " << Value(Height()) << ")" << std::endl;
             if (!empty() && old_size != Size() && m_panel)
@@ -675,10 +674,10 @@ public:
     }
 
     void SizeMove(GG::Pt ul, GG::Pt lr) override {
-        const GG::Pt old_size = Size();
+        const auto old_size = Size();
         CUIListBox::SizeMove(ul, lr);
         if (old_size != Size()) {
-            const GG::Pt row_size = ListRowSize();
+            const auto row_size = ListRowSize();
             for (auto& row : *this)
                 row->Resize(row_size);
         }
@@ -851,7 +850,7 @@ void PlayerListWnd::Clear()
 { m_player_list->Clear(); }
 
 void PlayerListWnd::SizeMove(GG::Pt ul, GG::Pt lr) {
-    const GG::Pt old_size = Size();
+    const auto old_size = Size();
     CUIWnd::SizeMove(ul, lr);
     if (old_size != Size())
         DoLayout();

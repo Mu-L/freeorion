@@ -56,7 +56,13 @@ struct UnicodeCharset;
 class GG_API StyleFactory
 {
 public:
+#if defined(__cpp_constexpr) && (__cpp_constexpr >= 201907L)
+    constexpr StyleFactory() = default;
+    constexpr virtual ~StyleFactory() = default;
+#else
+    StyleFactory() = default;
     virtual ~StyleFactory() = default;
+#endif
 
     /** Returns the default font for this style, in the size \a pts,
         supporting all printable ASCII characters. */
@@ -71,7 +77,7 @@ public:
 
     /** Returns translations for common phrases used in the different
         dialoges provided by GiGi. */
-    virtual std::string Translate(const std::string& key) const;
+    virtual std::string Translate(const std::string& key) const { return key; }
 
     /** Returns a new GG Button. */
     virtual std::shared_ptr<Button> NewButton(
@@ -179,7 +185,7 @@ public:
         std::string zero = "", std::string one = "", std::string two = "") const;
 
     /** The "filename" of the default font. */
-    static const std::string& DefaultFontName();
+    static std::string_view DefaultFontName() noexcept;
 };
 
 }

@@ -7,9 +7,8 @@
 //! Some Rights Reserved.  See COPYING file or https://www.gnu.org/licenses/lgpl-2.1.txt
 //! SPDX-License-Identifier: LGPL-2.1-or-later
 
-#include <boost/cast.hpp>
 #include <boost/algorithm/string/predicate.hpp>
-#include <boost/filesystem/operations.hpp>
+#include <boost/filesystem.hpp>
 #include <boost/format.hpp>
 // boost::spirit::classic pulls in windows.h which in turn defines macro
 // versions of min and max.  Defining NOMINMAX disables the creation of those
@@ -62,21 +61,22 @@ struct TrailingWildcard
 
 struct Index
 {
-    constexpr Index(int i = 0) noexcept :
+    constexpr Index(std::size_t i = 0) noexcept :
         m_initial_value(i)
     {}
-    void operator()() const noexcept { value = m_initial_value; }
-    const int m_initial_value;
-    static int value;
+    constexpr void operator()() const noexcept { value = m_initial_value; }
+    const std::size_t m_initial_value;
+    static std::size_t value;
 };
-int Index::value;
+std::size_t Index::value{};
+
 struct IndexLess
 {
-    constexpr IndexLess(int val) noexcept :
+    constexpr IndexLess(std::size_t val) noexcept :
         m_value(val)
     {}
-    bool operator()() const noexcept { return Index::value <  m_value; }
-    const int m_value;
+    bool operator()() const noexcept { return Index::value < m_value; }
+    const std::size_t m_value;
 };
 struct IndexIncr
 {
@@ -89,7 +89,8 @@ struct FrontStringBegin
         m_strings(std::move(strings))
     {}
 
-    const char* operator()() const noexcept {return m_strings->front().c_str(); }
+    const char* operator()() const noexcept
+    { return m_strings && !m_strings->empty() ? m_strings->front().c_str() : ""; }
 
     const std::shared_ptr<std::vector<std::string>> m_strings;
 };
@@ -99,7 +100,8 @@ struct FrontStringEnd
         m_strings(std::move(strings))
     {}
 
-    const char* operator()() const noexcept { return m_strings->front().c_str() + m_strings->front().size(); }
+    const char* operator()() const noexcept
+    { return m_strings && !m_strings->empty() ? std::next(m_strings->front().c_str(), m_strings->front().size()) : ""; }
 
     const std::shared_ptr<std::vector<std::string>> m_strings;
 };
@@ -109,18 +111,23 @@ struct IndexedStringBegin
         m_strings(std::move(strings))
     {}
 
-    const char* operator()() const noexcept { return (*m_strings)[Index::value].c_str(); }
+    const char* operator()() const noexcept
+    { return m_strings && m_strings->size() > Index::value ? (*m_strings)[Index::value].c_str() : ""; }
 
     const std::shared_ptr<std::vector<std::string>> m_strings;
 };
 struct IndexedStringEnd
 {
-    IndexedStringEnd(const std::shared_ptr<std::vector<std::string>>& strings) noexcept :
+    IndexedStringEnd(std::shared_ptr<std::vector<std::string>> strings) noexcept :
         m_strings(std::move(strings))
     {}
 
-    const char* operator()() const noexcept
-    { return (*m_strings)[Index::value].c_str() + (*m_strings)[Index::value].size(); }
+    const char* operator()() const noexcept {
+        if (!m_strings)
+            return "";
+        const auto& s{*m_strings};
+        return (s.size() > Index::value) ? std::next(s[Index::value].c_str(), s[Index::value].size()) : "";
+    }
 
     const std::shared_ptr<std::vector<std::string>> m_strings;
 };
@@ -154,18 +161,16 @@ FileDlg::FileDlg(const std::string& directory, const std::string& filename, bool
     m_text_color(text_color),
     m_font(font),
     m_save(save),
-    m_save_str(GetStyleFactory()->Translate("Save")),
-    m_open_str(GetStyleFactory()->Translate("Open")),
+    m_save_str(GetStyleFactory().Translate("Save")),
+    m_open_str(GetStyleFactory().Translate("Open")),
     m_init_directory(directory),
     m_init_filename(filename)
 {
-    const auto& style = GetStyleFactory();
-
     if (m_save)
         multi = false;
 
     // finally, we can create the listbox with the files in it, sized to fill the available space
-    m_files_list = style->NewListBox(m_border_color);
+    m_files_list = GetStyleFactory().NewListBox(m_border_color);
     m_files_list->SetStyle(LIST_NOSORT | (multi ? LIST_NONE : LIST_SINGLESEL));
 }
 
@@ -173,16 +178,16 @@ void FileDlg::CompleteConstruction()
 {
     const auto& style = GetStyleFactory();
 
-    m_files_edit = style->NewEdit("", m_font, m_border_color, m_text_color);
-    m_filter_list = style->NewDropDownList(3, m_border_color);
+    m_files_edit = style.NewEdit("", m_font, m_border_color, m_text_color);
+    m_filter_list = style.NewDropDownList(3, m_border_color);
     m_filter_list->SetStyle(LIST_NOSORT);
 
-    m_curr_dir_text = style->NewTextControl("", m_font, m_text_color, FORMAT_NOWRAP);
-    m_files_label = style->NewTextControl(style->Translate("File(s):"), m_font, m_text_color, FORMAT_RIGHT | FORMAT_VCENTER);
-    m_file_types_label = style->NewTextControl(style->Translate("Type(s):"), m_font, m_text_color, FORMAT_RIGHT | FORMAT_VCENTER);
+    m_curr_dir_text = style.NewTextControl("", m_font, m_text_color, FORMAT_NOWRAP);
+    m_files_label = style.NewTextControl(style.Translate("File(s):"), m_font, m_text_color, FORMAT_RIGHT | FORMAT_VCENTER);
+    m_file_types_label = style.NewTextControl(style.Translate("Type(s):"), m_font, m_text_color, FORMAT_RIGHT | FORMAT_VCENTER);
 
-    m_ok_button = style->NewButton(m_save ? m_save_str : m_open_str, m_font, m_color, m_text_color);
-    m_cancel_button = style->NewButton(style->Translate("Cancel"), m_font, m_color, m_text_color);
+    m_ok_button = style.NewButton(m_save ? m_save_str : m_open_str, m_font, m_color, m_text_color);
+    m_cancel_button = style.NewButton(style.Translate("Cancel"), m_font, m_color, m_text_color);
 
     DoLayout();
 
@@ -213,19 +218,18 @@ void FileDlg::CompleteConstruction()
     PopulateFilters();
     UpdateList();
 
-    namespace ph = boost::placeholders;
-
-    // TODO: store scoped connections in member vector?
-    m_ok_button->LeftClickedSignal.connect(boost::bind(&FileDlg::OkClicked, this));
-    m_cancel_button->LeftClickedSignal.connect(boost::bind(&FileDlg::CancelClicked, this));
-    m_files_list->SelRowsChangedSignal.connect(boost::bind(&FileDlg::FileSetChanged, this, ph::_1));
-    m_files_list->DoubleClickedRowSignal.connect(boost::bind(&FileDlg::FileDoubleClicked, this, ph::_1, ph::_2, ph::_3));
-    m_files_edit->EditedSignal.connect(boost::bind(&FileDlg::FilesEditChanged, this, ph::_1));
-    m_filter_list->SelChangedSignal.connect(boost::bind(&FileDlg::FilterChanged, this, ph::_1));
+    m_connections[0] = m_ok_button->LeftClickedSignal.connect([this]() { OkClicked(); });
+    m_connections[1] = m_cancel_button->LeftClickedSignal.connect([this]() { CancelClicked(); });
+    m_connections[2] = m_files_list->SelRowsChangedSignal.connect(
+        [this](const auto& sels) { FileSetChanged(sels); });
+    m_connections[3] = m_files_list->DoubleClickedRowSignal.connect(
+        [this](auto it, auto pt, auto modkeys) { FileDoubleClicked(it, pt, modkeys); });
+    m_connections[4] = m_files_edit->EditedSignal.connect([this](const auto& str) { FilesEditChanged(str); });
+    m_connections[5] = m_filter_list->SelChangedSignal.connect([this](auto it) { FilterChanged(it); });
 
     if (!m_init_filename.empty()) {
         fs::path filename_path = fs::system_complete(fs::path(m_init_filename));
-        m_files_edit->SetText(filename_path.leaf().string());
+        m_files_edit->SetText(filename_path.filename().string());
     }
 }
 
@@ -241,7 +245,7 @@ void FileDlg::Render()
     }
 }
 
-void FileDlg::KeyPress(Key key, std::uint32_t key_code_point, Flags<ModKey> mod_keys)
+void FileDlg::KeyPress(Key key, uint32_t key_code_point, Flags<ModKey> mod_keys)
 {
     if (key == Key::GGK_RETURN || key == Key::GGK_KP_ENTER)
         OkHandler(false);
@@ -365,10 +369,10 @@ void FileDlg::OkHandler(bool double_click)
 #endif
             // check to see if file already exists; if so, ask if it's ok to overwrite
             if (fs::exists(p)) {
-                std::string msg_str = boost::str(boost::format(style->Translate("%1% exists.\nOk to overwrite it?")) % save_file);
+                std::string msg_str = boost::str(boost::format(style.Translate("%1% exists.\nOk to overwrite it?")) % save_file);
                 auto dlg =
-                    style->NewThreeButtonDlg(X(300), Y(125), msg_str, m_font, m_color, m_border_color, m_color, m_text_color,
-                                             2, style->Translate("Ok"), style->Translate("Cancel"));
+                    style.NewThreeButtonDlg(X(300), Y(125), msg_str, m_font, m_color, m_border_color, m_color, m_text_color,
+                                            2, style.Translate("Ok"), style.Translate("Cancel"));
                 dlg->Run();
                 results_valid = (dlg->Result() == 0);
             }
@@ -389,10 +393,10 @@ void FileDlg::OkHandler(bool double_click)
                 if (fs::exists(p)) {
                     bool p_is_directory = fs::is_directory(p);
                     if (!m_select_directories && p_is_directory) {
-                        std::string msg_str = boost::str(boost::format(style->Translate("\"%1%\"\nis a directory.")) % file_name);
+                        std::string msg_str = boost::str(boost::format(style.Translate("\"%1%\"\nis a directory.")) % file_name);
                         auto dlg =
-                            style->NewThreeButtonDlg(X(300), Y(125), msg_str, m_font, m_color, m_border_color, m_color,
-                                                     m_text_color, 1, style->Translate("Ok"));
+                            style.NewThreeButtonDlg(X(300), Y(125), msg_str, m_font, m_color, m_border_color, m_color,
+                                                    m_text_color, 1, style.Translate("Ok"));
                         dlg->Run();
                         results_valid = false;
                         break;
@@ -409,10 +413,10 @@ void FileDlg::OkHandler(bool double_click)
 #endif
                     results_valid = true; // indicate validity only if at least one good file was found
                 } else {
-                    std::string msg_str = boost::str(boost::format(style->Translate("File \"%1%\"\ndoes not exist.")) % file_name);
+                    std::string msg_str = boost::str(boost::format(style.Translate("File \"%1%\"\ndoes not exist.")) % file_name);
                     auto dlg =
-                        style->NewThreeButtonDlg(X(300), Y(125), msg_str, m_font, m_color, m_border_color, m_color,
-                                                 m_text_color, 1, style->Translate("Ok"));
+                        style.NewThreeButtonDlg(X(300), Y(125), msg_str, m_font, m_color, m_border_color, m_color,
+                                                m_text_color, 1, style.Translate("Ok"));
                     dlg->Run();
                     results_valid = false;
                     break;
@@ -430,16 +434,36 @@ void FileDlg::CancelClicked()
     m_result.clear();
 }
 
-void FileDlg::FileSetChanged(const ListBox::SelectionSet& files)
+void FileDlg::FileSetChanged(const ListBox::SelectionSet& file_rows)
 {
+    using sel_t = std::decay_t<decltype(*file_rows.begin())>;
+    static_assert(std::is_same_v<sel_t, ListBox::iterator>);
+
+    static constexpr auto to_filename = [](ListBox::iterator file_row_it) -> std::string_view {
+        const auto& sh_ptr = *file_row_it;
+        if (!sh_ptr || sh_ptr->empty())
+            return {};
+        const auto* ctrl = sh_ptr->at(0);
+        const auto* tc = dynamic_cast<const TextControl*>(ctrl);
+        return tc ? tc->Text() : std::string_view{};
+    };
+
+
     std::string all_files;
+    all_files.reserve(file_rows.size() * 50); // guesstimate
     bool dir_selected = false;
-    for (const auto& file : files) {
-        std::string filename = !(**file).empty() ? boost::polymorphic_downcast<TextControl*>((**file).at(0))->Text() : "";
-        if (filename[0] != '[') {
+
+    for (const auto& file_row_it : file_rows) {
+        auto filename = to_filename(file_row_it);
+
+        if (filename.empty()) {
+            continue;
+
+        } else if (filename.front() != '[') { // not a directory
             if (!all_files.empty())
                 all_files += " ";
             all_files += filename;
+
         } else {
             if (m_select_directories) {
                 if (!all_files.empty())
@@ -477,7 +501,7 @@ void FileDlg::SetWorkingDirectory(const fs::path& p)
 {
     m_files_edit->Clear();
     FilesEditChanged(m_files_edit->Text());
-    s_working_dir = p;
+    s_working_dir = fs::canonical(p);
     UpdateDirectoryText();
     UpdateList();
 }
@@ -491,8 +515,8 @@ void FileDlg::PopulateFilters()
     } else {
         for (auto& file_filter : m_file_filters) {
             auto row = Wnd::Create<ListBox::Row>();
-            row->push_back(GetStyleFactory()->NewTextControl(file_filter.first, m_font,
-                                                             m_text_color, FORMAT_NOWRAP));
+            row->push_back(GetStyleFactory().NewTextControl(file_filter.first, m_font,
+                                                            m_text_color, FORMAT_NOWRAP));
             m_filter_list->Insert(std::move(row));
         }
         m_filter_list->Select(m_filter_list->begin());
@@ -525,7 +549,7 @@ void FileDlg::UpdateList()
             if (non_wildcards->empty()) {
                 file_filters[i] = *anychar_p;
             } else {
-                file_filters[i] = 
+                file_filters[i] =
                     if_p (LeadingWildcard(filter_specs[i])) [
                         *(wildcard - f_str_p(FrontStringBegin(non_wildcards), FrontStringEnd(non_wildcards)))
                         >> f_str_p(FrontStringBegin(non_wildcards), FrontStringEnd(non_wildcards))
@@ -546,17 +570,17 @@ void FileDlg::UpdateList()
     if (!m_in_win32_drive_selection) {
         // parent directory selector
         if ((s_working_dir.string() != s_working_dir.root_path().string() &&
-             !s_working_dir.branch_path().string().empty()) ||
+             !s_working_dir.parent_path().string().empty()) ||
             Win32Paths())
         {
             auto row = Wnd::Create<ListBox::Row>();
-            row->push_back(GetStyleFactory()->NewTextControl("[..]", m_font, m_text_color, FORMAT_NOWRAP));
+            row->push_back(GetStyleFactory().NewTextControl("[..]", m_font, m_text_color, FORMAT_NOWRAP));
             m_files_list->Insert(std::move(row));
         }
         // current directory selector
         {
             auto row = Wnd::Create<ListBox::Row>();
-            row->push_back(GetStyleFactory()->NewTextControl("[.]", m_font, m_text_color, FORMAT_NOWRAP));
+            row->push_back(GetStyleFactory().NewTextControl("[.]", m_font, m_text_color, FORMAT_NOWRAP));
             m_files_list->Insert(std::move(row));
         }
         try {
@@ -579,15 +603,15 @@ void FileDlg::UpdateList()
 #if defined(_WIN32)
                     // convert UTF-16 path to UTF-8 for display
                     boost::filesystem::path::string_type file_name_native = it->path().filename().native();
-                    std::string temp;
-                    utf8::utf16to8(file_name_native.begin(), file_name_native.end(), std::back_inserter(temp));
-                    std::string row_text = "[" + temp + "]";
+                    std::string row_text{"["};
+                    row_text.reserve(file_name_native.size()*2 + 3);
+                    utf8::utf16to8(file_name_native.begin(), file_name_native.end(), std::back_inserter(row_text));
+                    row_text += ']';
 #else
                     std::string row_text = "[" + it->path().filename().string() + "]";
 #endif
-                    row->push_back(GetStyleFactory()->NewTextControl(row_text, m_font, m_text_color,
-                                                                     FORMAT_NOWRAP));
-                    sorted_rows.emplace(row_text, std::move(row));
+                    row->push_back(GetStyleFactory().NewTextControl(row_text, m_font, m_text_color, FORMAT_NOWRAP));
+                    sorted_rows.emplace(std::move(row_text), std::move(row));
                 }
             } catch (const fs::filesystem_error&) {
             }
@@ -595,12 +619,12 @@ void FileDlg::UpdateList()
 
         std::vector<std::shared_ptr<ListBox::Row>> rows;
         rows.reserve(sorted_rows.size());
-        for (const auto& row : sorted_rows)
-            rows.push_back(row.second);
+        for (auto& row : sorted_rows)
+            rows.push_back(std::move(row.second));
+        sorted_rows.clear();
         m_files_list->Insert(std::move(rows));
 
         if (!m_select_directories) {
-            sorted_rows.clear();
             for (fs::directory_iterator it(s_working_dir); it != end_it; ++it) {
                 try {
                     if (fs::exists(*it) && !fs::is_directory(*it) && it->path().filename().native()[0] != '.') {
@@ -611,7 +635,7 @@ void FileDlg::UpdateList()
                         }
                         if (meets_filters) {
                             auto row = Wnd::Create<ListBox::Row>();
-                            row->push_back(GetStyleFactory()->NewTextControl(
+                            row->push_back(GetStyleFactory().NewTextControl(
                                 it->path().filename().string(), m_font, m_text_color, FORMAT_NOWRAP));
                             sorted_rows.emplace(it->path().filename().string(), std::move(row));
                         }
@@ -628,8 +652,8 @@ void FileDlg::UpdateList()
                 fs::path path(c + std::string(":"));
                 if (fs::exists(path)) {
                     auto row = Wnd::Create<ListBox::Row>();
-                    row->push_back(GetStyleFactory()->NewTextControl("[" + path.root_name().string() + "]",
-                                                                     m_font, m_text_color, FORMAT_NOWRAP));
+                    row->push_back(GetStyleFactory().NewTextControl("[" + path.root_name().string() + "]",
+                                                                    m_font, m_text_color, FORMAT_NOWRAP));
                     m_files_list->Insert(std::move(row));
                 }
             } catch (const fs::filesystem_error&) {
@@ -677,25 +701,34 @@ void FileDlg::OpenDirectory()
     if (sels.empty())
         return;
 
-    const auto& sels_front = ***sels.begin();
-    auto directory = !sels_front.empty() ? boost::polymorphic_downcast<TextControl*>(sels_front.at(0))->Text() : "";
+    const auto wrapped_directory_sv = [sel{(*sels.begin())->get()}]() -> std::string_view {
+        if (!sel || sel->empty())
+            return {};
+        try {
+            const auto* tc = dynamic_cast<TextControl*>(sel->at(0));
+            return tc ? std::string_view{tc->Text()} : std::string_view{};
+        } catch (...) {
+            return std::string_view{};
+        }
+    }();
 
-    if (directory.size() < 2 || directory[0] != '[')
+    if (wrapped_directory_sv.size() < 2 || wrapped_directory_sv.front() != '[' || wrapped_directory_sv.back() != ']')
         return;
 
-    directory = directory.substr(1, directory.size() - 2); // strip off '[' and ']'
+    const auto directory_sv = wrapped_directory_sv.substr(1, wrapped_directory_sv.size() - 2u);
 
-    if (directory == ".") {
+    if (directory_sv == ".") {
         // remain in current directory
         UpdateList();
+        return;
 
-    } else if (directory == "..") {
+    } else if (directory_sv == "..") {
         // move to parent directory of current directory
         if (s_working_dir.string() != s_working_dir.root_path().string() &&
-            !s_working_dir.branch_path().string().empty())
+            !s_working_dir.parent_path().string().empty())
         {
             // move to new directory
-            SetWorkingDirectory(s_working_dir.branch_path());
+            SetWorkingDirectory(s_working_dir.parent_path());
 
         } else {
             // switch to drive selection mode
@@ -706,41 +739,38 @@ void FileDlg::OpenDirectory()
             DoLayout();
             UpdateList();
         }
+        return;
 
     } else {
         // move to contained directory, which may be a drive selection...
         if (!m_in_win32_drive_selection) {
-
 #if defined(_WIN32)
             // convert UTF-8 file name to UTF-16
             boost::filesystem::path::string_type directory_native;
-            utf8::utf8to16(directory.begin(), directory.end(), std::back_inserter(directory_native));
+            utf8::utf8to16(directory_sv.begin(), directory_sv.end(), std::back_inserter(directory_native));
             SetWorkingDirectory(s_working_dir / fs::path(directory_native));
 #else
-            SetWorkingDirectory(s_working_dir / fs::path(directory));
+            SetWorkingDirectory(s_working_dir / fs::path(std::string{directory_sv}));
 #endif
+
         } else {
             m_in_win32_drive_selection = false;
             try {
-                SetWorkingDirectory(fs::path(directory + "\\"));
+                SetWorkingDirectory(fs::path(std::string{directory_sv} + "\\"));
             } catch (const fs::filesystem_error& e) {
-                if (e.code() == boost::system::errc::io_error) {
-                    m_in_win32_drive_selection = true;
-                    m_files_edit->Clear();
-                    FilesEditChanged(m_files_edit->Text());
-                    m_curr_dir_text->SetText("");
-                    DoLayout();
-                    UpdateList();
-                    auto dlg =
-                        GetStyleFactory()->NewThreeButtonDlg(X(175), Y(75),
-                                                             style->Translate("Device is not ready."),
-                                                             m_font, m_color,
-                                                             m_border_color, m_color,
-                                                             m_text_color, 1);
-                    dlg->Run();
-                } else {
+                if (e.code() != boost::system::errc::io_error)
                     throw;
-                }
+
+                m_in_win32_drive_selection = true;
+                m_files_edit->Clear();
+                FilesEditChanged(m_files_edit->Text());
+                m_curr_dir_text->SetText("");
+                DoLayout();
+                UpdateList();
+                auto dlg = GetStyleFactory().NewThreeButtonDlg(
+                    X(175), Y(75), style.Translate("Device is not ready."),
+                    m_font, m_color, m_border_color, m_color, m_text_color, 1);
+                dlg->Run();
             }
         }
     }

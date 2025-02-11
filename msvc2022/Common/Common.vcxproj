@@ -29,13 +29,13 @@
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
@@ -73,13 +73,18 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <CustomBuildBeforeTargets />
     <OutDir>../../</OutDir>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
+    <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
+    <EnableMicrosoftCodeAnalysis>true</EnableMicrosoftCodeAnalysis>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <CustomBuildBeforeTargets>
     </CustomBuildBeforeTargets>
+    <OutDir>../../</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <CustomBuildBeforeTargets />
+    <OutDir>../../</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -120,7 +125,6 @@
       <PrecompiledHeaderFile>StdAfx.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)$(TargetName).pch</PrecompiledHeaderOutputFile>
       <ForcedIncludeFiles>StdAfx.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalOptions>/utf-8</AdditionalOptions>
       <DisableSpecificWarnings>4244; 4251; 4275</DisableSpecificWarnings>
     </ClCompile>
@@ -144,8 +148,10 @@
       <PrecompiledHeaderFile>StdAfx.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)$(TargetName).pch</PrecompiledHeaderOutputFile>
       <ForcedIncludeFiles>StdAfx.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
-      <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <TreatAngleIncludeAsExternal>true</TreatAngleIncludeAsExternal>
+      <DisableAnalyzeExternal>true</DisableAnalyzeExternal>
+      <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -171,13 +177,13 @@
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\util\Version.cpp;%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\util\Version.cpp;%(Outputs)</Outputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\.git\index;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\.git;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\.git\index;%(AdditionalInputs)</AdditionalInputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"$(SolutionDir)..\python3.5.exe" "$(SolutionDir)..\cmake\make_versioncpp.py" "$(SolutionDir).." "MSVC 2019 Debug"</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(SolutionDir)..\python3.5.exe" "$(SolutionDir)..\cmake\make_versioncpp.py" "$(SolutionDir).." "MSVC 2019 Debug"</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\util\Version.cpp;%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\util\Version.cpp;%(Outputs)</Outputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\.git;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\.git;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\.git\index;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\.git\index;%(AdditionalInputs)</AdditionalInputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Configuring Version.cpp</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Configuring Version.cpp</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Configuring Version.cpp</Message>
@@ -250,6 +256,8 @@
     <ClInclude Include="..\..\util\ModeratorAction.h" />
     <ClInclude Include="..\..\util\MultiplayerCommon.h" />
     <ClInclude Include="..\..\util\GameRules.h" />
+    <ClInclude Include="..\..\util\GameRuleCategories.h" />
+    <ClInclude Include="..\..\util\GameRuleRanks.h" />
     <ClInclude Include="..\..\util\i18n.h" />
     <ClInclude Include="..\..\util\Logger.h" />
     <ClInclude Include="..\..\util\LoggerWithOptionsDB.h" />
@@ -261,6 +269,7 @@
     <ClInclude Include="..\..\util\PythonCommon.h" />
     <ClInclude Include="..\..\util\Pending.h" />
     <ClInclude Include="..\..\util\Random.h" />
+    <ClInclude Include="..\..\util\ranges.h" />
     <ClInclude Include="..\..\util\SaveGamePreviewUtils.h" />
     <ClInclude Include="..\..\util\ScopedTimer.h" />
     <ClInclude Include="..\..\util\Serialize.h" />
@@ -296,6 +305,8 @@
     <ClCompile Include="..\..\util\CheckSums.cpp" />
     <ClCompile Include="..\..\util\SaveGamePreviewUtils.cpp" />
     <ClCompile Include="..\..\util\ScopedTimer.cpp" />
+    <ClCompile Include="..\..\util\SerializeQueues.cpp" />
+    <ClCompile Include="..\..\util\SerializeSpecies.cpp" />
     <ClCompile Include="..\..\util\StringTable.cpp" />
     <ClCompile Include="..\..\universe\Building.cpp" />
     <ClCompile Include="..\..\universe\BuildingType.cpp" />
@@ -344,7 +355,7 @@
     <ClCompile Include="..\..\util\SerializeMultiplayerCommon.cpp" />
     <ClCompile Include="..\..\util\SerializeOrderSet.cpp" />
     <ClCompile Include="..\..\util\SerializeUniverse.cpp">
-      <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4172;4308;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4172;4308;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <ClCompile Include="..\..\util\SitRepEntry.cpp" />

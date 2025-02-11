@@ -65,8 +65,9 @@ void BuildingsPanel::CompleteConstruction() {
     m_expand_button->LeftPressedSignal.connect([this]() { ExpandCollapseButtonPressed(); });
 
     // get owner, connect its production queue changed signal to update this panel
-    if (auto planet = Objects().getRaw(m_planet_id)) {
-        if (auto empire = Empires().GetEmpire(planet->Owner())) {
+    const auto& context = GGHumanClientApp::GetApp()->GetContext();
+    if (auto planet = context.ContextObjects().getRaw(m_planet_id)) {
+        if (auto empire = context.GetEmpire(planet->Owner())) {
             const ProductionQueue& queue = empire->GetProductionQueue();
             m_queue_connection = queue.ProductionQueueChangedSignal.connect([this]() { RequirePreRender(); });
         }
@@ -88,17 +89,18 @@ void BuildingsPanel::Update() {
         DetachChild(indicator.get());
     m_building_indicators.clear();
 
-    auto planet = Objects().get<Planet>(m_planet_id);
+    const auto* app = GGHumanClientApp::GetApp();
+    const auto& context = app->GetContext();
+    auto planet = context.ContextObjects().get<Planet>(m_planet_id);
     if (!planet) {
         ErrorLogger() << "BuildingsPanel::Update couldn't get planet with id " << m_planet_id;
         return;
     }
     int system_id = planet->SystemID();
 
-    const int indicator_size = static_cast<int>(Value(Width() * 1.0 / m_columns));
+    const int indicator_size = static_cast<int>(Width() / static_cast<float>(m_columns));
 
-    const int this_client_empire_id = GGHumanClientApp::GetApp()->EmpireID();
-    const ScriptingContext context;
+    const int this_client_empire_id = app->EmpireID();
     const auto& this_client_known_destroyed_objects = context.ContextUniverse().EmpireKnownDestroyedObjectIDs(this_client_empire_id);
     const auto& this_client_stale_object_info = context.ContextUniverse().EmpireStaleKnowledgeObjectIDs(this_client_empire_id);
 
@@ -110,7 +112,7 @@ void BuildingsPanel::Update() {
         if (this_client_stale_object_info.contains(object_id))
             continue;
 
-        auto building = Objects().get<Building>(object_id);
+        auto building = context.ContextObjects().get<Building>(object_id);
         if (!building) {
             ErrorLogger() << "BuildingsPanel::Update couldn't get building with id: " << object_id
                           << " on planet " << planet->Name();
@@ -126,7 +128,7 @@ void BuildingsPanel::Update() {
     }
 
     // get in-progress buildings
-    const auto empire = Empires().GetEmpire(planet->Owner());
+    const auto empire = context.GetEmpire(planet->Owner());
     if (!empire)
         return;
 
@@ -170,14 +172,14 @@ void BuildingsPanel::ExpandCollapseButtonPressed()
 { ExpandCollapse(!s_expanded_map[m_planet_id]); }
 
 void BuildingsPanel::DoLayout() {
-    auto old_size = Size();
+    const auto old_size = Size();
     AccordionPanel::DoLayout();
 
     int row = 0;
     int column = 0;
     static constexpr int padding = 5; // space around and between adjacent indicators
     const GG::X effective_width = Width() - padding * (m_columns + 1);  // padding on either side and between
-    const int indicator_size = static_cast<int>(Value(effective_width * 1.0 / m_columns));
+    const int indicator_size = static_cast<int>(Value(effective_width) / m_columns);
     GG::Y height;
 
     // update size of panel and position and visibility of widgets
@@ -220,7 +222,7 @@ void BuildingsPanel::DoLayout() {
     }
 
     if (m_building_indicators.empty()) {
-        height = GG::Y(0);  // hide if empty
+        height = GG::Y0;  // hide if empty
         DetachChild(m_expand_button.get());
     } else {
         AttachChild(m_expand_button);
@@ -248,7 +250,7 @@ BuildingIndicator::BuildingIndicator(GG::X w, int building_id) :
     m_scanlines(GG::Wnd::Create<ScanlineControl>()),
     m_building_id(building_id)
 {
-    if (auto building = Objects().getRaw<Building>(m_building_id))
+    if (auto building = GGHumanClientApp::GetApp()->GetContext().ContextObjects().getRaw<Building>(m_building_id))
         m_signal_connection = building->StateChangedSignal.connect([this]() { RequirePreRender(); });
 }
 
@@ -307,7 +309,9 @@ void BuildingIndicator::PreRender() {
 void BuildingIndicator::Refresh() {
     SetBrowseModeTime(GetOptionsDB().Get<int>("ui.tooltip.delay"));
 
-    auto building = Objects().get<Building>(m_building_id);
+    const ScriptingContext& context = GGHumanClientApp::GetApp()->GetContext();
+
+    auto building = context.ContextObjects().get<Building>(m_building_id);
     if (!building)
         return;
 
@@ -325,9 +329,9 @@ void BuildingIndicator::Refresh() {
 
         // Scanlines for not currently-visible objects?
         if (GetOptionsDB().Get<bool>("ui.map.scanlines.shown")) {
-            int empire_id = GGHumanClientApp::GetApp()->EmpireID();
+            const int empire_id = GGHumanClientApp::GetApp()->EmpireID();
             if (empire_id != ALL_EMPIRES &&
-                GetUniverse().GetObjectVisibilityByEmpire(m_building_id, empire_id) < Visibility::VIS_BASIC_VISIBILITY)
+                context.ContextUniverse().GetObjectVisibilityByEmpire(m_building_id, empire_id) < Visibility::VIS_BASIC_VISIBILITY)
             { AttachChild(m_scanlines); }
         }
 
@@ -354,10 +358,8 @@ void BuildingIndicator::Refresh() {
 }
 
 void BuildingIndicator::SizeMove(GG::Pt ul, GG::Pt lr) {
-    GG::Pt old_size = Size();
-
+    const auto old_size = Size();
     GG::Wnd::SizeMove(ul, lr);
-
     if (old_size != Size())
         DoLayout();
 }
@@ -369,32 +371,31 @@ void BuildingIndicator::RClick(GG::Pt pt, GG::Flags<GG::ModKey> mod_keys) {
     // verify that this indicator represents an existing building, and not a
     // queued production item, and that the owner of the building is this
     // client's player's empire
-    ScriptingContext context;
-    ObjectMap& objects{context.ContextObjects()};
+    const auto* app = GGHumanClientApp::GetApp();
+    const ScriptingContext& context = app->GetContext();
+    const ObjectMap& objects{context.ContextObjects()};
 
-    int empire_id = GGHumanClientApp::GetApp()->EmpireID();
+    int empire_id = app->EmpireID();
     auto building = objects.get<Building>(m_building_id);
     if (!building)
         return;
 
-    const auto& map_wnd = ClientUI::GetClientUI()->GetMapWnd();
+    const auto map_wnd = ClientUI::GetClientUI()->GetMapWndConst();
     if (ClientPlayerIsModerator() &&
-        map_wnd->GetModeratorActionSetting() != ModeratorActionSetting::MAS_NoAction)
+        map_wnd && map_wnd->GetModeratorActionSetting() != ModeratorActionSetting::MAS_NoAction)
     {
         RightClickedSignal(m_building_id);  // response handled in MapWnd
         return;
     }
 
     auto scrap_building_action = [this, empire_id]() {
-        ScriptingContext context;
-        GGHumanClientApp::GetApp()->Orders().IssueOrder(
-            std::make_shared<ScrapOrder>(empire_id, m_building_id, context),
-            context);
+        auto* app = GGHumanClientApp::GetApp();
+        app->Orders().IssueOrder<ScrapOrder>(app->GetContext(), empire_id, m_building_id);
     };
 
     auto un_scrap_building_action = [building]() {
         // find order to scrap this building, and recind it
-        ScriptingContext context;
+        ScriptingContext& context = IApp::GetApp()->GetContext();
         auto pending_scrap_orders = PendingScrapOrders();
         auto it = pending_scrap_orders.find(building->ID());
         if (it != pending_scrap_orders.end())
@@ -403,7 +404,7 @@ void BuildingIndicator::RClick(GG::Pt pt, GG::Flags<GG::ModKey> mod_keys) {
 
     auto popup = GG::Wnd::Create<CUIPopupMenu>(pt.x, pt.y);
 
-    if (m_order_issuing_enabled) {
+    if (m_order_issuing_enabled && ScrapOrder::Check(empire_id, m_building_id, context)) {
         if (!building->OrderedScrapped()) {
             // create popup menu with "Scrap" option
             popup->AddMenuItem(GG::MenuItem(UserString("ORDER_BUIDLING_SCRAP"), false, false,
@@ -416,8 +417,7 @@ void BuildingIndicator::RClick(GG::Pt pt, GG::Flags<GG::ModKey> mod_keys) {
     }
 
     const std::string& building_type = building->BuildingTypeName();
-    const BuildingType* bt = GetBuildingType(building_type);
-    if (bt) {
+    if (const BuildingType* bt = GetBuildingType(building_type)) {
         auto pedia_lookup_building_type_action = [building_type]()
         { ClientUI::GetClientUI()->ZoomToBuildingType(building_type); };
         std::string popup_label = boost::io::str(FlexibleFormat(UserString("ENC_LOOKUP")) % UserString(building_type));
@@ -435,13 +435,13 @@ void BuildingIndicator::DoLayout() {
     GG::Pt child_lr = Size() - GG::Pt(GG::X1, GG::Y1);   // extra pixel prevents graphic from overflowing border box
 
     if (m_graphic)
-        m_graphic->SizeMove(GG::Pt(GG::X0, GG::Y0), child_lr);
+        m_graphic->SizeMove(GG::Pt0, child_lr);
 
     if (m_scanlines)
-        m_scanlines->SizeMove(GG::Pt(GG::X0, GG::Y0), child_lr);
+        m_scanlines->SizeMove(GG::Pt0, child_lr);
 
     if (m_scrap_indicator)
-        m_scrap_indicator->SizeMove(GG::Pt(GG::X0, GG::Y0), child_lr);
+        m_scrap_indicator->SizeMove(GG::Pt0, child_lr);
 
     GG::Y bar_top = Height() * 4 / 5;
     if (m_progress_bar)

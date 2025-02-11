@@ -38,14 +38,14 @@ class WndEvent;
 /** Wnd creation flags type. */
 GG_FLAG_TYPE(WndFlag);
 
-constexpr WndFlag NO_WND_FLAGS       (0);       // None of the below flags
-constexpr WndFlag INTERACTIVE        (1 << 0);  // Clicks hit this window, rather than passing through it, and mouse-overs detect that they are over this window.
-constexpr WndFlag REPEAT_BUTTON_DOWN (1 << 1);  // When a mouse button is held down over this window, it expects to receive multiple *ButtonDown messages.
-constexpr WndFlag DRAGABLE           (1 << 2);  // This window can be dragged around independently.
-constexpr WndFlag RESIZABLE          (1 << 3);  // This window can be resized by the user, with the mouse.
-constexpr WndFlag ONTOP              (1 << 4);  // This windows is an "on-top" window, and will always appear above all non-on-top and non-modal windows.  Note that this only applies to top-level (Parent()-less) Wnds.
-constexpr WndFlag MODAL              (1 << 5);  // This window is modal; while it is active, no other windows are interactive.  Modal windows are considered above "on-top" windows, and should not be flagged as OnTop.  Note that this only applies to top-level (Parent()-less) Wnds.
-constexpr WndFlag REPEAT_KEY_PRESS   (1 << 6);  // When a keyboard key is held down while this window has input focus, it expects to receive KeyPress messages.
+inline constexpr WndFlag NO_WND_FLAGS       (0);       // None of the below flags
+inline constexpr WndFlag INTERACTIVE        (1 << 0);  // Clicks hit this window, rather than passing through it, and mouse-overs detect that they are over this window.
+inline constexpr WndFlag REPEAT_BUTTON_DOWN (1 << 1);  // When a mouse button is held down over this window, it expects to receive multiple *ButtonDown messages.
+inline constexpr WndFlag DRAGABLE           (1 << 2);  // This window can be dragged around independently.
+inline constexpr WndFlag RESIZABLE          (1 << 3);  // This window can be resized by the user, with the mouse.
+inline constexpr WndFlag ONTOP              (1 << 4);  // This windows is an "on-top" window, and will always appear above all non-on-top and non-modal windows.  Note that this only applies to top-level (Parent()-less) Wnds.
+inline constexpr WndFlag MODAL              (1 << 5);  // This window is modal; while it is active, no other windows are interactive.  Modal windows are considered above "on-top" windows, and should not be flagged as OnTop.  Note that this only applies to top-level (Parent()-less) Wnds.
+inline constexpr WndFlag REPEAT_KEY_PRESS   (1 << 6);  // When a keyboard key is held down while this window has input focus, it expects to receive KeyPress messages.
 
 
 /** \brief This is the basic GG window class.
@@ -292,7 +292,9 @@ public:
             window's area is not visible.  This mode is useful for Wnds that
             have client contents that should be clipped, but that also have
             nonclient children (e.g. minimize/maximize/close buttons). */
-        ClipToClientAndWindowSeparately
+        ClipToClientAndWindowSeparately,
+
+        ClipToAncestorClient
     };
 
     virtual ~Wnd();
@@ -322,7 +324,8 @@ public:
         // will not prevent more that a smart pointer control block worth of
         // memory from being released.
         std::shared_ptr<T> wnd(new T(std::forward<Args>(args)...));
-        wnd->CompleteConstruction();
+        if (wnd)
+            wnd->CompleteConstruction();
         return wnd;
     }
 
@@ -384,8 +387,7 @@ public:
     [[nodiscard]] Y Top() const noexcept { return UpperLeft().y; }
 
     /** Returns (one pixel past) the lower-right corner of window in \a screen
-        \a coordinates (taking into account parent's screen position, if
-        any) */
+        \a coordinates (taking into account parent's screen position, if any) */
     [[nodiscard]] Pt LowerRight() const noexcept;
     [[nodiscard]] X Right() const noexcept { return LowerRight().x; }
     [[nodiscard]] Y Bottom() const noexcept { return LowerRight().y; }
@@ -395,8 +397,7 @@ public:
     [[nodiscard]] Pt RelativeUpperLeft() const noexcept { return m_upperleft; }
 
     /** Returns (one pixel past) the lower-right corner of window, relative to
-        its parent's client area, or in screen coordinates if no parent
-        exists. */
+        its parent's client area, or in screen coordinates if no parent exists. */
     [[nodiscard]] Pt RelativeLowerRight() const noexcept { return m_lowerright; }
 
     [[nodiscard]] X Width() const noexcept { return m_lowerright.x - m_upperleft.x; }
@@ -429,10 +430,10 @@ public:
     [[nodiscard]] virtual Pt ClientLowerRight() const { return LowerRight(); }
 
     /** Returns the size of the client area \see Size(). */
-    [[nodiscard]] Pt ClientSize() const noexcept { return ClientLowerRight() - ClientUpperLeft(); }
+    [[nodiscard]] Pt ClientSize() const { return ClientLowerRight() - ClientUpperLeft(); }
 
-    [[nodiscard]] X ClientWidth() const noexcept { return ClientLowerRight().x - ClientUpperLeft().x; }
-    [[nodiscard]] Y ClientHeight() const noexcept { return ClientLowerRight().y - ClientUpperLeft().y; }
+    [[nodiscard]] X ClientWidth() const { return ClientLowerRight().x - ClientUpperLeft().x; }
+    [[nodiscard]] Y ClientHeight() const { return ClientLowerRight().y - ClientUpperLeft().y; }
 
     /** Returns \a pt translated from screen- to window-coordinates. */
     [[nodiscard]] Pt ScreenToWindow(Pt pt) const noexcept { return pt - UpperLeft(); }
@@ -440,16 +441,21 @@ public:
     /** Returns \a pt translated from screen- to client-coordinates. */
     [[nodiscard]] Pt ScreenToClient(Pt pt) const noexcept { return pt - ClientUpperLeft(); }
 
-    /** Returns true if screen-coordinate point \a pt falls within the
-        window. */
+    /** Returns true if screen-coordinate point \a pt falls within the window. */
     [[nodiscard]] virtual bool InWindow(Pt pt) const { return pt >= UpperLeft() && pt < LowerRight(); }
 
-    /** Returns true if screen-coordinate point \a pt falls within the
-        window's client area. */
+    /** Returns true if screen-coordinates Rect \a r all or partly falls within the window's client area. */
+    [[nodiscard]] virtual bool InWindow(Rect r) const
+    { return r.LowerRight() >= UpperLeft() && r.UpperLeft() <= LowerRight(); }
+
+    /** Returns true if screen-coordinate point \a pt falls within the window's client area. */
     [[nodiscard]] virtual bool InClient(Pt pt) const { return pt >= ClientUpperLeft() && pt < ClientLowerRight(); }
 
-    /** Returns child list; the list is const, but the children may be
-        manipulated. */
+    /** Returns true if screen-coordinates Rect \a r all or partly falls within the window's client area. */
+    [[nodiscard]] virtual bool InClient(Rect r) const
+    { return r.LowerRight() >= ClientUpperLeft() && r.UpperLeft() <= ClientLowerRight(); }
+
+    /** Returns child list; the list is const, but the children may be manipulated. */
     [[nodiscard]] const auto& Children() const noexcept { return m_children; }
 
     /** Returns the window's parent (may be null). */
@@ -483,7 +489,7 @@ public:
 
     /** Returns the currently-installed style factory if none exists, or the
         GUI-wide one otherwise. */
-    [[nodiscard]] const std::shared_ptr<StyleFactory>& GetStyleFactory() const;
+    [[nodiscard]] const StyleFactory& GetStyleFactory() const noexcept;
 
     /** Returns the region under point \a pt. */
     [[nodiscard]] virtual WndRegion WindowRegion(Pt pt) const;
@@ -907,14 +913,14 @@ protected:
         KeyPress(), not KeyRelease(); in fact, by default no Wnd class does
         anything at all on a KeyRelease event.  \note \a key_code_point will
         be zero if Unicode support is unavailable. */
-    virtual void KeyPress(Key key, std::uint32_t key_code_point, Flags<ModKey> mod_keys);
+    virtual void KeyPress(Key key, uint32_t key_code_point, Flags<ModKey> mod_keys);
 
     /** Respond to up-keystrokes (focus window only).  A window may receive
         KeyRelease() messages passed up to it from its children.  For
         instance, Control-derived classes pass KeyRelease() messages to their
         Parent() windows by default.  \note \a key_code_point will be zero if
         Unicode support is unavailable. */
-    virtual void KeyRelease(Key key, std::uint32_t key_code_point, Flags<ModKey> mod_keys);
+    virtual void KeyRelease(Key key, uint32_t key_code_point, Flags<ModKey> mod_keys);
 
     /** Respond to text input regardless of the method. Focus window only.
         A window may receive TextInput() messages passed up to it from its
@@ -935,16 +941,14 @@ protected:
         message. */
     virtual bool EventFilter(Wnd* w, const WndEvent& event) { return false; }
 
-    /** Handles all messages, and calls appropriate function (LButtonDown(),
-        LDrag(), etc.). */
+    /** Handles all messages, and calls appropriate function (LButtonDown(), LDrag(), etc.). */
     void HandleEvent(const WndEvent& event);
 
-    /** Sends the current event to Parent() for processing, if Parent() is
-        non-null.  This must only be called from within a WndEvent handler
-        (e.g. LClick()). */
+    /** Sends the current event to Parent() for processing, if Parent() is non-null.
+        This must only be called from within a WndEvent handler (e.g. LClick()). */
     void ForwardEventToParent();
 
-    /** Sets up child clipping for this window. */
+    /** Sets up child clipping for this window (with OpenGL) */
     void BeginClipping();
 
     /** Restores state to what it was before BeginClipping() was called. */
@@ -960,7 +964,7 @@ protected:
         GetChildClippingMode() is ClipToClientAndWindowSeparately. */
     void EndNonclientClipping();
 
-    virtual void SetParent(std::shared_ptr<Wnd> wnd) { m_parent = std::move(wnd); }
+    virtual void SetParent(std::shared_ptr<Wnd> wnd) noexcept { m_parent = std::move(wnd); }
 
     /** Modal Wnd's set this to true to stop modal loop. */
     std::atomic<bool> m_modal_done{false};
@@ -977,19 +981,18 @@ protected:
     virtual void DetachChildCore(Wnd* wnd);
 
 private:
+    static constexpr int MAX_WINDOW_SZ{1u << 24u};
+    static_assert(MAX_WINDOW_SZ < std::numeric_limits<std::underlying_type_t<X>>::max());
+
     /// m_parent may be expired or null if there is no parent.  m_parent will reset itself if expired.
     mutable std::weak_ptr<Wnd>        m_parent;
     std::string                       m_name;                     ///< A user-significant name for this Wnd
     std::vector<std::shared_ptr<Wnd>> m_children;                 ///< List of ptrs to child windows kept in order of decreasing area
     std::string                       m_drag_drop_data_type;      ///< The type of drag-and-drop data this Wnd represents, if any. If empty/blank, indicates that this Wnd cannot be drag-dropped.
-    ChildClippingMode                 m_child_clipping_mode = ChildClippingMode::DontClip;
     Pt                                m_upperleft{X0, Y0};            ///< Upper left point of window
     Pt                                m_lowerright{X1, Y1};           ///< Lower right point of window
-    Pt                                m_min_size{X0, Y0};             ///< Minimum window size
-    Pt                                m_max_size{X{1<<15},Y{1<<15}};  ///< Maximum window size
-    bool                              m_non_client_child = false;
-    bool                              m_visible = true;
-    bool                              m_needs_prerender = false;  ///< Indicates if Wnd needs a PreRender();
+    Pt                                m_min_size{X0, Y0};                            ///< Minimum window size
+    Pt                                m_max_size{X{MAX_WINDOW_SZ},Y{MAX_WINDOW_SZ}}; ///< Maximum window size
 
     /** The Wnds that are filtering this Wnd's events. These are in reverse
         order: top of the stack is back(). */
@@ -1008,12 +1011,18 @@ private:
         resizability, etc. */
     Flags<WndFlag>                  m_flags;
 
+    ChildClippingMode               m_child_clipping_mode = ChildClippingMode::DontClip;
+
+    bool                            m_non_client_child = false;
+    bool                            m_visible = true;
+    bool                            m_needs_prerender = false;  ///< Indicates if Wnd needs a PreRender();
+
     /** The default time to set for the first (and only) value in
-        m_browse_mode_times during Wnd contruction */
+        m_browse_mode_times during Wnd construction */
     static unsigned int s_default_browse_time;
 
     /** The default BrowseInfoWmd to set for the first (and only) value in
-        m_browse_mode_times during Wnd contruction */
+        m_browse_mode_times during Wnd construction */
     static std::shared_ptr<BrowseInfoWnd> s_default_browse_info_wnd;
 
     friend class GUI;   ///< GUI needs access to \a m_children, etc.

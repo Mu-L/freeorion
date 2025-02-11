@@ -1,23 +1,26 @@
-from species.common.env import BROAD_EP, INFERNO_BROAD_EP
-from species.common.focus import (
+from focs._effects import EffectsGroup, GiveEmpireTech, IsSource, Target, Turn
+from focs._species import *
+from species.species_macros.empire_opinions import COMMON_OPINION_EFFECTS
+from species.species_macros.env import BROAD_EP, INFERNO_BROAD_EP
+from species.species_macros.focus import (
     HAS_ADVANCED_FOCI,
     HAS_GROWTH_FOCUS,
     HAS_INDUSTRY_FOCUS,
     HAS_INFLUENCE_FOCUS,
     HAS_RESEARCH_FOCUS,
 )
-from species.common.happiness import GOOD_HAPPINESS
-from species.common.industry import AVERAGE_INDUSTRY
-from species.common.influence import GREAT_INFLUENCE
-from species.common.planet_defense import AVERAGE_PLANETARY_DEFENSE
-from species.common.planet_shields import AVERAGE_PLANETARY_SHIELDS
-from species.common.planet_size import LARGE_PLANET
-from species.common.population import AVERAGE_POPULATION
-from species.common.research import BAD_RESEARCH
-from species.common.shields import STANDARD_SHIP_SHIELDS
-from species.common.stockpile import AVERAGE_STOCKPILE
-from species.common.supply import AVERAGE_SUPPLY
-from species.common.troops import BAD_DEFENSE_TROOPS
+from species.species_macros.happiness import GOOD_HAPPINESS
+from species.species_macros.industry import AVERAGE_INDUSTRY
+from species.species_macros.influence import GREAT_INFLUENCE
+from species.species_macros.planet_defense import AVERAGE_PLANETARY_DEFENSE
+from species.species_macros.planet_shields import AVERAGE_PLANETARY_SHIELDS
+from species.species_macros.planet_size import LARGE_PLANET
+from species.species_macros.population import AVERAGE_POPULATION
+from species.species_macros.research import BAD_RESEARCH
+from species.species_macros.shields import STANDARD_SHIP_SHIELDS
+from species.species_macros.stockpile import AVERAGE_STOCKPILE
+from species.species_macros.supply import AVERAGE_SUPPLY
+from species.species_macros.troops import BAD_DEFENSE_TROOPS
 
 Species(
     name="SP_ABADDONI",
@@ -54,6 +57,7 @@ Species(
         "PLC_CONFORMANCE",
         "PLC_TERROR_SUPPRESSION",
         "PLC_INDOCTRINATION",
+        "PLC_INSURGENCY",
         "PLC_BUREAUCRACY",
     ],
     dislikes=[
@@ -67,6 +71,7 @@ Species(
         "PHILOSOPHER_SPECIAL",
         "TIDAL_LOCK_SPECIAL",
         "PLC_DIVERSITY",
+        "PLC_FEUDALISM",
         "PLC_LIBERTY",
         "PLC_ARTISAN_WORKSHOPS",
         "PLC_CONFEDERATION",
@@ -78,9 +83,11 @@ Species(
         *AVERAGE_STOCKPILE,
         *AVERAGE_POPULATION,
         *GOOD_HAPPINESS,
+        COMMON_OPINION_EFFECTS("SP_ABADDONI"),
         *AVERAGE_SUPPLY,
         *BAD_DEFENSE_TROOPS,
         EffectsGroup(
+            description="ABADDONI_STARTING_UNLOCKS_DESC",
             scope=IsSource,
             activation=Turn(high=1),
             effects=[GiveEmpireTech(name="GRO_SUBTER_HAB", empire=Target.Owner)],
@@ -88,10 +95,10 @@ Species(
         # not for description
         *AVERAGE_PLANETARY_SHIELDS,
         *AVERAGE_PLANETARY_DEFENSE,
-        LARGE_PLANET,
+        *LARGE_PLANET,
         BROAD_EP,
         *STANDARD_SHIP_SHIELDS,
     ],
-    **INFERNO_BROAD_EP,
+    environments=INFERNO_BROAD_EP,
     graphic="icons/species/abaddonnian.png",
 )

@@ -69,20 +69,6 @@ StaticGraphic::StaticGraphic(SubTexture subtexture,
     SetColor(CLR_WHITE);
 }
 
-StaticGraphic::StaticGraphic(std::shared_ptr<VectorTexture> texture,
-                             Flags<GraphicStyle> style,
-                             Flags<WndFlag> flags) :
-    Control(X0, Y0, X1, Y1, flags),
-    m_vector_texture(std::move(texture)),
-    m_style(style)
-{
-    ValidateStyle();  // correct any disagreements in the style flags
-    SetColor(CLR_WHITE);
-}
-
-Flags<GraphicStyle> StaticGraphic::Style() const
-{ return m_style; }
-
 Rect StaticGraphic::RenderedArea() const
 {
     Pt ul = UpperLeft(), lr = LowerRight();
@@ -91,8 +77,6 @@ Rect StaticGraphic::RenderedArea() const
     Pt graphic_sz;
     if (m_graphic.GetTexture())
         graphic_sz = {m_graphic.Width(), m_graphic.Height()};
-    else if (m_vector_texture && m_vector_texture->TextureLoaded())
-        graphic_sz = m_vector_texture->Size();
 
     Pt pt1, pt2(graphic_sz); // (unscaled) default graphic size
     if (m_style & GRAPHIC_FITGRAPHIC) {
@@ -100,8 +84,8 @@ Rect StaticGraphic::RenderedArea() const
             double scale_x = Value(window_sz.x) / static_cast<double>(Value(graphic_sz.x));
             double scale_y = Value(window_sz.y) / static_cast<double>(Value(graphic_sz.y));
             double scale = std::min(scale_x, scale_y);
-            pt2.x = graphic_sz.x * scale;
-            pt2.y = graphic_sz.y * scale;
+            pt2.x = ToX(graphic_sz.x * scale);
+            pt2.y = ToY(graphic_sz.y * scale);
         } else {
             pt2 = window_sz;
         }
@@ -110,14 +94,14 @@ Rect StaticGraphic::RenderedArea() const
             double scale_x = (graphic_sz.x > window_sz.x) ? Value(window_sz.x) / static_cast<double>(Value(graphic_sz.x)) : 1.0;
             double scale_y = (graphic_sz.y > window_sz.y) ? Value(window_sz.y) / static_cast<double>(Value(graphic_sz.y)) : 1.0;
             double scale = std::min(scale_x, scale_y);
-            pt2.x = graphic_sz.x * scale;
-            pt2.y = graphic_sz.y * scale;
+            pt2.x = ToX(graphic_sz.x * scale);
+            pt2.y = ToY(graphic_sz.y * scale);
         } else {
             pt2 = window_sz;
         }
     }
 
-    X x_shift(0);
+    X x_shift(X0);
     if (m_style & GRAPHIC_LEFT) {
         x_shift = ul.x;
     } else if (m_style & GRAPHIC_CENTER) {
@@ -128,7 +112,7 @@ Rect StaticGraphic::RenderedArea() const
     pt1.x += x_shift;
     pt2.x += x_shift;
 
-    Y y_shift(0);
+    Y y_shift(Y0);
     if (m_style & GRAPHIC_TOP) {
         y_shift = ul.y;
     } else if (m_style & GRAPHIC_VCENTER) {
@@ -142,35 +126,24 @@ Rect StaticGraphic::RenderedArea() const
     return Rect(pt1, pt2);
 }
 
-const SubTexture& StaticGraphic::GetTexture() const
-{ return m_graphic; }
-
-const std::shared_ptr<VectorTexture>& StaticGraphic::GetVectorTexture() const
-{ return m_vector_texture; }
-
 const boost::filesystem::path& StaticGraphic::GetTexturePath() const
 {
-    static boost::filesystem::path EMPTY_PATH;
+    static const boost::filesystem::path EMPTY_PATH;
 
     if (const Texture* texture = m_graphic.GetTexture())
         return texture->Path();
-    if (m_vector_texture && m_vector_texture->TextureLoaded())
-        return m_vector_texture->Path();
 
     return EMPTY_PATH;
 }
 
 void StaticGraphic::Render()
 {
-    Clr color_to_use = Disabled() ? DisabledColor(Color()) : Color();
+    const Clr color_to_use = Disabled() ? DisabledColor(Color()) : Color();
     glColor(color_to_use);
     Rect rendered_area = RenderedArea();
 
-    if (m_graphic.GetTexture()) {
+    if (m_graphic.GetTexture())
         m_graphic.OrthoBlit(rendered_area.ul, rendered_area.lr);
-    } else if (m_vector_texture && m_vector_texture->TextureLoaded()) {
-        m_vector_texture->Render(rendered_area.ul, rendered_area.lr);
-    }
 }
 
 void StaticGraphic::SetStyle(Flags<GraphicStyle> style)
@@ -179,21 +152,15 @@ void StaticGraphic::SetStyle(Flags<GraphicStyle> style)
     ValidateStyle();
 }
 
-void StaticGraphic::SetTexture(const std::shared_ptr<Texture>& texture)
-{ SetTexture(SubTexture(texture, X0, Y0, texture->DefaultWidth(), texture->DefaultHeight())); }
-
-void StaticGraphic::SetTexture(const SubTexture& subtexture)
+void StaticGraphic::SetTexture(std::shared_ptr<Texture> texture)
 {
-    m_graphic = subtexture;
-    if (m_vector_texture)
-        m_vector_texture.reset();
+    const auto w = texture->DefaultWidth();
+    const auto h = texture->DefaultHeight();
+    SetTexture(SubTexture(std::move(texture), X0, Y0, w, h));
 }
 
-void StaticGraphic::SetTexture(const std::shared_ptr<VectorTexture>& vector_texture)
-{
-    m_vector_texture = vector_texture;
-    m_graphic.Clear();
-}
+void StaticGraphic::SetTexture(SubTexture subtexture)
+{ m_graphic = std::move(subtexture); }
 
 void StaticGraphic::ValidateStyle()
 {

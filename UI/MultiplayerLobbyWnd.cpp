@@ -12,7 +12,6 @@
 #include "Hotkeys.h"
 #include "Sound.h"
 
-#include <boost/cast.hpp>
 #include <boost/serialization/vector.hpp>
 
 
@@ -37,8 +36,8 @@ namespace {
         return ClientUI::GetTexture(ClientUI::ArtDir() / "icons/host.png");
     }
 
-    constexpr GG::X EMPIRE_NAME_WIDTH(150);
-    constexpr GG::X BROWSE_BTN_WIDTH(50);
+    constexpr GG::X EMPIRE_NAME_WIDTH{150};
+    constexpr GG::X BROWSE_BTN_WIDTH{50};
 
     // Shows information about a single player in the mulitplayer lobby.
     // This inclues whether the player is a human or AI player, or an observer,
@@ -47,18 +46,16 @@ namespace {
     // players or the host.
     struct PlayerRow : GG::ListBox::Row {
         PlayerRow() :
-            GG::ListBox::Row(GG::X(90), PlayerRowHeight()),
-            m_player_data(),
-            m_player_id(Networking::INVALID_PLAYER_ID)
+            GG::ListBox::Row(GG::X{90}, PlayerRowHeight())
         {}
         PlayerRow(const PlayerSetupData& player_data, int player_id) :
-            GG::ListBox::Row(GG::X(90), PlayerRowHeight()),
+            GG::ListBox::Row(GG::X{90}, PlayerRowHeight()),
             m_player_data(player_data),
             m_player_id(player_id)
         {}
 
         PlayerSetupData         m_player_data;
-        int                     m_player_id;
+        int                     m_player_id = Networking::INVALID_PLAYER_ID;
         boost::signals2::signal<void ()>  DataChangedSignal;
     };
 
@@ -212,26 +209,17 @@ namespace {
         }
 
         void SizeMove(GG::Pt ul, GG::Pt lr) override {
-            GG::Pt old_size(Size());
+            const GG::Pt old_size(Size());
             CUIDropDownList::SizeMove(ul, lr);
             if (old_size != Size())
                 SetColWidth(0, CUIDropDownList::DisplayedRowWidth());
         }
 
-        void SelectionChanged(GG::DropDownList::iterator it)
-        {
-            if (it == this->end())
-                return;
-
-            const auto& row = *it;
-            if (!row)
-                return;
-
-            const TypeRow* type_row = boost::polymorphic_downcast<const TypeRow*>(row.get());
-            if (!type_row)
-                return;
-
-            TypeChangedSignal(type_row->type);
+        void SelectionChanged(GG::DropDownList::iterator it) {
+            if (it != this->end())
+                if (const auto* row = it->get())
+                    if (const TypeRow* type_row = dynamic_cast<const TypeRow*>(row))
+                        TypeChangedSignal(type_row->type);
         }
 
         mutable boost::signals2::signal<void (Networking::ClientType)> TypeChangedSignal;
@@ -351,8 +339,8 @@ namespace {
             m_player_data.empire_name = str;
             DataChangedSignal();
         }
-        void ColorChanged(const GG::Clr& clr) {
-            m_player_data.empire_color = {{clr.r, clr.g, clr.b, clr.a}};
+        void ColorChanged(const GG::Clr clr) {
+            m_player_data.empire_color = clr.RGBA();
             DataChangedSignal();
         }
         void SpeciesChanged(const std::string& str) {
@@ -378,13 +366,13 @@ namespace {
             using boost::placeholders::_1;
 
             // human / AI / observer indicator / selector
-            auto type_drop = GG::Wnd::Create<TypeSelector>(GG::X(90), PlayerRowHeight(), m_player_data.client_type, m_initial_disabled);
+            auto type_drop = GG::Wnd::Create<TypeSelector>(GG::X(90), PlayerRowHeight(),
+                                                           m_player_data.client_type, m_initial_disabled);
             push_back(type_drop);
             if (m_initial_disabled)
                 type_drop->Disable();
             else
-                type_drop->TypeChangedSignal.connect(
-                    boost::bind(&LoadGamePlayerRow::PlayerTypeChanged, this, _1));
+                type_drop->TypeChangedSignal.connect(boost::bind(&LoadGamePlayerRow::PlayerTypeChanged, this, _1));
 
             // player name text
             push_back(GG::Wnd::Create<CUILabel>(m_player_data.player_name));
@@ -394,9 +382,7 @@ namespace {
             m_empire_list->Resize(GG::Pt(EMPIRE_NAME_WIDTH, PlayerRowHeight()));
             m_empire_list->SetStyle(GG::LIST_NOSORT);
             auto save_game_empire_it = m_save_game_empire_data.end();
-            for (auto it = m_save_game_empire_data.begin();
-                 it != m_save_game_empire_data.end(); ++it)
-            {
+            for (auto it = m_save_game_empire_data.begin(); it != m_save_game_empire_data.end(); ++it) {
                 // don't allow to select eliminated empire
                 if (it->second.eliminated)
                     continue;
@@ -470,30 +456,45 @@ namespace {
         }
         void EmpireChanged(GG::DropDownList::iterator selected_it) {
             if (selected_it == m_empire_list->end()) {
-                ErrorLogger() << "Empire changed to no empire.  Ignoring change.";
+                ErrorLogger() << "LoadGamePlayerRow: Empire changed to no empire.  Ignoring change.";
                 return;
             }
-            const std::string& empire_name = boost::polymorphic_downcast<GG::Label*>((*selected_it)->at(0))->Text();
-            for (const auto& [ignored, sged] : m_save_game_empire_data) {
-                (void)ignored;
-                if (sged.empire_name == empire_name) {
-                    m_player_data.empire_name = empire_name;
-                    m_player_data.empire_color = sged.color;
-                    m_player_data.save_game_empire_id = sged.empire_id;
-                    m_color_selector->SelectColor(m_player_data.empire_color);
+            const auto* row = selected_it->get();
+            if (!row || row->empty()) {
+                ErrorLogger() << "LoadGamePlayerRow: Empire changed to no empire.  Ignoring change.";
+                return;
+            }
+            const auto* label = dynamic_cast<const GG::Label*>(row->at(0));
+            if (!label) {
+                ErrorLogger() << "LoadGamePlayerRow: Empire changed to no empire.  Ignoring change.";
+                return;
+            }
 
-                    // set previous player name indication
-                    if (size() >= 5)
-                        boost::polymorphic_downcast<GG::Label*>(at(4))->SetText(sged.player_name);
+            const std::string& empire_name = label->Text();
+            const auto has_empire_name = [&empire_name](const auto& sged) noexcept
+            { return sged.empire_name == empire_name; };
 
-                    DataChangedSignal();
-                    return;
+            auto sged_rng = m_save_game_empire_data | range_values;
+            auto sged_it = range_find_if(sged_rng, has_empire_name);
+            if (sged_it != sged_rng.end()) {
+                const auto& sged{*sged_it};
+                m_player_data.empire_name = empire_name;
+                m_player_data.empire_color = sged.color;
+                m_player_data.save_game_empire_id = sged.empire_id;
+                m_color_selector->SelectColor(m_player_data.empire_color);
+
+                // set previous player name indication
+                if (size() >= 5) {
+                    if (auto* label = dynamic_cast<GG::Label*>(at(4)))
+                        label->SetText(sged.player_name);
                 }
+
+                DataChangedSignal();
             }
         }
 
-        std::shared_ptr<EmpireColorSelector>                     m_color_selector;
-        std::shared_ptr<GG::DropDownList>                        m_empire_list;
+        std::shared_ptr<EmpireColorSelector>     m_color_selector;
+        std::shared_ptr<GG::DropDownList>        m_empire_list;
         const std::map<int, SaveGameEmpireData>& m_save_game_empire_data;
         bool                                     m_initial_disabled;
         bool                                     m_in_game;
@@ -574,13 +575,13 @@ namespace {
         }
     };
 
-    constexpr GG::X     LOBBY_WND_WIDTH(960);
-    constexpr GG::Y     LOBBY_WND_HEIGHT(720);
+    constexpr GG::X     LOBBY_WND_WIDTH{960};
+    constexpr GG::Y     LOBBY_WND_HEIGHT{720};
     constexpr int       CONTROL_MARGIN = 5; // gap to leave between controls in the window
-    constexpr GG::X     GALAXY_SETUP_PANEL_WIDTH(250);
-    constexpr GG::Y     GALAXY_SETUP_PANEL_HEIGHT(340);
+    constexpr GG::X     GALAXY_SETUP_PANEL_WIDTH{250};
+    constexpr GG::Y     GALAXY_SETUP_PANEL_HEIGHT{340};
     constexpr int       GALAXY_SETUP_PANEL_MARGIN = 45;
-    constexpr GG::X     CHAT_WIDTH(350);
+    constexpr GG::X     CHAT_WIDTH{350};
     GG::Pt              g_preview_ul;
     constexpr int       PREVIEW_WIDTH = 248;
     constexpr GG::Pt    PREVIEW_SZ(GG::X{PREVIEW_WIDTH}, GG::Y{186});
@@ -588,8 +589,8 @@ namespace {
 
     std::vector<GG::X> PlayerRowColWidths(GG::X width = GG::X{600}) {
         static constexpr GG::X color_width{75};
-        const GG::X ready_width((ClientUI::Pts() / 2) * 5);
-        const GG::X prop_width = ((width - color_width - 2 * ready_width) / 4) - CONTROL_MARGIN;
+        const GG::X ready_width{(ClientUI::Pts() / 2) * 5};
+        const GG::X prop_width{(width - color_width - 2 * ready_width) / 4 - CONTROL_MARGIN};
         return {
             prop_width,  // type
             prop_width,  // player name
@@ -634,7 +635,7 @@ void MultiPlayerLobbyWnd::CompleteConstruction() {
     m_preview_image = GG::Wnd::Create<GG::StaticGraphic>(std::make_shared<GG::Texture>(), GG::GRAPHIC_FITGRAPHIC);
 
     m_players_lb_headers = GG::Wnd::Create<PlayerLabelRow>();
-    m_players_lb_headers->SetMinSize(GG::Pt(GG::X(0), PlayerRowHeight() + PlayerFontHeight()));
+    m_players_lb_headers->SetMinSize(GG::Pt(GG::X0, PlayerRowHeight() + PlayerFontHeight()));
 
     TraceLogger() << "MultiPlayerLobbyWnd::CompleteConstruction creating players list box";
     m_players_lb = GG::Wnd::Create<CUIListBox>();
@@ -740,8 +741,8 @@ void MultiPlayerLobbyWnd::PlayerLabelRow::SetText(std::size_t column, const std:
 }
 
 void MultiPlayerLobbyWnd::PlayerLabelRow::Render() {
-    const GG::Clr& BG_CLR = ClientUI::WndOuterBorderColor();
-    const GG::Clr& BORDER_CLR = ClientUI::WndInnerBorderColor();
+    const GG::Clr BG_CLR = ClientUI::WndOuterBorderColor();
+    const GG::Clr BORDER_CLR = ClientUI::WndInnerBorderColor();
     GG::Pt ul(UpperLeft().x + CONTROL_MARGIN, UpperLeft().y + CONTROL_MARGIN);
     GG::Pt lr(LowerRight().x - CONTROL_MARGIN, LowerRight().y - CONTROL_MARGIN);
 
@@ -776,7 +777,7 @@ void MultiPlayerLobbyWnd::Render() {
                       GG::CLR_BLACK, ClientUI::WndInnerBorderColor(), 1);
 }
 
-void MultiPlayerLobbyWnd::KeyPress(GG::Key key, std::uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys) {
+void MultiPlayerLobbyWnd::KeyPress(GG::Key key, uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys) {
     if (m_ready_bn && (key == GG::Key::GGK_RETURN || key == GG::Key::GGK_KP_ENTER)) {
         m_ready_bn->LeftClickedSignal();
     } else if (key == GG::Key::GGK_ESCAPE) {
@@ -870,13 +871,13 @@ GG::Pt MultiPlayerLobbyWnd::MinUsableSize() const
 { return GG::Pt(LOBBY_WND_WIDTH, LOBBY_WND_HEIGHT); }
 
 void MultiPlayerLobbyWnd::DoLayout() {
-    GG::X x(CONTROL_MARGIN);
+    GG::X x{CONTROL_MARGIN};
 
     GG::Pt chat_box_ul(x, GG::Y(CONTROL_MARGIN));
     GG::Pt chat_box_lr(CHAT_WIDTH, ClientHeight() - CONTROL_MARGIN);
     m_chat_wnd->SizeMove(chat_box_ul, chat_box_lr);
 
-    const GG::Y RADIO_BN_HT(ClientUI::Pts() + 4);
+    const GG::Y RADIO_BN_HT{ClientUI::Pts() + 4};
 
     GG::Pt galaxy_setup_panel_ul(CHAT_WIDTH + 2*CONTROL_MARGIN, RADIO_BN_HT);
     GG::Pt galaxy_setup_panel_lr = galaxy_setup_panel_ul +
@@ -905,8 +906,8 @@ void MultiPlayerLobbyWnd::DoLayout() {
 
     const GG::Y TEXT_HEIGHT = GG::Y(ClientUI::Pts() * 3/2);
 
-    m_ready_bn->SizeMove(GG::Pt(GG::X0, GG::Y0), GG::Pt(GG::X(125), m_ready_bn->MinUsableSize().y));
-    m_cancel_bn->SizeMove(GG::Pt(GG::X0, GG::Y0), GG::Pt(GG::X(125), m_ready_bn->MinUsableSize().y));
+    m_ready_bn->SizeMove(GG::Pt0, GG::Pt(GG::X(125), m_ready_bn->MinUsableSize().y));
+    m_cancel_bn->SizeMove(GG::Pt0, GG::Pt(GG::X(125), m_ready_bn->MinUsableSize().y));
     m_cancel_bn->MoveTo(GG::Pt(ClientWidth() - m_cancel_bn->Width() - CONTROL_MARGIN,
                                ClientHeight() - m_cancel_bn->Height() - CONTROL_MARGIN));
     m_ready_bn->MoveTo(GG::Pt(m_cancel_bn->RelativeUpperLeft().x - CONTROL_MARGIN - m_ready_bn->Width(),
@@ -1134,7 +1135,7 @@ bool MultiPlayerLobbyWnd::PopulatePlayerList() {
     return send_update_back_retval;
 }
 
-void MultiPlayerLobbyWnd::SendUpdate() {
+void MultiPlayerLobbyWnd::SendUpdate() const {
     if (GGHumanClientApp::GetApp()->PlayerID() != Networking::INVALID_PLAYER_ID)
         GGHumanClientApp::GetApp()->Networking().SendMessage(LobbyUpdateMessage(m_lobby_data));
 }
@@ -1142,10 +1143,15 @@ void MultiPlayerLobbyWnd::SendUpdate() {
 bool MultiPlayerLobbyWnd::PlayerDataAcceptable() const {
     std::set<std::string> empire_names;
     std::set<unsigned int> empire_colors;
-    int num_players_excluding_observers(0);
+    int num_players_excluding_observers = 0;
+    if (!m_players_lb)
+        return false;
 
     for (auto& row : *m_players_lb) {
-        const PlayerRow& prow = dynamic_cast<const PlayerRow&>(*row);
+        const auto* pprow = dynamic_cast<const PlayerRow*>(row.get());
+        if (!pprow)
+            continue;
+        const auto& prow{*pprow};
         if (prow.m_player_data.client_type == Networking::ClientType::CLIENT_TYPE_HUMAN_PLAYER ||
             prow.m_player_data.client_type == Networking::ClientType::CLIENT_TYPE_AI_PLAYER)
         {

@@ -1,5 +1,6 @@
 #include "ResourcePool.h"
 
+#include <numeric>
 #include <cassert>
 #include "../universe/Enums.h"
 #include "../universe/ObjectMap.h"
@@ -47,37 +48,34 @@ ResourceType MeterToResource(MeterType type) noexcept {
 // ResourcePool
 //////////////////////////////////////////////////
 float ResourcePool::TotalOutput() const {
-    float retval = 0.0f;
-    for (const auto& entry : m_connected_object_groups_resource_output)
-        retval += entry.second;
-    return retval;
+    return std::transform_reduce(m_connected_object_groups_resource_output.begin(), m_connected_object_groups_resource_output.end(),
+                                 0.0f, std::plus{}, [](const auto& entry) { return entry.second; });
 }
 
 float ResourcePool::GroupOutput(int object_id) const {
     // find group containing specified object
-    for (const auto& [group, output] : m_connected_object_groups_resource_output) {
-        if (group.contains(object_id))
-            return output;
-    }
+    auto it = std::find_if(m_connected_object_groups_resource_output.begin(), m_connected_object_groups_resource_output.end(),
+                           [object_id](const auto& entry) { return entry.first.contains(object_id); });
+    if (it != m_connected_object_groups_resource_output.end())
+        return it->second;
 
-    // default return case:
     //DebugLogger() << "ResourcePool::GroupOutput passed unknown object id: " << object_id;
     return 0.0f;
 }
 
 float ResourcePool::TargetOutput() const {
-    float retval = 0.0f;
-    for (const auto& entry : m_connected_object_groups_resource_target_output)
-        retval += entry.second;
-    return retval;
+    return std::transform_reduce(m_connected_object_groups_resource_target_output.begin(),
+                                 m_connected_object_groups_resource_target_output.end(),
+                                 0.0f, std::plus{}, [](const auto& entry) { return entry.second; });
 }
 
 float ResourcePool::GroupTargetOutput(int object_id) const {
     // find group containing specified object
-    for (const auto& entry : m_connected_object_groups_resource_target_output) {
-        if (entry.first.contains(object_id))
-            return entry.second;
-    }
+    auto it = std::find_if(m_connected_object_groups_resource_target_output.begin(),
+                           m_connected_object_groups_resource_target_output.end(),
+                           [object_id](const auto& entry) { return entry.first.contains(object_id); });
+    if (it != m_connected_object_groups_resource_target_output.end())
+        return it->second;
 
     // default return case:
     DebugLogger() << "ResourcePool::GroupTargetOutput passed unknown object id: " << object_id;
@@ -85,10 +83,9 @@ float ResourcePool::GroupTargetOutput(int object_id) const {
 }
 
 float ResourcePool::TotalAvailable() const {
-    float retval = m_stockpile;
-    for (const auto& entry : m_connected_object_groups_resource_output)
-        retval += entry.second;
-    return retval;
+    return std::transform_reduce(m_connected_object_groups_resource_output.begin(),
+                                 m_connected_object_groups_resource_output.end(),
+                                 m_stockpile, std::plus{}, [](const auto& entry) { return entry.second; });
 }
 
 float ResourcePool::GroupAvailable(int object_id) const {
@@ -106,11 +103,11 @@ std::string ResourcePool::Dump() const {
     return retval;
 }
 
-void ResourcePool::SetObjects(std::vector<int> object_ids)
+void ResourcePool::SetObjects(std::vector<int> object_ids) noexcept
 { m_object_ids = std::move(object_ids); }
 
-void ResourcePool::SetConnectedSupplyGroups(const std::set<std::set<int>>& connected_system_groups)
-{ m_connected_system_groups = connected_system_groups; }
+void ResourcePool::SetConnectedSupplyGroups(std::set<std::set<int>> connected_system_groups) noexcept
+{ m_connected_system_groups = std::move(connected_system_groups); }
 
 void ResourcePool::SetStockpile(float d) {
     DebugLogger() << "ResourcePool " << to_string(m_type) << " set to " << d;
@@ -132,7 +129,7 @@ void ResourcePool::Update(const ObjectMap& objects) {
 
     // temporary storage: indexed by group of systems, which objects
     // are located in that system group?
-    std::map<std::set<int>, std::set<const UniverseObject*>> system_groups_to_object_groups;
+    std::map<int_flat_set, std::pair<boost::container::flat_set<const UniverseObject*>, int_flat_set>> system_groups_to_object_groups;
 
 
     // for every object, find if a connected system group contains the object's
@@ -140,17 +137,17 @@ void ResourcePool::Update(const ObjectMap& objects) {
     // of objects.  If no group contains the object, place the object in its own
     // single-object group.
     for (auto* obj : objects.findRaw<const UniverseObject>(m_object_ids)) {
-        int object_id = obj->ID();
-        int object_system_id = obj->SystemID();
+        const int object_id = obj->ID();
+        const int object_system_id = obj->SystemID();
         // can't generate resources when not in a system
         if (object_system_id == INVALID_OBJECT_ID)
             continue;
 
         // is object's system in a system group?
-        auto object_system_group = [&]() -> std::set<int> {
+        int_flat_set object_system_group = [&]() -> int_flat_set {
             for (const auto& sys_group : m_connected_system_groups)
                 if (sys_group.find(object_system_id) != sys_group.end())
-                    return sys_group;
+                    return {boost::container::ordered_unique_range, sys_group.begin(), sys_group.end()};
             return {};
         }();
 
@@ -160,6 +157,7 @@ void ResourcePool::Update(const ObjectMap& objects) {
         // resource when, for instance, distributing pp
         if (object_system_group.empty()) {
             // store object id in set, even though it is not likely actually a system
+            object_system_group.reserve(1); // quiet GCC warning https://gcc.gnu.org/bugzilla/show_bug.cgi?id=100366
             object_system_group.insert(object_id);
 
             const auto* mmt = obj->GetMeter(meter_type);
@@ -169,28 +167,37 @@ void ResourcePool::Update(const ObjectMap& objects) {
             m_connected_object_groups_resource_target_output[std::move(object_system_group)] = mtmt ? mtmt->Current() : 0.0f;
 
         } else {
-            // if resource center's system is in a system group, record which system
-            // group that is for later
-            system_groups_to_object_groups[std::move(object_system_group)].insert(obj);
+            // if resource center's system is in a system group, put system
+            // and its id into object group for that system group
+            auto& [sys_group_objs, obj_ids_in_sys_group] =
+                system_groups_to_object_groups.try_emplace(std::move(object_system_group)).first->second;
+            sys_group_objs.insert(obj);
+            obj_ids_in_sys_group.insert(object_id);
         }
     }
 
     // sum the resource production for object groups, and store the total
     // group production, indexed by group of object ids
-    for (auto& entry : system_groups_to_object_groups) {
-        const auto& object_group = entry.second;
-        std::set<int> object_group_ids;
-        float total_group_output = 0.0f;
-        float total_group_target_output = 0.0f;
-        for (auto* obj : object_group) {
-            if (const auto* m = obj->GetMeter(meter_type))
-                total_group_output += m->Current();
-            if (const auto* m = obj->GetMeter(target_meter_type))
-                total_group_target_output += m->Current();
-            object_group_ids.insert(obj->ID());
-        }
-        m_connected_object_groups_resource_output[object_group_ids] = total_group_output;
-        m_connected_object_groups_resource_target_output[object_group_ids] = total_group_target_output;
+    for (auto& group_objects_and_ids : system_groups_to_object_groups | range_values) {
+        auto& [object_group, object_ids] = group_objects_and_ids;
+
+        float total_group_output =
+            std::transform_reduce(object_group.begin(), object_group.end(), 0.0f, std::plus{},
+                                  [meter_type](const UniverseObject* o) {
+                                      if (const auto* m = o->GetMeter(meter_type))
+                                          return m->Current();
+                                      return 0.0f;
+                                  });
+        m_connected_object_groups_resource_output[object_ids] = total_group_output;
+
+        float total_group_target_output =
+            std::transform_reduce(object_group.begin(), object_group.end(), 0.0f, std::plus{},
+                                  [target_meter_type](const UniverseObject* o) {
+                                      if (const auto* m = o->GetMeter(target_meter_type))
+                                          return m->Current();
+                                      return 0.0f;
+                                  });
+        m_connected_object_groups_resource_target_output[std::move(object_ids)] = total_group_target_output;
     }
 
     ChangedSignal();

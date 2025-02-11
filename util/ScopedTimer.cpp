@@ -3,6 +3,7 @@
 #include "Logger.h"
 
 #include <boost/chrono.hpp>
+#include <boost/unordered_map.hpp>
 
 #include <iomanip>
 #include <sstream>
@@ -170,17 +171,15 @@ std::chrono::nanoseconds ScopedTimer::Elapsed() const noexcept
 class SectionedScopedTimer::Impl : public ScopedTimer::Impl {
     /** Sections store a time and a duration for each section of the elapsed time report.*/
     struct Sections {
-        Sections(const std::chrono::high_resolution_clock::time_point& now,
-                 const std::chrono::nanoseconds& time_from_start) :
-            m_section_start(now)
-        {
-            // Create a dummy "" section so that m_curr is always a valid iterator.
-            auto curr = m_table.emplace("", time_from_start);
-            m_curr = curr.first;
-        }
+        Sections(std::chrono::high_resolution_clock::time_point now,
+                 std::chrono::nanoseconds time_from_start) :
+            m_table{{"", time_from_start}}, // Create a dummy "" section so that m_curr is always a valid iterator.
+            m_section_start(now),
+            m_curr{m_table.begin()}
+        {}
 
         /** Add time to the current section and then setup the new section. */
-        void Accumulate(const std::chrono::high_resolution_clock::time_point& now,
+        void Accumulate(std::chrono::high_resolution_clock::time_point now,
                         const std::string& section_name)
         {
             if (m_curr->first == section_name)
@@ -191,20 +190,20 @@ class SectionedScopedTimer::Impl : public ScopedTimer::Impl {
             m_section_start = now;
 
             // Create a new section if needed and update m_curr.
-            auto maybe_new = m_table.emplace(
+            bool is_new_section = false;
+            std::tie(m_curr, is_new_section) = m_table.try_emplace(
                 section_name, std::chrono::high_resolution_clock::duration::zero());
-            m_curr = maybe_new.first;
 
-            // Insert succeed, so grab the new section name.
-            if (maybe_new.second)
+            // Insert succeed, so store the new section name at end of list
+            if (is_new_section)
                 m_section_names.push_back(section_name);
         }
 
         //Table of section durations
-        typedef std::unordered_map<std::string, std::chrono::nanoseconds> SectionTable;
+        using SectionTable = boost::unordered_map<std::string, std::chrono::nanoseconds> ;
         SectionTable m_table;
 
-        // Currently running section start time and iterator
+        // Currently running section start time
         std::chrono::high_resolution_clock::time_point m_section_start;
 
         // m_curr always points to the section currently accumulating
@@ -215,9 +214,14 @@ class SectionedScopedTimer::Impl : public ScopedTimer::Impl {
         std::vector<std::string> m_section_names;
     };
 
+    /** CreateSections allow m_sections to only be initialized if it is used.*/
+    void CreateSections(std::chrono::high_resolution_clock::time_point now)
+    { m_sections = std::make_unique<Sections>(now, now - m_start); }
+
 public:
     Impl(std::string timed_name, std::chrono::microseconds threshold,
-         bool enable_output, bool unify_section_duration_units) :
+         bool enable_output, bool unify_section_duration_units)
+        noexcept(noexcept(ScopedTimer::Impl(std::declval<std::string>(), true, std::declval<std::chrono::microseconds>()))) :
         ScopedTimer::Impl(std::move(timed_name), enable_output, threshold),
         m_unify_units(unify_section_duration_units)
     {}
@@ -243,9 +247,9 @@ public:
         // Find the longest name to right align the times and longest time to align the units
         std::size_t longest_section_name(0);
         std::chrono::nanoseconds longest_section_duration(0);
-        for (const auto& section : m_sections->m_table) {
-            longest_section_name = std::max(longest_section_name, section.first.size());
-            longest_section_duration = std::max(longest_section_duration, section.second);
+        for (const auto& [sec_name, sec_dur] : m_sections->m_table) {
+            longest_section_name = std::max(longest_section_name, sec_name.size());
+            longest_section_duration = std::max(longest_section_duration, sec_dur);
         }
 
         // Output section names and times in order they were created
@@ -304,16 +308,20 @@ public:
         m_sections->Accumulate(now, section_name);
     }
 
-    std::chrono::nanoseconds Elapsed() const noexcept
+    [[nodiscard]]std::chrono::nanoseconds Elapsed() const noexcept
     { return std::chrono::high_resolution_clock::now() - m_start; }
 
-private:
-    /** CreateSections allow m_sections to only be initialized if it is used.*/
-    Sections* CreateSections(const std::chrono::high_resolution_clock::time_point& now) {
-        m_sections.reset(new Sections(now, now - m_start));
-        return m_sections.get();
+    [[nodiscard]] const Sections::SectionTable* GetSectionTable() const noexcept
+    { return m_sections ? &m_sections->m_table : nullptr; }
+
+    [[nodiscard]]const std::vector<std::pair<std::string_view, std::chrono::nanoseconds>> SectionsElapsed() const {
+        if (!m_sections)
+            return {};
+        const auto& t = m_sections->m_table;
+        return {t.begin(), t.end()};
     }
 
+private:
     // Pointer to table of sections.
     // Sections are only allocated when the first section is created, to minimize overhead of a
     // section-less timer.
@@ -324,7 +332,7 @@ private:
 
 SectionedScopedTimer::SectionedScopedTimer(std::string timed_name,
                                            std::chrono::microseconds threshold) :
-    m_impl(new Impl(std::move(timed_name), threshold, true, true))
+    m_impl(std::make_unique<Impl>(std::move(timed_name), threshold, true, true))
 {}
 
 // ~SectionedScopedTimer is required because Impl is defined here.
@@ -332,6 +340,9 @@ SectionedScopedTimer::~SectionedScopedTimer() = default;
 
 std::chrono::nanoseconds SectionedScopedTimer::Elapsed() const noexcept
 { return m_impl->Elapsed(); }
+
+std::vector<std::pair<std::string_view, std::chrono::nanoseconds>> SectionedScopedTimer::SectionsElapsed() const noexcept
+{ return m_impl->SectionsElapsed(); }
 
 void SectionedScopedTimer::EnterSection(const std::string& section_name)
 { m_impl->EnterSection(section_name); }

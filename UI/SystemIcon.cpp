@@ -16,6 +16,7 @@
 #include "../util/i18n.h"
 #include "../util/Logger.h"
 #include "../util/OptionsDB.h"
+#include "../util/ranges.h"
 #include "../Empire/Empire.h"
 
 #include <GG/StaticGraphic.h>
@@ -98,10 +99,10 @@ OwnerColoredSystemName::OwnerColoredSystemName(int system_id, int font_size,
 
     int client_empire_id = GGHumanClientApp::GetApp()->EmpireID();
 
-    const EmpireManager& empire_manager = Empires();
-    const Universe& universe = GetUniverse();
-    const ObjectMap& objects = universe.Objects();
-    const ScriptingContext context{universe, empire_manager};
+    const ScriptingContext& context = IApp::GetApp()->GetContext();
+    const EmpireManager& empire_manager = context.Empires();
+    const Universe& universe = context.ContextUniverse();
+    const ObjectMap& objects = context.ContextObjects();
     const SpeciesManager& species_manager = context.species;
 
 
@@ -144,28 +145,22 @@ OwnerColoredSystemName::OwnerColoredSystemName(int system_id, int font_size,
 
         // is planet a homeworld? (for any species)
         if (!homeworld) {
-            for (const auto& entry : species_manager.GetSpeciesHomeworldsMap()) {
-                const auto& homeworld_ids = entry.second;
-                if (homeworld_ids.contains(planet_id)) {
-                    homeworld = true;
-                    break;
-                }
-            }
+            const auto is_homeworld = [planet_id](const auto& hw_ids) { return hw_ids.contains(planet_id); };
+            homeworld = range_any_of(species_manager.GetSpeciesHomeworldsMap() | range_values,
+                                     is_homeworld);
         }
 
         // does planet contain a shipyard?
         if (!has_shipyard) {
-            for (auto& building : objects.find<const Building>(planet->BuildingIDs())) {
-                int building_id = building->ID();
+            const auto not_destroyed = [&known_destroyed_object_ids](const auto id)
+            { return !known_destroyed_object_ids.contains(id); };
 
-                if (known_destroyed_object_ids.contains(building_id))
-                    continue;
+            const auto get_building = [&objects](const auto id) { return objects.getRaw<const Building>(id); };
 
-                if (building->HasTag(TAG_SHIPYARD, context)) {
-                    has_shipyard = true;
-                    break;
-                }
-            }
+            static constexpr auto is_shipyard = [](const Building* b) { return b && b->HasTag(TAG_SHIPYARD); };
+
+            has_shipyard = range_any_of(planet->BuildingIDs() | range_filter(not_destroyed) | range_transform(get_building),
+                                        is_shipyard);
         }
 
         // is planet populated by neutral species
@@ -194,16 +189,16 @@ OwnerColoredSystemName::OwnerColoredSystemName(int system_id, int font_size,
         wrapped_system_name = "<i>" + wrapped_system_name + "</i>";
     if (has_shipyard)
         wrapped_system_name = "<u>" + wrapped_system_name + "</u>";
-    std::shared_ptr<GG::Font> font;
-    if (capital)
-        font = ClientUI::GetBoldFont(font_size);
-    else
-        font = ClientUI::GetFont(font_size);
+    const auto font = capital ? ClientUI::GetBoldFont(font_size) : ClientUI::GetFont(font_size);
 
     GG::Clr text_color = ClientUI::SystemNameTextColor();
     if (has_player_planet) {
-        if (owner_empire_ids.size() == 1)
-            text_color = GetEmpire(*owner_empire_ids.begin())->Color();
+        if (owner_empire_ids.size() == 1) {
+            if (const auto* owner_empire = GetEmpire(*owner_empire_ids.begin()))
+                text_color = owner_empire->Color();
+            else
+                DebugLogger() << "OwnerColoredSystemName couldn't get empire with id: " << *owner_empire_ids.begin();
+        }
     } else if (has_neutrals) {
         text_color = ClientUI::TextColor();
     }
@@ -226,7 +221,7 @@ void OwnerColoredSystemName::CompleteConstruction() {
     }
     AttachChild(m_text);
     GG::Pt text_size(m_text->TextLowerRight() - m_text->TextUpperLeft());
-    m_text->SizeMove(GG::Pt(GG::X0, GG::Y0), text_size);
+    m_text->SizeMove(GG::Pt0, text_size);
     Resize(text_size);
 }
 
@@ -342,11 +337,11 @@ GG::Pt SystemIcon::NthFleetButtonUpperLeft(unsigned int button_number, bool movi
 
 
     // get fleetbutton radius to use for layout
-    FleetButton::SizeType fb_size_type = ClientUI::GetClientUI()->GetMapWnd()->FleetButtonSizeType();
+    auto map_wnd = ClientUI::GetClientUI()->GetMapWndConst();
+    FleetButton::SizeType fb_size_type = map_wnd ? map_wnd->FleetButtonSizeType() : FleetButton::SizeType::LARGE;
     GG::Pt button_size = GG::Pt();
     double FB_RADIUS = 0.0;
-    const std::shared_ptr<GG::Texture>& icon = FleetSizeIcon(1u, fb_size_type);
-    if (icon) {
+    if (const auto& icon = FleetSizeIcon(1u, fb_size_type)) {
         button_size = GG::Pt(icon->DefaultWidth(), icon->DefaultHeight());
         FB_RADIUS = static_cast<double>(Value(button_size.x) + Value(button_size.y))/4.0;   // average half of two side lengths to get radius
     }
@@ -488,7 +483,7 @@ void SystemIcon::SizeMove(GG::Pt ul, GG::Pt lr) {
     }
 
     const bool USE_TINY_MOUSEOVER_INDICATOR = m_tiny_mouseover_indicator &&
-                                              (Value(Width()) < m_tiny_mouseover_indicator->Width());
+                                              (Width() < m_tiny_mouseover_indicator->Width());
 
     // normal mouseover indicator - attach / detach / show / hide done by MouseEnter and MouseLeave
     if (m_mouseover_indicator && !USE_TINY_MOUSEOVER_INDICATOR) {
@@ -573,7 +568,7 @@ void SystemIcon::RDoubleClick(GG::Pt pt, GG::Flags<GG::ModKey> mod_keys)
 
 void SystemIcon::MouseEnter(GG::Pt pt, GG::Flags<GG::ModKey> mod_keys) {
     const bool USE_TINY_MOUSEOVER_INDICATOR = m_tiny_mouseover_indicator &&
-                                              (Value(Width()) < m_tiny_mouseover_indicator->Width());
+                                              (Width() < m_tiny_mouseover_indicator->Width());
     // indicate mouseover
     if (m_mouseover_indicator && !USE_TINY_MOUSEOVER_INDICATOR) {
         int client_empire_id = GGHumanClientApp::GetApp()->EmpireID();
@@ -604,7 +599,7 @@ void SystemIcon::MouseEnter(GG::Pt pt, GG::Flags<GG::ModKey> mod_keys) {
     if (!m_showing_name) {
         // get font size
         int name_pts = ClientUI::Pts();
-        if (auto map_wnd = ClientUI::GetClientUI()->GetMapWnd())
+        if (auto map_wnd = ClientUI::GetClientUI()->GetMapWndConst())
             name_pts = map_wnd->SystemNamePts();
         auto it = m_colored_names.find(name_pts);
         if (it != m_colored_names.end())
@@ -658,7 +653,7 @@ void SystemIcon::Refresh() {
 
     // get font size
     int name_pts = ClientUI::Pts();
-    if (auto map_wnd = ClientUI::GetClientUI()->GetMapWnd())
+    if (auto map_wnd = ClientUI::GetClientUI()->GetMapWndConst())
         name_pts = map_wnd->SystemNamePts();
 
     // remove existing system name control
@@ -695,7 +690,7 @@ void SystemIcon::ShowName() {
 
     // get font size
     int name_pts = ClientUI::Pts();
-    if (auto map_wnd = ClientUI::GetClientUI()->GetMapWnd())
+    if (auto map_wnd = ClientUI::GetClientUI()->GetMapWnd(true))
         name_pts = map_wnd->SystemNamePts();
 
     auto it = m_colored_names.find(name_pts);

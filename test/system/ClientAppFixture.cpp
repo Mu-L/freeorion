@@ -16,7 +16,6 @@
 #include <boost/test/unit_test.hpp>
 
 ClientAppFixture::ClientAppFixture() :
-    m_game_started(false),
     m_cookie(boost::uuids::nil_uuid())
 {
     InitDirs(boost::unit_test::framework::master_test_suite().argv[0]);
@@ -214,6 +213,7 @@ bool ClientAppFixture::HandleMessage(Message& msg) {
                                     m_player_info,           m_orders,               loaded_game_data,
                                     ui_data_available,       ui_data,                state_string_available,
                                     save_state_string,       m_galaxy_setup_data);
+        m_context.current_turn = m_current_turn;
 
         InfoLogger() << "Extracted GameStart message for turn: " << m_current_turn << " with empire: " << m_empire_id;
 
@@ -253,6 +253,7 @@ bool ClientAppFixture::HandleMessage(Message& msg) {
         ExtractTurnUpdateMessageData(msg,                   m_empire_id,      m_current_turn,
                                      m_empires,             m_universe,       m_species_manager,
                                      GetCombatLogManager(), m_supply_manager, m_player_info);
+        m_context.current_turn = m_current_turn;
         m_turn_done = true;
         BOOST_TEST_MESSAGE("Full turn update unpacked");
         return true;
@@ -261,7 +262,7 @@ bool ClientAppFixture::HandleMessage(Message& msg) {
         m_save_completed = true;
         return true;
     case Message::MessageType::JOIN_GAME: {
-        int player_id;
+        int player_id = Networking::INVALID_PLAYER_ID;
         ExtractJoinAckMessageData(msg, player_id, m_cookie);
         m_networking->SetPlayerID(player_id);
         return true;
@@ -285,12 +286,12 @@ bool ClientAppFixture::HandleMessage(Message& msg) {
         BOOST_TEST_MESSAGE("Lobby Updated");
         return true;
     case Message::MessageType::ERROR_MSG: {
-            int player_id;
-            std::string problem;
-            bool fatal;
-            ExtractErrorMessageData(msg, player_id, problem, fatal);
-            ErrorLogger() << "Catch " << (fatal ? "fatal " : "") << "error " << problem << " from player " << player_id;
-            BOOST_TEST_MESSAGE("Received " << (fatal ? "fatal " : "") << " error message: " << problem);
+            int player_id = Networking::INVALID_PLAYER_ID;
+            std::string problem_key, unlocalized_info;
+            bool fatal = false;
+            ExtractErrorMessageData(msg, player_id, problem_key, unlocalized_info, fatal);
+            ErrorLogger() << "Catch " << (fatal ? "fatal " : "") << "error " << problem_key << " from player " << player_id;
+            BOOST_TEST_MESSAGE("Received " << (fatal ? "fatal " : "") << " error message: " << problem_key);
         }
         return false;
     default:

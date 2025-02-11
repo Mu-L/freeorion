@@ -7,6 +7,7 @@
 #include "../Empire/Empire.h"
 #include "../Empire/EmpireManager.h"
 #include "../util/GameRules.h"
+#include "../util/GameRuleRanks.h"
 
 #define CHECK_COND_VREF_MEMBER(m_ptr) { if (m_ptr == rhs.m_ptr) {           \
                                             /* check next member */         \
@@ -21,16 +22,24 @@ namespace {
     void AddRules(GameRules& rules) {
         rules.Add<double>(UserStringNop("RULE_SHIP_SPEED_FACTOR"),
                           UserStringNop("RULE_SHIP_SPEED_FACTOR_DESC"),
-                          UserStringNop("BALANCE"), 1.0, true, RangedValidator<double>(0.1, 10.0));
+                          GameRuleCategories::GameRuleCategory::BALANCE, 1.0, true,
+                          GameRuleRanks::RULE_SHIP_SPEED_FACTOR_RANK,
+                          RangedValidator<double>(0.1, 10.0));
         rules.Add<double>(UserStringNop("RULE_SHIP_STRUCTURE_FACTOR"),
                           UserStringNop("RULE_SHIP_STRUCTURE_FACTOR_DESC"),
-                          UserStringNop("BALANCE"), 8.0, true, RangedValidator<double>(0.1, 80.0));
+                          GameRuleCategories::GameRuleCategory::BALANCE, 8.0, true,
+                          GameRuleRanks::RULE_SHIP_STRUCTURE_FACTOR_RANK,
+                          RangedValidator<double>(0.1, 80.0));
         rules.Add<double>(UserStringNop("RULE_SHIP_WEAPON_DAMAGE_FACTOR"),
                           UserStringNop("RULE_SHIP_WEAPON_DAMAGE_FACTOR_DESC"),
-                          UserStringNop("BALANCE"), 6.0, true, RangedValidator<double>(0.1, 60.0));
+                          GameRuleCategories::GameRuleCategory::BALANCE, 6.0, true,
+                          GameRuleRanks::RULE_SHIP_WEAPON_DAMAGE_FACTOR_RANK,
+                          RangedValidator<double>(0.1, 60.0));
         rules.Add<double>(UserStringNop("RULE_FIGHTER_DAMAGE_FACTOR"),
                           UserStringNop("RULE_FIGHTER_DAMAGE_FACTOR_DESC"),
-                          UserStringNop("BALANCE"), 6.0, true, RangedValidator<double>(0.1, 60.0));
+                          GameRuleCategories::GameRuleCategory::BALANCE, 6.0, true,
+                          GameRuleRanks::RULE_FIGHTER_DAMAGE_FACTOR_RANK,
+                          RangedValidator<double>(0.1, 60.0));
     }
     bool temp_bool = RegisterGameRules(&AddRules);
 
@@ -146,11 +155,9 @@ ShipHull::ShipHull(float fuel, float speed, float stealth, float structure,
                       [](auto& t) { boost::to_upper<std::string>(t); });
 
         // allocate storage for concatenated tags
+        std::size_t params_sz = std::transform_reduce(common_params.tags.begin(), common_params.tags.end(), 0u, std::plus{},
+                                                      [](const auto& tag) { return tag.size(); });
         std::string retval;
-        // TODO: transform_reduce when available on all platforms...
-        std::size_t params_sz = 0;
-        for (const auto& t : common_params.tags)
-            params_sz += t.size();
         retval.reserve(params_sz);
 
         // concatenate tags
@@ -302,7 +309,8 @@ float ShipHull::ProductionCost(int empire_id, int location_id,
 
     if (m_production_cost->SourceInvariant() && m_production_cost->TargetInvariant()) {
         const ScriptingContext design_id_context{
-            parent_context, nullptr, nullptr, in_design_id, PRODUCTION_BLOCK_SIZE};
+            parent_context, ScriptingContext::Source{}, nullptr, ScriptingContext::Target{}, nullptr,
+            in_design_id, PRODUCTION_BLOCK_SIZE};
         return static_cast<float>(m_production_cost->Eval(design_id_context));
     }
 
@@ -316,8 +324,8 @@ float ShipHull::ProductionCost(int empire_id, int location_id,
         return ARBITRARY_LARGE_COST;
 
     const ScriptingContext design_id_context{
-        parent_context, source.get(),
-        const_cast<UniverseObject*>(location), // won't be modified when evaluating a ValueRef, but needs to be a pointer to mutable to be passed as the target object
+        parent_context, ScriptingContext::Source{}, source.get(),
+        ScriptingContext::Target{}, const_cast<UniverseObject*>(location), // won't be modified when evaluating a ValueRef, but needs to be a pointer to mutable to be passed as the target object
         in_design_id, PRODUCTION_BLOCK_SIZE};
     return static_cast<float>(m_production_cost->Eval(design_id_context));
 }
@@ -335,7 +343,8 @@ int ShipHull::ProductionTime(int empire_id, int location_id,
 
     if (m_production_time->SourceInvariant() && m_production_time->TargetInvariant()) {
         const ScriptingContext design_id_context{
-            parent_context, nullptr, nullptr, in_design_id, PRODUCTION_BLOCK_SIZE};
+            parent_context, ScriptingContext::Source{}, nullptr, ScriptingContext::Target{}, nullptr,
+            in_design_id, PRODUCTION_BLOCK_SIZE};
         return m_production_time->Eval(design_id_context);
     }
 
@@ -349,8 +358,8 @@ int ShipHull::ProductionTime(int empire_id, int location_id,
         return ARBITRARY_LARGE_TURNS;
 
     const ScriptingContext design_id_context{
-        parent_context, source.get(),
-        const_cast<UniverseObject*>(location), // won't be modified when evaluating a ValueRef, but needs to be a pointer to mutable to be passed as the target object
+        parent_context, ScriptingContext::Source{}, source.get(),
+        ScriptingContext::Target{}, const_cast<UniverseObject*>(location), // won't be modified when evaluating a ValueRef, but needs to be a pointer to mutable to be passed as the target object
         in_design_id, PRODUCTION_BLOCK_SIZE};
     return m_production_time->Eval(design_id_context);
 }

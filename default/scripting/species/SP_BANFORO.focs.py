@@ -1,24 +1,26 @@
-from species.common.detection import ULTIMATE_DETECTION
-from species.common.env import BARREN_STANDARD_EP
-from species.common.focus import (
+from focs._species import *
+from species.species_macros.detection import ULTIMATE_DETECTION
+from species.species_macros.empire_opinions import COMMON_OPINION_EFFECTS
+from species.species_macros.env import BARREN_STANDARD_EP
+from species.species_macros.focus import (
     HAS_ADVANCED_FOCI,
     HAS_GROWTH_FOCUS,
     HAS_INDUSTRY_FOCUS,
     HAS_INFLUENCE_FOCUS,
     HAS_RESEARCH_FOCUS,
 )
-from species.common.happiness import GOOD_HAPPINESS
-from species.common.industry import GOOD_INDUSTRY
-from species.common.influence import AVERAGE_INFLUENCE
-from species.common.planet_defense import AVERAGE_PLANETARY_DEFENSE
-from species.common.planet_shields import AVERAGE_PLANETARY_SHIELDS
-from species.common.population import AVERAGE_POPULATION, LIGHT_SENSITIVE
-from species.common.research import AVERAGE_RESEARCH
-from species.common.shields import STANDARD_SHIP_SHIELDS
-from species.common.stealth import GOOD_STEALTH
-from species.common.stockpile import AVERAGE_STOCKPILE
-from species.common.supply import AVERAGE_SUPPLY
-from species.common.troops import AVERAGE_DEFENSE_TROOPS
+from species.species_macros.happiness import GOOD_HAPPINESS
+from species.species_macros.industry import GOOD_INDUSTRY
+from species.species_macros.influence import AVERAGE_INFLUENCE
+from species.species_macros.planet_defense import AVERAGE_PLANETARY_DEFENSE
+from species.species_macros.planet_shields import AVERAGE_PLANETARY_SHIELDS
+from species.species_macros.population import AVERAGE_POPULATION, LIGHT_SENSITIVE
+from species.species_macros.research import AVERAGE_RESEARCH
+from species.species_macros.shields import STANDARD_SHIP_SHIELDS
+from species.species_macros.stealth import GOOD_STEALTH
+from species.species_macros.stockpile import AVERAGE_STOCKPILE
+from species.species_macros.supply import AVERAGE_SUPPLY
+from species.species_macros.troops import AVERAGE_DEFENSE_TROOPS
 
 Species(
     name="SP_BANFORO",
@@ -69,7 +71,8 @@ Species(
         "KRAKEN_IN_THE_ICE_SPECIAL",
         "KRAKEN_NEST_SPECIAL",
         "RESONANT_MOON_SPECIAL",
-        "PLC_CAPITAL_MARKETS" "PLC_DIVINE_AUTHORITY",
+        "PLC_CAPITAL_MARKETS",
+        "PLC_DIVINE_AUTHORITY",
         "PLC_INDUSTRIALISM",
         "PLC_MARTIAL_LAW",
         "PLC_TERROR_SUPPRESSION",
@@ -81,16 +84,17 @@ Species(
         *AVERAGE_STOCKPILE,
         *AVERAGE_POPULATION,
         *GOOD_HAPPINESS,
+        COMMON_OPINION_EFFECTS("SP_BANFORO"),
         *AVERAGE_SUPPLY,
         *AVERAGE_DEFENSE_TROOPS,
-        ULTIMATE_DETECTION,
-        GOOD_STEALTH,
+        *ULTIMATE_DETECTION,
+        *GOOD_STEALTH,
         *LIGHT_SENSITIVE,
         # not for description
         *AVERAGE_PLANETARY_SHIELDS,
         *AVERAGE_PLANETARY_DEFENSE,
         *STANDARD_SHIP_SHIELDS,
     ],
-    **BARREN_STANDARD_EP,
+    environments=BARREN_STANDARD_EP,
     graphic="icons/species/banforo.png",
 )

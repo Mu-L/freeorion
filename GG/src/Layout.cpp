@@ -68,23 +68,23 @@ Flags<Alignment> Layout::ChildAlignment(const Wnd* wnd) const
     return it->second.alignment;
 }
 
-double Layout::RowStretch(std::size_t row) const
-{ return m_row_params[row].stretch; }
+float Layout::RowStretch(std::size_t row) const
+{ return (row < m_row_params.size()) ? m_row_params[row].stretch : 0.0f; }
 
-double Layout::ColumnStretch(std::size_t column) const
-{ return m_column_params[column].stretch; }
+float Layout::ColumnStretch(std::size_t column) const
+{ return (column < m_column_params.size()) ?  m_column_params[column].stretch : 0.0f; }
 
 Y Layout::MinimumRowHeight(std::size_t row) const
-{ return Y(m_row_params[row].min); }
+{ return (row < m_row_params.size()) ? Y(m_row_params[row].min) : Y0; }
 
 X Layout::MinimumColumnWidth(std::size_t column) const
-{ return X(m_column_params[column].min); }
+{ return (column < m_column_params.size()) ? X(m_column_params[column].min) : X0; }
 
 std::vector<std::vector<const Wnd*>> Layout::Cells() const
 {
     std::vector<std::vector<const Wnd*>> retval(m_cells.size());
     for (std::size_t i = 0; i < m_cells.size(); ++i) {
-        retval[i].resize(m_cells[i].size());
+        retval[i].resize(m_cells[i].size(), nullptr);
         for (std::size_t j = 0; j < m_cells[i].size(); ++j) {
             retval[i][j] = m_cells[i][j].lock().get();
         }
@@ -130,19 +130,19 @@ std::vector<std::vector<Rect>> Layout::RelativeCellRects() const
 
 void Layout::StartingChildDragDrop(const Wnd* wnd, Pt offset)
 {
-    if (auto&& parent = Parent())
+    if (auto parent = Parent())
         parent->StartingChildDragDrop(wnd, offset);
 }
 
 void Layout::CancellingChildDragDrop(const std::vector<const Wnd*>& wnds)
 {
-    if (auto&& parent = Parent())
+    if (auto parent = Parent())
         parent->CancellingChildDragDrop(wnds);
 }
 
 void Layout::ChildrenDraggedAway(const std::vector<Wnd*>& wnds, const Wnd* destination)
 {
-    if (auto&& parent = Parent())
+    if (auto parent = Parent())
         parent->ChildrenDraggedAway(wnds, destination);
 }
 
@@ -197,20 +197,27 @@ void Layout::DoLayout(Pt ul, Pt lr)
 
         // adjust row minimums
         double total_stretch = 0.0;
-        for (std::size_t i = wnd_position.second.first_row; i < wnd_position.second.last_row; ++i) {
+        for (std::size_t i = wnd_position.second.first_row; i < wnd_position.second.last_row; ++i)
             total_stretch += m_row_params[i].stretch;
-        }
+
         if (total_stretch) {
             for (std::size_t i = wnd_position.second.first_row; i < wnd_position.second.last_row; ++i) {
-                m_row_params[i].effective_min = std::max(m_row_params[i].effective_min, static_cast<unsigned int>(Value(min_space_needed.y / total_stretch * m_row_params[i].stretch)));
-                row_effective_min_usable_sizes[i] = std::max(row_effective_min_usable_sizes[i], static_cast<unsigned int>(Value(min_usable_size.y / total_stretch * m_row_params[i].stretch)));
+                m_row_params[i].effective_min = std::max<unsigned int>(
+                    m_row_params[i].effective_min,
+                    Value(min_space_needed.y) / total_stretch * m_row_params[i].stretch);
+                row_effective_min_usable_sizes[i] = std::max<unsigned int>(
+                    row_effective_min_usable_sizes[i],
+                    Value(min_usable_size.y) / total_stretch * m_row_params[i].stretch);
             }
+
         } else { // if all rows have 0.0 stretch, distribute height evenly
-            double per_row_min = Value(min_space_needed.y / static_cast<double>(wnd_position.second.last_row - wnd_position.second.first_row));
-            double per_row_usable_min = Value(min_usable_size.y / static_cast<double>(wnd_position.second.last_row - wnd_position.second.first_row));
+            double per_row_min = Value(min_space_needed.y) / static_cast<double>(wnd_position.second.last_row - wnd_position.second.first_row);
+            double per_row_usable_min = Value(min_usable_size.y) / static_cast<double>(wnd_position.second.last_row - wnd_position.second.first_row);
             for (std::size_t i = wnd_position.second.first_row; i < wnd_position.second.last_row; ++i) {
-                m_row_params[i].effective_min = std::max(m_row_params[i].effective_min, static_cast<unsigned int>(per_row_min + 0.5));
-                row_effective_min_usable_sizes[i] = std::max(row_effective_min_usable_sizes[i], static_cast<unsigned int>(per_row_usable_min + 0.5));
+                m_row_params[i].effective_min = std::max<unsigned int>(
+                    m_row_params[i].effective_min, per_row_min + 0.5);
+                row_effective_min_usable_sizes[i] = std::max<unsigned int>(
+                    row_effective_min_usable_sizes[i], per_row_usable_min + 0.5);
             }
         }
 
@@ -221,15 +228,21 @@ void Layout::DoLayout(Pt ul, Pt lr)
         }
         if (total_stretch) {
             for (std::size_t i = wnd_position.second.first_column; i < wnd_position.second.last_column; ++i) {
-                m_column_params[i].effective_min = std::max(m_column_params[i].effective_min, static_cast<unsigned int>(Value(min_space_needed.x / total_stretch * m_column_params[i].stretch)));
-                column_effective_min_usable_sizes[i] = std::max(column_effective_min_usable_sizes[i], static_cast<unsigned int>(Value(min_usable_size.x / total_stretch * m_column_params[i].stretch)));
+                m_column_params[i].effective_min = std::max<unsigned int>(
+                    m_column_params[i].effective_min,
+                    Value(min_space_needed.x) / total_stretch * m_column_params[i].stretch);
+                column_effective_min_usable_sizes[i] = std::max<unsigned int>(
+                    column_effective_min_usable_sizes[i],
+                    Value(min_usable_size.x) / total_stretch * m_column_params[i].stretch);
             }
         } else { // if all columns have 0.0 stretch, distribute width evenly
-            double per_column_min = Value(min_space_needed.x / static_cast<double>(wnd_position.second.last_column - wnd_position.second.first_column));
-            double per_column_usable_min = Value(min_usable_size.x / static_cast<double>(wnd_position.second.last_column - wnd_position.second.first_column));
+            double per_column_min = Value(min_space_needed.x) / static_cast<double>(wnd_position.second.last_column - wnd_position.second.first_column);
+            double per_column_usable_min = Value(min_usable_size.x) / static_cast<double>(wnd_position.second.last_column - wnd_position.second.first_column);
             for (std::size_t i = wnd_position.second.first_column; i < wnd_position.second.last_column; ++i) {
-                m_column_params[i].effective_min = std::max(m_column_params[i].effective_min, static_cast<unsigned int>(per_column_min + 0.5));
-                column_effective_min_usable_sizes[i] = std::max(column_effective_min_usable_sizes[i], static_cast<unsigned int>(per_column_usable_min + 0.5));
+                m_column_params[i].effective_min = std::max<unsigned int>(
+                    m_column_params[i].effective_min, per_column_min + 0.5);
+                column_effective_min_usable_sizes[i] = std::max<unsigned int>(
+                    column_effective_min_usable_sizes[i], per_column_usable_min + 0.5);
             }
         }
     }
@@ -286,14 +299,14 @@ void Layout::DoLayout(Pt ul, Pt lr)
     }
 
     bool size_or_min_size_changed = false;
-    Pt new_min_size(TotalMinWidth(), TotalMinHeight());
+    const Pt new_min_size(TotalMinWidth(), TotalMinHeight());
     if (new_min_size != MinSize()) {
         ScopedAssign<bool> assignment(m_stop_resize_recursion, true);
         SetMinSize(new_min_size);
         ClampRectWithMinAndMaxSize(ul, lr);
         size_or_min_size_changed = true;
     }
-    Pt original_size = Size();
+    const auto original_size = Size();
     Wnd::SizeMove(ul, lr);
     if (Size() != original_size)
         size_or_min_size_changed = true;
@@ -301,7 +314,7 @@ void Layout::DoLayout(Pt ul, Pt lr)
     // if this is the layout object for some Wnd, propogate the minimum size up to the owning Wnd
     if (auto&& parent = Parent()) {
         if (parent->GetLayout().get() == this) {
-            Pt new_parent_min_size = MinSize() + parent->Size() - parent->ClientSize();
+            const auto new_parent_min_size = MinSize() + parent->Size() - parent->ClientSize();
             ScopedAssign<bool> assignment(m_stop_resize_recursion, true);
             parent->SetMinSize(Pt(new_parent_min_size.x, new_parent_min_size.y));
         }
@@ -317,11 +330,11 @@ void Layout::DoLayout(Pt ul, Pt lr)
     for (std::size_t i = 0; i < m_row_params.size(); ++i) {
         if (larger_than_min) {
             if (i < m_row_params.size() - 1) {
-                double raw_width =
+                float raw_width =
                     m_row_params[i].effective_min +
                     (total_stretch ?
                      space_per_unit_stretch * m_row_params[i].stretch :
-                     total_stretch_space / static_cast<double>(m_row_params.size()));
+                     total_stretch_space / static_cast<float>(m_row_params.size()));
                 int int_raw_width = static_cast<int>(raw_width);
                 m_row_params[i].current_width = int_raw_width;
                 remainder += raw_width - int_raw_width;
@@ -647,10 +660,10 @@ void Layout::RenderOutline(bool render_outline)
 void Layout::MouseWheel(Pt pt, int move, Flags<ModKey> mod_keys)
 { ForwardEventToParent(); }
 
-void Layout::KeyPress(Key key, std::uint32_t key_code_point, Flags<ModKey> mod_keys)
+void Layout::KeyPress(Key key, uint32_t key_code_point, Flags<ModKey> mod_keys)
 { ForwardEventToParent(); }
 
-void Layout::KeyRelease(Key key, std::uint32_t key_code_point, Flags<ModKey> mod_keys)
+void Layout::KeyRelease(Key key, uint32_t key_code_point, Flags<ModKey> mod_keys)
 { ForwardEventToParent(); }
 
 float Layout::TotalStretch(const std::vector<RowColParams>& params_vec)

@@ -70,7 +70,7 @@ public:
     bool AppendMissingSaveExtension() const noexcept { return m_append_missing_save_extension; }
 
     void Render() override;
-    void KeyPress(Key key, std::uint32_t key_code_point, Flags<ModKey> mod_keys) override;
+    void KeyPress(Key key, uint32_t key_code_point, Flags<ModKey> mod_keys) override;
 
     /** Set this to true if this FileDlg should select directories instead of
         files.  Note that this will only have an effect in file-open mode. */
@@ -112,8 +112,6 @@ public:
 
 private:
     void DoLayout();
-    void AttachSignalChildren();
-    void DetachSignalChildren();
     void OkClicked();
     void OkHandler(bool double_click);
     void CancelClicked();
@@ -137,9 +135,9 @@ private:
                      m_file_filters;
     std::set<std::string>
                      m_result;
-    bool             m_select_directories = false;;
-    bool             m_append_missing_save_extension = false;;
-    bool             m_in_win32_drive_selection = false;;
+    bool             m_select_directories = false;
+    bool             m_append_missing_save_extension = false;
+    bool             m_in_win32_drive_selection = false;
 
     std::string      m_save_str;
     std::string      m_open_str;
@@ -152,6 +150,8 @@ private:
     std::shared_ptr<Button>          m_cancel_button;
     std::shared_ptr<TextControl>     m_files_label;
     std::shared_ptr<TextControl>     m_file_types_label;
+
+    std::array<boost::signals2::scoped_connection, 6> m_connections = {};
 
     std::string      m_init_directory; ///< directory passed to constructor
     std::string      m_init_filename; ///< filename passed to constructor

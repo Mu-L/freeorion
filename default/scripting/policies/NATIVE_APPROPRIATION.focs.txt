@@ -27,6 +27,7 @@ Policy
                     ]
                 ]
             ]
+            priority = [[TARGET_AFTER_SCALING_PRIORITY]]
             effects = SetTargetResearch value = Value + (NamedReal name = "PLC_NATIVE_APPROPRIATION_RESEARCH_PERPLANET" value = 5.0) *
                 Statistic Count condition = And [
                     InSystem id = Target.SystemID
@@ -39,4 +40,4 @@ Policy
     graphic = "icons/policies/social_native_appropriation.png"
 
 #include "/scripting/policies/policies.macros"
-#include "/scripting/common/priorities.macros"
+#include "/scripting/macros/priorities.macros"

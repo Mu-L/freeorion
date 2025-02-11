@@ -88,7 +88,7 @@ namespace {
     struct grammar : public parse::detail::grammar<start_rule_signature> {
         grammar(const parse::lexer& tok,
                 const std::string& filename,
-                const parse::text_iterator& first, const parse::text_iterator& last) :
+                const parse::text_iterator first, const parse::text_iterator last) :
             grammar::base_type(start),
             condition_parser(tok, label),
             string_grammar(tok, label, condition_parser),
@@ -183,7 +183,7 @@ namespace parse {
         start_rule_payload parts;
 
         for (const auto& file : ListDir(path, IsFOCScript))
-            detail::parse_file<grammar, start_rule_payload>(lexer::tok, file, parts);
+            detail::parse_file<grammar, start_rule_payload>(GetLexer(), file, parts);
 
         return parts;
     }

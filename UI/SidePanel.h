@@ -100,7 +100,7 @@ private:
 
     void DoLayout();
 
-    void UpdateImpl(ScriptingContext& context); ///< updates contents quickly.  to be used when meters or other objects' data changes
+    void UpdateImpl(ScriptingContext& context, int empire_id); ///< updates contents quickly.  to be used when meters or other objects' data changes
 
     /** Fully refreshes sidepanel and contents, recreating all contents from
       * stored system id.  All SidePanels are refreshed. */
@@ -119,7 +119,7 @@ private:
     void PrevButtonClicked();            ///< responds to user clicking next system button
     void NextButtonClicked();            ///< responts to user clicking previous system button
     /** Respond to the user clicking a planet by selecting it if selection is enabled.*/
-    void PlanetClickedSlot(int planet_id, const ObjectMap& objects);
+    void PlanetClickedSlot(int planet_id, const ObjectMap& objects) const;
 
     /** Responds to insertion fleets into system during a turn.  may update colonize buttons. */
     static void FleetsInserted(std::vector<int> fleets, const ObjectMap& objects);

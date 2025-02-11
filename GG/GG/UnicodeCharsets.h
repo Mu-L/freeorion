@@ -16,6 +16,7 @@
 #define _GG_UnicodeCharsets_h_
 
 
+#include <cassert>
 #include <set>
 #include <vector>
 #include <GG/Base.h>
@@ -31,34 +32,58 @@ namespace GG {
     of the STL. */
 struct GG_API UnicodeCharset
 {
-    UnicodeCharset();
-    UnicodeCharset(std::string script_name, std::uint32_t first_char, std::uint32_t last_char);
+    static constexpr std::size_t BLOCK_SIZE = 16;
 
-    std::string m_script_name;
-    std::uint32_t m_first_char;
-    std::uint32_t m_last_char;
+    constexpr UnicodeCharset() = default;
+    constexpr UnicodeCharset(std::string_view script_name, uint32_t first_char,
+                             uint32_t last_char) noexcept :
+        m_script_name(script_name),
+        m_first_char(first_char),
+        m_last_char(last_char + 1)
+    {
+        assert(!script_name.empty());
+        assert(m_first_char % BLOCK_SIZE == 0);
+        assert(m_last_char % BLOCK_SIZE == 0);
+        assert(m_first_char < m_last_char);
+    }
+
+    // compare first char, then last char, then name
+    constexpr bool operator<(const UnicodeCharset& rhs) const noexcept
+    {
+        return (m_first_char < rhs.m_first_char) ||
+            (m_first_char == rhs.m_first_char && m_last_char < rhs.m_last_char) ||
+            (m_first_char == rhs.m_first_char && m_last_char == rhs.m_last_char && m_script_name < rhs.m_script_name);
+    }
+
+#if defined(__cpp_impl_three_way_comparison)
+    [[nodiscard]] constexpr bool operator==(const UnicodeCharset& rhs) const noexcept = default;
+#else
+    [[nodiscard]] constexpr bool operator==(const UnicodeCharset& rhs) const noexcept
+    {
+        return m_script_name == rhs.m_script_name &&
+               m_first_char == rhs.m_first_char &&
+               m_last_char == rhs.m_last_char;
+    };
+    [[nodiscard]] constexpr bool operator!=(const UnicodeCharset& rhs) const noexcept
+    { return !(*this == rhs); };
+#endif
+
+
+    std::string_view m_script_name;
+    uint32_t m_first_char = 0;
+    uint32_t m_last_char = 0;
 };
 
-/** Returns true iff all of \a lhs's and \a rhs's members compare equal. */
-GG_API bool operator==(const UnicodeCharset& lhs, const UnicodeCharset& rhs);
-
-/** Returns true iff \a lhs.m_first_char < \a rhs.m_first_char. */
-GG_API bool operator<(const UnicodeCharset& lhs, const UnicodeCharset& rhs);
-
-
-/** Returns a vector containing all defined UnicodeCharset's. */
-GG_API const std::vector<UnicodeCharset>& AllUnicodeCharsets();
-
 /** Returns the set of the UnicodeCharset's required to render \a str. */
-GG_API std::set<UnicodeCharset> UnicodeCharsetsToRender(const std::string& str);
+GG_API std::vector<UnicodeCharset> UnicodeCharsetsToRender(std::string_view str);
 
 /** Returns the UnicodeCharset in which \a c can be found, or 0 if no such
     UnicodeCharset exists. */
-GG_API const UnicodeCharset* CharsetContaining(std::uint32_t c);
+GG_API const UnicodeCharset* CharsetContaining(uint32_t c) noexcept;
 
 /** Returns the UnicodeCharset called \a name, or 0 if no such UnicodeCharset
     exists. */
-GG_API const UnicodeCharset* CharsetWithName(const std::string& name);
+GG_API const UnicodeCharset* CharsetWithName(std::string_view name) noexcept;
 
 }
 

@@ -91,17 +91,8 @@ GG::Clr     ClientUI::WndInnerBorderColor()     { return GetOptionsDB().Get<GG::
 
 GG::Clr     ClientUI::CtrlColor()               { return GetOptionsDB().Get<GG::Clr>("ui.control.background.color"); }
 GG::Clr     ClientUI::CtrlBorderColor()         { return GetOptionsDB().Get<GG::Clr>("ui.control.border.color"); }
-GG::Clr     ClientUI::ButtonHiliteColor() {
-    GG::Clr colour = CtrlColor();
-    AdjustBrightness(colour, 50);
-    return colour;
-}
-
-GG::Clr     ClientUI::ButtonHiliteBorderColor() {
-    GG::Clr colour = CtrlBorderColor();
-    AdjustBrightness(colour, 50);
-    return colour;
-}
+GG::Clr     ClientUI::ButtonHiliteColor()       { return AdjustBrightness(CtrlColor(), 50); }
+GG::Clr     ClientUI::ButtonHiliteBorderColor() { return AdjustBrightness(CtrlBorderColor(), 50); }
 
 int         ClientUI::ScrollWidth()             { return GetOptionsDB().Get<int>("ui.scroll.width"); }
 
@@ -293,9 +284,8 @@ std::shared_ptr<GG::Texture> ClientUI::SpecialIcon(std::string_view special_name
 }
 
 std::shared_ptr<GG::Texture> ClientUI::SpeciesIcon(std::string_view species_name) {
-    const Species* species = GetSpeciesManager().GetSpecies(species_name);
     std::string_view texture_name = "";
-    if (species)
+    if (const Species* species = ClientApp::GetApp()->GetSpeciesManager().GetSpecies(species_name))
         texture_name = species->Graphic();
     if (texture_name.empty())
         return ClientUI::GetTexture(ArtDir() / "icons" / "meter" / "pop.png", true);
@@ -349,7 +339,8 @@ std::shared_ptr<GG::Texture> ClientUI::HullIcon(std::string_view hull_name) {
 }
 
 std::shared_ptr<GG::Texture> ClientUI::ShipDesignIcon(int design_id) {
-    if (const ShipDesign* design = GetUniverse().GetShipDesign(design_id)) {
+    const ScriptingContext& context = IApp::GetApp()->GetContext();
+    if (const ShipDesign* design = context.ContextUniverse().GetShipDesign(design_id)) {
         std::string_view icon_name = design->Icon();
         if (icon_name.empty())
             return ClientUI::HullIcon(design->Hull());
@@ -375,63 +366,47 @@ GG::Clr ClientUI::CategoryColor(std::string_view category_name) {
     return {};
 }
 
-std::string_view ClientUI::PlanetTypeFilePrefix(PlanetType planet_type) {
-    static const std::map<PlanetType, std::string_view> prefixes{
-        {PlanetType::PT_SWAMP,   "Swamp"},
-        {PlanetType::PT_TOXIC,   "Toxic"},
-        {PlanetType::PT_INFERNO, "Inferno"},
-        {PlanetType::PT_RADIATED,"Radiated"},
-        {PlanetType::PT_BARREN,  "Barren"},
-        {PlanetType::PT_TUNDRA,  "Tundra"},
-        {PlanetType::PT_DESERT,  "Desert"},
-        {PlanetType::PT_TERRAN,  "Terran"},
-        {PlanetType::PT_OCEAN,   "Ocean"},
-        {PlanetType::PT_GASGIANT,"GasGiant"}
-    };
-    auto it = prefixes.find(planet_type);
-    if (it != prefixes.end())
-        return it->second;
-    return "";
+namespace {
+    static_assert(static_cast<int>(PlanetType::INVALID_PLANET_TYPE) + 1 == 0);
+    static_assert(static_cast<int>(PlanetType::NUM_PLANET_TYPES) == 11);
+    constexpr std::array<std::string_view, 13> planet_prefixes {
+        "", "Swamp", "Toxic", "Inferno","Radiated", "Barren",
+        "Tundra", "Desert", "Terran", "Ocean", "", "GasGiant", ""};
+    constexpr auto PlanetPrefix(PlanetType star_type)
+    { return planet_prefixes[static_cast<size_t>(static_cast<int>(star_type)+1)]; }
+    static_assert(PlanetPrefix(PlanetType::PT_SWAMP) == "Swamp");
+    static_assert(PlanetPrefix(PlanetType::PT_GASGIANT) == "GasGiant");
+
+    static_assert(static_cast<int>(StarType::INVALID_STAR_TYPE) + 1 == 0);
+    static_assert(static_cast<int>(StarType::NUM_STAR_TYPES) == 8);
+    constexpr std::array<std::string_view, 10> star_prefixes{
+        "unknown", "blue", "white", "yellow", "orange",
+        "red", "neutron", "blackhole", "nostar", ""};
+    constexpr auto StarPrefix(StarType star_type)
+    { return star_prefixes[static_cast<size_t>(static_cast<int>(star_type)+1)]; }
+    static_assert(StarPrefix(StarType::INVALID_STAR_TYPE) == "unknown");
+    static_assert(StarPrefix(StarType::STAR_RED) == "red");
+    static_assert(StarPrefix(StarType::NUM_STAR_TYPES).empty());
+
+    constexpr std::array<std::string_view, 10> halo_prefixes{
+        "halo_unknown", "halo_blue", "halo_white", "halo_yellow", "halo_orange",
+        "halo_red", "halo_neutron", "halo_blackhole", "halo_nostar", "halo_unknown"};
+    constexpr auto HaloPrefix(StarType star_type)
+    { return halo_prefixes[static_cast<size_t>(static_cast<int>(star_type)+1)]; }
+    static_assert(HaloPrefix(StarType::INVALID_STAR_TYPE) == "halo_unknown");
+    static_assert(HaloPrefix(StarType::STAR_NONE) == "halo_nostar");
 }
 
-std::string_view ClientUI::StarTypeFilePrefix(StarType star_type) {
-    static const std::map<StarType, std::string_view> prefixes{
-        {StarType::INVALID_STAR_TYPE, "unknown"},
-        {StarType::STAR_BLUE,         "blue"},
-        {StarType::STAR_WHITE,        "white"},
-        {StarType::STAR_YELLOW,       "yellow"},
-        {StarType::STAR_ORANGE,       "orange"},
-        {StarType::STAR_RED,          "red"},
-        {StarType::STAR_NEUTRON,      "neutron"},
-        {StarType::STAR_BLACK,        "blackhole"},
-        {StarType::STAR_NONE,         "nostar"}
-    };
-    auto it = prefixes.find(star_type);
-    if (it != prefixes.end())
-        return it->second;
-    return "";
-}
+std::string_view ClientUI::PlanetTypeFilePrefix(PlanetType planet_type) noexcept
+{ return PlanetPrefix(planet_type); }
 
-std::string_view ClientUI::HaloStarTypeFilePrefix(StarType star_type) {
-    static const std::map<StarType, std::string_view> prefixes{
-        {StarType::INVALID_STAR_TYPE, "halo_unknown"},
-        {StarType::STAR_BLUE,         "halo_blue"},
-        {StarType::STAR_WHITE,        "halo_white"},
-        {StarType::STAR_YELLOW,       "halo_yellow"},
-        {StarType::STAR_ORANGE,       "halo_orange"},
-        {StarType::STAR_RED,          "halo_red"},
-        {StarType::STAR_NEUTRON,      "halo_neutron"},
-        {StarType::STAR_BLACK,        "halo_blackhole"},
-        {StarType::STAR_NONE,         "halo_nostar"}
-    };
-    auto it = prefixes.find(star_type);
-    if (it != prefixes.end())
-        return it->second;
-    return "";
-}
+std::string_view ClientUI::StarTypeFilePrefix(StarType star_type) noexcept
+{ return StarPrefix(star_type); }
 
+std::string_view ClientUI::HaloStarTypeFilePrefix(StarType star_type) noexcept
+{ return HaloPrefix(star_type); }
 
-ClientUI* ClientUI::s_the_UI = nullptr;
+constinit ClientUI* ClientUI::s_the_UI = nullptr;
 
 std::ostream& operator<< (std::ostream& os, const GG::UnicodeCharset& chset) {
     os << chset.m_script_name << " " << chset.m_first_char << " " << chset.m_last_char << "\n";
@@ -439,26 +414,28 @@ std::ostream& operator<< (std::ostream& os, const GG::UnicodeCharset& chset) {
 }
 
 namespace {
-    const std::vector<GG::UnicodeCharset>& RequiredCharsets() {
-        static std::vector<GG::UnicodeCharset> retval;
-        if (retval.empty()) {
+    const auto& RequiredCharsets() {
+        static const auto retval = []() {
+            std::vector<GG::UnicodeCharset> retval;
+
             // Basic Latin, Latin-1 Supplement, and Latin Extended-A
             // (character sets needed to display the credits page)
-            const std::string CREDITS_STR = "AöŁ";
-            std::set<GG::UnicodeCharset> credits_charsets = GG::UnicodeCharsetsToRender(CREDITS_STR);
+            const std::string_view CREDITS_STR = "AöŁ";
+            const auto credits_charsets = GG::UnicodeCharsetsToRender(CREDITS_STR);
 
             std::set<GG::UnicodeCharset> stringtable_charsets;
             {
                 std::string file_name = GetOptionsDB().Get<std::string>("resource.stringtable.path");
                 std::string stringtable_str;
-                boost::filesystem::ifstream ifs(file_name);
+                boost::filesystem::ifstream ifs(FilenameToPath(file_name));
                 while (ifs) {
                     std::string line;
                     std::getline(ifs, line);
                     stringtable_str += line;
                     stringtable_str += '\n';
                 }
-                stringtable_charsets = GG::UnicodeCharsetsToRender(stringtable_str);
+                const auto stcs = GG::UnicodeCharsetsToRender(stringtable_str);
+                stringtable_charsets.insert(stcs.begin(), stcs.end());
                 DebugLogger() << "loading " << stringtable_charsets.size() << " charsets for current stringtable characters";
             }
 
@@ -466,17 +443,17 @@ namespace {
                 DebugLogger() << "Non-default stringtable!";
                 std::string file_name = GetOptionsDB().GetDefault<std::string>("resource.stringtable.path");
                 std::string stringtable_str;
-                boost::filesystem::ifstream ifs(file_name);
+                boost::filesystem::ifstream ifs(FilenameToPath(file_name));
                 while (ifs) {
                     std::string line;
                     std::getline(ifs, line);
                     stringtable_str += line;
                     stringtable_str += '\n';
                 }
-                std::set<GG::UnicodeCharset> default_stringtable_charsets = GG::UnicodeCharsetsToRender(stringtable_str);
+                const auto default_stringtable_charsets = GG::UnicodeCharsetsToRender(stringtable_str);
                 DebugLogger() << "loading " << default_stringtable_charsets.size() << " charsets for default stringtable characters";
 
-                stringtable_charsets.merge(default_stringtable_charsets); // insert(default_stringtable_charsets.begin(), default_stringtable_charsets.end());
+                stringtable_charsets.insert(default_stringtable_charsets.begin(), default_stringtable_charsets.end());
                 DebugLogger() << "combined stringtable charsets have " << stringtable_charsets.size() << " charsets";
             }
 
@@ -486,12 +463,15 @@ namespace {
 
             std::string message_text = "Loading " + std::to_string(retval.size()) + " Unicode charsets: ";
             for (const GG::UnicodeCharset& cs : retval)
-                message_text += cs.m_script_name + ", ";
+                message_text.append(cs.m_script_name).append(", ");
 
             DebugLogger() << message_text;
-        }
+
+            return retval;
+        }();
         return retval;
     }
+
 
     // command-line options
     void AddOptions(OptionsDB& db) {
@@ -606,7 +586,7 @@ namespace {
 // ClientUI
 ////////////////////////////////////////////////
 ClientUI::ClientUI() :
-    m_ship_designs(new ShipDesignManager())
+    m_ship_designs(std::make_unique<ShipDesignManager>())
 {
     s_the_UI = this;
     Hotkey::ReadFromOptions(GetOptionsDB());
@@ -651,16 +631,16 @@ ClientUI::ClientUI() :
 ClientUI::~ClientUI()
 { s_the_UI = nullptr; }
 
-std::shared_ptr<MapWnd> ClientUI::GetMapWnd() {
-    static bool initialized = m_map_wnd ? true : (m_map_wnd = GG::Wnd::Create<MapWnd>()) != nullptr;
-    (void)initialized; // Hide unused variable warning
-    return m_map_wnd;
+MapWnd* ClientUI::GetMapWnd(bool construct) {
+    if (!m_map_wnd && construct)
+        m_map_wnd = GG::Wnd::Create<MapWnd>();
+    return m_map_wnd.get();
 }
 
-MapWnd const* ClientUI::GetMapWndConst() const {
-    static bool initialized = m_map_wnd ? true : (m_map_wnd = GG::Wnd::Create<MapWnd>()) != nullptr;
-    (void)initialized; // Hide unused variable warning
-    return m_map_wnd.get();
+std::shared_ptr<MapWnd> ClientUI::GetMapWndShared() {
+    if (!m_map_wnd)
+        m_map_wnd = GG::Wnd::Create<MapWnd>();
+    return m_map_wnd;
 }
 
 std::shared_ptr<MessageWnd> ClientUI::GetMessageWnd() {
@@ -735,17 +715,25 @@ std::string ClientUI::GetFilenameWithSaveFileDialog(
         return "";
 
     m_savefile_dialog = GG::Wnd::Create<SaveFileDialog>(purpose, type);
+    if (!m_savefile_dialog)
+        return "";
 
     m_savefile_dialog->Run();
-    auto filename = m_savefile_dialog->Result();
-
-    m_savefile_dialog = nullptr;
+    auto filename = m_savefile_dialog->ResultString();
+    m_savefile_dialog.reset();
     return filename;
 }
 
-void ClientUI::GetSaveGameUIData(SaveGameUIData& data) const {
-    GetMapWndConst()->GetSaveGameUIData(data);
-    m_ship_designs->Save(data);
+void ClientUI::GetSaveGameUIData(SaveGameUIData& data) {
+    auto mapwnd = GetMapWnd(true);
+    if (!mapwnd) {
+        ErrorLogger() << "GetSaveGameUIData couldn't get mapwnd";
+        return;
+    }
+    mapwnd->GetSaveGameUIData(data);
+
+    if (m_ship_designs)
+        m_ship_designs->Save(data);
 }
 
 std::string ClientUI::FormatTimestamp(boost::posix_time::ptime timestamp) {
@@ -772,8 +760,9 @@ std::string ClientUI::FormatTimestamp(boost::posix_time::ptime timestamp) {
 }
 
 bool ClientUI::ZoomToObject(const std::string& name) {
-    // try first by finding the object by name
-    for (auto obj : GetUniverse().Objects().allRaw<UniverseObject>())
+    const ScriptingContext& context = IApp::GetApp()->GetContext();
+    // try first by finding the object by name TODO: use getRaw or find or somesuch
+    for (auto obj : context.ContextObjects().allRaw<UniverseObject>())
         if (boost::iequals(obj->Name(), name))
             return ZoomToObject(obj->ID());
 
@@ -798,23 +787,26 @@ bool ClientUI::ZoomToObject(int id) {
 }
 
 bool ClientUI::ZoomToPlanet(int id) {
-    if (auto planet = Objects().get<Planet>(id)) {
-        GetMapWnd()->CenterOnObject(planet->SystemID());
-        GetMapWnd()->SelectSystem(planet->SystemID());
-        GetMapWnd()->SelectPlanet(id);
+    if (auto planet = ClientApp::GetApp()->GetContext().ContextObjects().get<Planet>(id)) {
+        if (auto mapwnd = GetMapWnd(false)) {
+            mapwnd->CenterOnObject(planet->SystemID());
+            mapwnd->SelectSystem(planet->SystemID());
+            mapwnd->SelectPlanet(id);
+        }
         return true;
     }
     return false;
 }
 
 bool ClientUI::ZoomToPlanetPedia(int id) {
-    if (Objects().get<Planet>(id))
-        GetMapWnd()->ShowPlanet(id);
+    if (ClientApp::GetApp()->GetContext().ContextObjects().get<Planet>(id))
+        if (auto mapwnd = GetMapWnd(false))
+            mapwnd->ShowPlanet(id);
     return false;
 }
 
 bool ClientUI::ZoomToSystem(int id) {
-    if (auto system = Objects().get<System>(id)) {
+    if (auto system = ClientApp::GetApp()->GetContext().ContextObjects().get<System>(id)) {
         ZoomToSystem(system);
         return true;
     }
@@ -822,7 +814,7 @@ bool ClientUI::ZoomToSystem(int id) {
 }
 
 bool ClientUI::ZoomToFleet(int id) {
-    if (auto fleet = Objects().get<Fleet>(id)) {
+    if (auto fleet = ClientApp::GetApp()->GetContext().ContextObjects().get<Fleet>(id)) {
         ZoomToFleet(fleet);
         return true;
     }
@@ -830,13 +822,13 @@ bool ClientUI::ZoomToFleet(int id) {
 }
 
 bool ClientUI::ZoomToShip(int id) {
-    if (auto ship = Objects().get<Ship>(id))
+    if (auto ship = ClientApp::GetApp()->GetContext().ContextObjects().get<Ship>(id))
         return ZoomToFleet(ship->FleetID());
     return false;
 }
 
 bool ClientUI::ZoomToBuilding(int id) {
-    if (auto building = Objects().get<Building>(id)) {
+    if (auto building = ClientApp::GetApp()->GetContext().ContextObjects().get<Building>(id)) {
         ZoomToBuildingType(building->BuildingTypeName());
         return ZoomToPlanet(building->PlanetID());
     }
@@ -844,14 +836,16 @@ bool ClientUI::ZoomToBuilding(int id) {
 }
 
 bool ClientUI::ZoomToField(int id) {
-    if (auto field = Objects().get<Field>(id))
-        GetMapWnd()->CenterOnObject(id);
+    if (auto field = ClientApp::GetApp()->GetContext().ContextObjects().get<Field>(id))
+        if (auto mapwnd = GetMapWnd(false))
+            mapwnd->CenterOnObject(id);
     return false;
 }
 
 bool ClientUI::ZoomToCombatLog(int id) {
     if (GetCombatLogManager().GetLog(id)) {
-        GetMapWnd()->ShowCombatLog(id);
+        if (auto mapwnd = GetMapWnd(false))
+            mapwnd->ShowCombatLog(id);
         return true;
     }
     ErrorLogger() << "Unable to find combat log with id " << id;
@@ -861,31 +855,31 @@ bool ClientUI::ZoomToCombatLog(int id) {
 void ClientUI::ZoomToSystem(std::shared_ptr<const System> system) {
     if (!system)
         return;
-
-    GetMapWnd()->CenterOnObject(system->ID());
-    GetMapWnd()->SelectSystem(system->ID());
+    if (auto mapwnd = GetMapWnd(false)) {
+        mapwnd->CenterOnObject(system->ID());
+        mapwnd->SelectSystem(system->ID());
+    }
 }
 
 void ClientUI::ZoomToFleet(std::shared_ptr<const Fleet> fleet) {
     if (!fleet)
         return;
-
-    GetMapWnd()->CenterOnObject(fleet->ID());
-    GetMapWnd()->SelectFleet(fleet->ID());
+    if (auto mapwnd = GetMapWnd(false)) {
+        mapwnd->CenterOnObject(fleet->ID());
+        mapwnd->SelectFleet(fleet->ID());
+    }
     if (const auto& fleet_wnd = FleetUIManager::GetFleetUIManager().WndForFleetID(fleet->ID()))
         fleet_wnd->SelectFleet(fleet->ID());
 }
 
 bool ClientUI::ZoomToContent(const std::string& name, bool reverse_lookup) {
     if (reverse_lookup) {
-        for (const auto& [tech_name, ignored] : GetTechManager()) {
-            (void)ignored;
+        for (const auto& tech_name : GetTechManager() | range_keys) {
             if (boost::iequals(name, UserString(tech_name)))
                 return ZoomToTech(tech_name);
         }
 
-        for ([[maybe_unused]] auto& [building_name, ignored] : GetBuildingTypeManager()) {
-            (void)ignored;  // quiet unused variable warning
+        for (const auto& building_name : GetBuildingTypeManager() | range_keys) {
             if (boost::iequals(name, UserString(building_name)))
                 return ZoomToBuildingType(building_name);
         }
@@ -894,20 +888,17 @@ bool ClientUI::ZoomToContent(const std::string& name, bool reverse_lookup) {
             if (boost::iequals(name, UserString(special_name)))
                 return ZoomToSpecial(std::string{special_name}); // TODO: pass just the string_view
 
-        for ([[maybe_unused]] auto& [hull_name, ignored] : GetShipHullManager()) {
-            (void)ignored;  // quiet unused variable warning
+        for (const auto& hull_name : GetShipHullManager() | range_keys) {
             if (boost::iequals(name, UserString(hull_name)))
                 return ZoomToShipHull(hull_name);
         }
 
-        for ([[maybe_unused]] auto& [part_name, ignored] : GetShipPartManager()) {
-            (void)ignored;  // quiet unused variable warning
+        for (const auto& part_name : GetShipPartManager() | range_keys) {
             if (boost::iequals(name, UserString(part_name)))
                 return ZoomToShipPart(part_name);
         }
 
-        for ([[maybe_unused]] auto& [species_name, ignored] : GetSpeciesManager()) {
-            (void)ignored;  // quiet unused variable warning
+        for (const auto& species_name : ClientApp::GetApp()->GetSpeciesManager() | range_keys) {
             if (boost::iequals(name, UserString(species_name)))
                 return ZoomToSpecies(species_name);
         }
@@ -925,96 +916,108 @@ bool ClientUI::ZoomToContent(const std::string& name, bool reverse_lookup) {
     }
 }
 
-bool ClientUI::ZoomToTech(const std::string& tech_name) {
+bool ClientUI::ZoomToTech(std::string tech_name) {
     if (!GetTech(tech_name))
         return false;
-    GetMapWnd()->ShowTech(tech_name);
+    if (auto mapwnd = GetMapWnd(false))
+        mapwnd->ShowTech(std::move(tech_name));
     return true;
 }
 
-bool ClientUI::ZoomToPolicy(const std::string& policy_name) {
+bool ClientUI::ZoomToPolicy(std::string policy_name) {
     if (!GetPolicy(policy_name))
         return false;
-    GetMapWnd()->ShowPolicy(policy_name);
+    if (auto mapwnd = GetMapWnd(false))
+        mapwnd->ShowPolicy(std::move(policy_name));
     return true;
 }
 
-bool ClientUI::ZoomToBuildingType(const std::string& building_type_name) {
+bool ClientUI::ZoomToBuildingType(std::string building_type_name) {
     if (!GetBuildingType(building_type_name))
         return false;
-    GetMapWnd()->ShowBuildingType(building_type_name);
+    if (auto mapwnd = GetMapWnd(false))
+        mapwnd->ShowBuildingType(std::move(building_type_name));
     return true;
 }
 
-bool ClientUI::ZoomToSpecial(const std::string& special_name) {
+bool ClientUI::ZoomToSpecial(std::string special_name) {
     if (!GetSpecial(special_name))
         return false;
-    GetMapWnd()->ShowSpecial(special_name);
+    if (auto mapwnd = GetMapWnd(false))
+        mapwnd->ShowSpecial(std::move(special_name));
     return true;
 }
 
-bool ClientUI::ZoomToShipHull(const std::string& hull_name) {
+bool ClientUI::ZoomToShipHull(std::string hull_name) {
     if (!GetShipHull(hull_name))
         return false;
-    GetMapWnd()->ShowShipHull(hull_name);
+    if (auto mapwnd = GetMapWnd(false))
+        mapwnd->ShowShipHull(std::move(hull_name));
     return true;
 }
 
-bool ClientUI::ZoomToShipPart(const std::string& part_name) {
+bool ClientUI::ZoomToShipPart(std::string part_name) {
     if (!GetShipPart(part_name))
         return false;
-    GetMapWnd()->ShowShipPart(part_name);
+    if (auto mapwnd = GetMapWnd(false))
+        mapwnd->ShowShipPart(std::move(part_name));
     return true;
 }
 
-bool ClientUI::ZoomToSpecies(const std::string& species_name) {
-    if (!GetSpeciesManager().GetSpecies(species_name))
+bool ClientUI::ZoomToSpecies(std::string species_name) {
+    if (!ClientApp::GetApp()->GetSpeciesManager().GetSpecies(species_name))
         return false;
-    GetMapWnd()->ShowSpecies(species_name);
+    if (auto mapwnd = GetMapWnd(false))
+        mapwnd->ShowSpecies(std::move(species_name));
     return true;
 }
 
-bool ClientUI::ZoomToFieldType(const std::string& field_type_name) {
+bool ClientUI::ZoomToFieldType(std::string field_type_name) {
     if (!GetFieldType(field_type_name))
         return false;
-    GetMapWnd()->ShowFieldType(field_type_name);
+    if (auto mapwnd = GetMapWnd(false))
+        mapwnd->ShowFieldType(std::move(field_type_name));
     return true;
 }
 
 bool ClientUI::ZoomToShipDesign(int design_id) {
-    if (!GetUniverse().GetShipDesign(design_id))
+    const ScriptingContext& context = IApp::GetApp()->GetContext();
+    if (!context.ContextUniverse().GetShipDesign(design_id))
         return false;
-    GetMapWnd()->ShowShipDesign(design_id);
+    if (auto mapwnd = GetMapWnd(false))
+        mapwnd->ShowShipDesign(design_id);
     return true;
 }
 
 bool ClientUI::ZoomToEmpire(int empire_id) {
     if (!GetEmpire(empire_id))
         return false;
-    GetMapWnd()->ShowEmpire(empire_id);
+    if (auto mapwnd = GetMapWnd(false))
+        mapwnd->ShowEmpire(empire_id);
     return true;
 }
 
-bool ClientUI::ZoomToMeterTypeArticle(const std::string& meter_string) {
-    GetMapWnd()->ShowMeterTypeArticle(meter_string);
+bool ClientUI::ZoomToMeterTypeArticle(std::string meter_string) {
+    if (auto mapwnd = GetMapWnd(false))
+        mapwnd->ShowMeterTypeArticle(std::move(meter_string));
     return true;
 }
 
 bool ClientUI::ZoomToMeterTypeArticle(MeterType meter_type) {
-    GetMapWnd()->ShowMeterTypeArticle(meter_type);
+    if (auto mapwnd = GetMapWnd(false))
+        mapwnd->ShowMeterTypeArticle(meter_type);
     return true;
 }
 
-bool ClientUI::ZoomToEncyclopediaEntry(const std::string& str) {
-    GetMapWnd()->ShowEncyclopediaEntry(str);
+bool ClientUI::ZoomToEncyclopediaEntry(std::string str) {
+    if (auto mapwnd = GetMapWnd(false))
+        mapwnd->ShowEncyclopediaEntry(std::move(str));
     return true;
 }
 
 void ClientUI::DumpObject(int object_id) {
-    auto obj = Objects().get(object_id);
-    if (!obj)
-        return;
-    m_message_wnd->HandleLogMessage(obj->Dump() + "\n");
+    if (auto obj = ClientApp::GetApp()->GetContext().ContextObjects().get(object_id))
+        m_message_wnd->HandleLogMessage(obj->Dump());
 }
 
 void ClientUI::InitializeWindows() {
@@ -1077,7 +1080,8 @@ std::shared_ptr<GG::Texture> ClientUI::GetModuloTexture(const boost::filesystem:
 }
 
 void ClientUI::RestoreFromSaveData(const SaveGameUIData& ui_data) {
-    GetMapWnd()->RestoreFromSaveData(ui_data);
+    if (auto mapwnd = GetMapWnd(false))
+        mapwnd->RestoreFromSaveData(ui_data);
     m_ship_designs->Load(ui_data);
 }
 
@@ -1085,7 +1089,7 @@ ClientUI* ClientUI::GetClientUI()
 { return s_the_UI; }
 
 void ClientUI::MessageBox(const std::string& message, bool play_alert_sound) {
-    auto dlg = GG::GUI::GetGUI()->GetStyleFactory()->NewThreeButtonDlg(
+    auto dlg = GG::GUI::GetGUI()->GetStyleFactory().NewThreeButtonDlg(
         GG::X(320), GG::Y(200), message, GetFont(Pts()+2),
         WndColor(), WndOuterBorderColor(), CtrlColor(), TextColor(),
         1, UserString("OK"));
@@ -1123,41 +1127,49 @@ std::shared_ptr<GG::Texture> ClientUI::GetTexture(const boost::filesystem::path&
 }
 
 std::shared_ptr<GG::Font> ClientUI::GetFont(int pts) {
-     try {
-        return GG::GUI::GetGUI()->GetFont(GetOptionsDB().Get<std::string>("ui.font.path"), pts,
-                                          RequiredCharsets().begin(), RequiredCharsets().end());
-     } catch (...) {
-         try {
-            return GG::GUI::GetGUI()->GetFont(GetOptionsDB().GetDefault<std::string>("ui.font.path"),
-                                              pts, RequiredCharsets().begin(), RequiredCharsets().end());
+    const auto& rqcs = RequiredCharsets();
+    auto* gui = GG::GUI::GetGUI();
+    try {
+       return gui->GetFont(GetOptionsDB().Get<std::string>("ui.font.path"),
+                           pts, rqcs.begin(), rqcs.end());
+    } catch (...) {
+        try {
+            return gui->GetFont(GetOptionsDB().GetDefault<std::string>("ui.font.path"),
+                                pts, rqcs.begin(), rqcs.end());
         } catch (...) {
-             return GG::GUI::GetGUI()->GetStyleFactory()->DefaultFont(pts);
+             return gui->GetStyleFactory().DefaultFont(pts);
         }
     }
 }
 
 std::shared_ptr<GG::Font> ClientUI::GetBoldFont(int pts) {
+    const auto& rqcs = RequiredCharsets();
+    auto* gui = GG::GUI::GetGUI();
     try {
-        return GG::GUI::GetGUI()->GetFont(GetOptionsDB().Get<std::string>("ui.font.bold.path"), pts, RequiredCharsets().begin(), RequiredCharsets().end());
+        return gui->GetFont(GetOptionsDB().Get<std::string>("ui.font.bold.path"),
+                            pts, rqcs.begin(), rqcs.end());
     } catch (...) {
         try {
-             return GG::GUI::GetGUI()->GetFont(GetOptionsDB().GetDefault<std::string>("ui.font.bold.path"),
-                                               pts, RequiredCharsets().begin(), RequiredCharsets().end());
+             return gui->GetFont(GetOptionsDB().GetDefault<std::string>("ui.font.bold.path"),
+                                 pts, rqcs.begin(), rqcs.end());
         } catch (...) {
-             return GG::GUI::GetGUI()->GetStyleFactory()->DefaultFont(pts);
+             return gui->GetStyleFactory().DefaultFont(pts);
         }
     }
 }
 
 std::shared_ptr<GG::Font> ClientUI::GetTitleFont(int pts) {
+    const auto& rqcs = RequiredCharsets();
+    auto* gui = GG::GUI::GetGUI();
     try {
-        return GG::GUI::GetGUI()->GetFont(GetOptionsDB().Get<std::string>("ui.font.title.path"), pts, RequiredCharsets().begin(), RequiredCharsets().end());
+        return gui->GetFont(GetOptionsDB().Get<std::string>("ui.font.title.path"),
+                            pts, rqcs.begin(), rqcs.end());
     } catch (...) {
         try {
-            return GG::GUI::GetGUI()->GetFont(GetOptionsDB().GetDefault<std::string>("ui.font.title.path"),
-                                              pts, RequiredCharsets().begin(), RequiredCharsets().end());
+            return gui->GetFont(GetOptionsDB().GetDefault<std::string>("ui.font.title.path"),
+                                pts, rqcs.begin(), rqcs.end());
         } catch (...) {
-             return GG::GUI::GetGUI()->GetStyleFactory()->DefaultFont(pts);
+             return gui->GetStyleFactory().DefaultFont(pts);
         }
    }
 }
@@ -1168,7 +1180,7 @@ const std::vector<std::shared_ptr<GG::Texture>>& ClientUI::GetPrefixedTextures(
     namespace fs = boost::filesystem;
     if (!fs::is_directory(dir)) {
         ErrorLogger() << "GetPrefixedTextures passed invalid dir: " << dir;
-        static const std::vector<std::shared_ptr<GG::Texture>> EMPTY_VEC;
+        static CONSTEXPR_VEC const std::vector<std::shared_ptr<GG::Texture>> EMPTY_VEC;
         return EMPTY_VEC;
     }
 
@@ -1193,17 +1205,13 @@ const std::vector<std::shared_ptr<GG::Texture>>& ClientUI::GetPrefixedTextures(
         }
     }
     std::sort(textures.begin(), textures.end(), TextureFileNameCompare);
-    auto [emplace_it, b] = m_prefixed_textures.emplace(std::move(KEY), std::move(textures));
-    (void)b; // ignored
+    auto emplace_it = m_prefixed_textures.emplace(std::move(KEY), std::move(textures)).first;
     return emplace_it->second;
 }
 
 int FontBasedUpscale(int x) {
-    int retval = x;
-    int font_pts = ClientUI::Pts();
-    if (font_pts > 12)
-        retval *= static_cast<float>(font_pts) / 12.0f;
-    return retval;
+    const int font_pts = ClientUI::Pts();
+    return (font_pts <= 12) ? x : (font_pts * x / 12);
 }
 
 namespace GG {

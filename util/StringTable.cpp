@@ -3,6 +3,7 @@
 #include "Logger.h"
 #include "Directories.h"
 #include "../parse/Parse.h"
+#include "ranges.h"
 
 #include <boost/filesystem/fstream.hpp>
 #include <boost/xpressive/xpressive.hpp>
@@ -28,8 +29,11 @@ struct IUnknown; // Workaround for "combaseapi.h(229,21): error C2760: syntax er
 
 
 namespace {
-    constexpr std::string_view DEFAULT_FILENAME = "en.txt";
+#if defined(__cpp_lib_constexpr_string) && ((!defined(__GNUC__) || (__GNUC__ > 12) || (__GNUC__ == 12 && __GNUC_MINOR__ >= 2))) && ((!defined(_MSC_VER) || (_MSC_VER >= 1934))) && ((!defined(__clang_major__) || (__clang_major__ >= 17)))
+    constexpr std::string EMPTY_STRING;
+#else
     const std::string EMPTY_STRING;
+#endif
 }
 
 StringTable::StringTable(std::string filename, std::shared_ptr<const StringTable> fallback):
@@ -103,38 +107,6 @@ namespace {
         const auto& m{match[idx]};
         return {&*m.first, static_cast<std::size_t>(std::max(0, static_cast<int>(m.length())))};
     }
-}
-
-void StringTable::Load(std::shared_ptr<const StringTable> fallback) {
-    if (fallback && !fallback->m_initialized) {
-        [[unlikely]]
-        // this prevents deadlock if two stringtables were to be loaded
-        // simultaneously with eachother as fallback tables
-        ErrorLogger() << "StringTable::Load given uninitialized stringtable as fallback. Ignoring.";
-        fallback = nullptr;
-    }
-
-    auto path = FilenameToPath(m_filename);
-    std::string file_contents;
-
-    bool read_success = ReadFile(path, file_contents);
-    if (!read_success) {
-        [[unlikely]]
-        ErrorLogger() << "StringTable::Load failed to read file at path: " << path.string();
-        //m_initialized intentionally left false
-        return;
-    }
-    // add newline at end to avoid errors when one is left out, but is expected by parsers
-    file_contents += "\n";
-
-    parse::file_substitution(file_contents, path.parent_path(), m_filename);
-
-    decltype(fallback->m_strings) fallback_lookup_strings;
-    std::string fallback_table_file;
-    if (fallback) {
-        fallback_table_file = fallback->Filename();
-        fallback_lookup_strings = fallback->m_strings; //.insert(fallback->m_strings.begin(), fallback->m_strings.end());
-    }
 
     using namespace boost::xpressive;
 
@@ -157,10 +129,44 @@ void StringTable::Load(std::shared_ptr<const StringTable> fallback) {
 
     const sregex KEYEXPANSION =
         keep("[[" >> (s1 = IDENTIFIER) >> "]]");
+}
+
+void StringTable::Load(std::shared_ptr<const StringTable> fallback) {
+    if (fallback && !fallback->m_initialized) {
+        [[unlikely]]
+        // this prevents deadlock if two stringtables were to be loaded
+        // simultaneously with eachother as fallback tables
+        ErrorLogger() << "StringTable::Load given uninitialized stringtable as fallback. Ignoring.";
+        fallback = nullptr;
+    }
+
+    auto path = FilenameToPath(m_filename);
+    std::string file_contents;
+
+    bool read_success = ReadFile(path, file_contents);
+    if (!read_success) {
+        [[unlikely]]
+        ErrorLogger() << "StringTable::Load failed to read file at path: " << m_filename;
+        //m_initialized intentionally left false
+        return;
+    }
+    // add newline at end to avoid errors when one is left out, but is expected by parsers
+    file_contents += "\n";
+
+    parse::file_substitution(file_contents, path.parent_path(), m_filename);
+
+    decltype(fallback->m_strings) fallback_lookup_strings;
+    std::string fallback_table_file;
+    if (fallback) {
+        fallback_table_file = fallback->Filename();
+        fallback_lookup_strings = fallback->m_strings; //.insert(fallback->m_strings.begin(), fallback->m_strings.end());
+    }
+
+    using boost::xpressive::smatch;
 
     // parse input text stream
     auto it = file_contents.begin();
-    auto end = file_contents.end();
+    const auto end = file_contents.end();
 
     smatch matches;
     bool well_formed = false;
@@ -242,7 +248,7 @@ void StringTable::Load(std::shared_ptr<const StringTable> fallback) {
                                   << match[1].length() << "and matchlen: " << match.length();
                 // clear out any keywords that have been fully processed
                 for (auto ref_check_it = cyclic_reference_check.begin();
-                     ref_check_it != cyclic_reference_check.end(); )
+                     ref_check_it != cyclic_reference_check.end();)
                 {
                     if (ref_check_it->second <= position) {
                         //DebugLogger() << "Popping from cyclic ref check: " << ref_check_it->first;
@@ -304,8 +310,7 @@ void StringTable::Load(std::shared_ptr<const StringTable> fallback) {
         }
 
         // nonrecursively replace references -- convert [[type REF]] to <type REF>string for REF</type>
-        for ([[maybe_unused]] auto& [ignored_key, user_read_entry] : m_strings) {
-            (void)ignored_key;  // quiet unused variable warning
+        for (auto& user_read_entry : m_strings | range_values) {
             std::size_t position = 0; // position in the definition string, past the already processed part
             smatch match;
             while (regex_search(user_read_entry.begin() + position, user_read_entry.end(), match, REFERENCE)) {

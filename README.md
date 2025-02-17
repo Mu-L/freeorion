@@ -1,4 +1,8 @@
 <p align="center">
+ <img alt="" src="./default/data/art/logo.png" width=500 align="center">
+</p>
+
+<p align="center">
     <a href="https://github.com/freeorion/freeorion/releases">
         <img src="https://img.shields.io/github/v/tag/freeorion/freeorion"
             alt="Tag"></a>
@@ -165,6 +169,6 @@ accompanying license file.
 [Gentoo package]: https://packages.gentoo.org/packages/games-strategy/freeorion
 [openSUSE Package]: https://build.opensuse.org/package/show/games/freeorion
 [Void package]: https://github.com/voidlinux/void-packages/tree/master/srcpkgs/freeorion
-[ArchLinux Package]: https://archlinux.org/packages/community/x86_64/freeorion/
+[ArchLinux Package]: https://archlinux.org/packages/extra/x86_64/freeorion/
 [GPL v2]: https://www.gnu.org/licenses/gpl-2.0.txt
 [CC-BY-SA-3.0]: https://creativecommons.org/licenses/by-sa/3.0/legalcode

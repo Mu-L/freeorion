@@ -145,11 +145,11 @@ public:
         m_message_text(std::move(text))
     {}
 
-    MessageType Type() const noexcept { return m_type; };
-    std::size_t Size() const noexcept { return m_message_size; }
-    auto&       Text() const noexcept { return m_message_text; }
-    auto        Data() const noexcept { return m_message_text.data(); }
-    auto        Data() noexcept       { return m_message_text.data(); }
+    [[nodiscard]] MessageType Type() const noexcept { return m_type; };
+    [[nodiscard]] std::size_t Size() const noexcept { return m_message_size; }
+    [[nodiscard]] auto&       Text() const noexcept { return m_message_text; }
+    [[nodiscard]] auto        Data() const noexcept { return m_message_text.data(); }
+    [[nodiscard]] auto        Data() noexcept       { return m_message_text.data(); }
 
     void Resize(std::size_t size);   ///< Resizes the underlying char buffer to \a size uninitialized bytes.
     void Swap(Message& rhs) noexcept;
@@ -169,8 +169,8 @@ FO_COMMON_API void BufferToHeader(const Message::HeaderBuffer& buffer, Message& 
 /** Fills \a header_buf from the relevant portions of \a message. */
 FO_COMMON_API void HeaderToBuffer(const Message& message, Message::HeaderBuffer& buffer);
 
-bool operator==(const Message& lhs, const Message& rhs) noexcept;
-bool operator!=(const Message& lhs, const Message& rhs) noexcept;
+// ignores m_message_size
+[[nodiscard]] FO_COMMON_API bool operator==(const Message& lhs, const Message& rhs) noexcept;
 
 FO_COMMON_API void swap(Message& lhs, Message& rhs) noexcept;
 
@@ -188,8 +188,10 @@ FO_COMMON_API std::ostream& operator<<(std::ostream& os, const Message& msg);
 ////////////////////////////////////////////////
 
 /** creates an ERROR_MSG message*/
-FO_COMMON_API Message ErrorMessage(const std::string& problem, bool fatal = true,
+FO_COMMON_API Message ErrorMessage(const std::string& problem_stringtable_key, bool fatal = true,
                                    int player_id = Networking::INVALID_PLAYER_ID);
+FO_COMMON_API Message ErrorMessage(const std::string& problem_stringtable_key, const std::string& unlocalized_info,
+                                   bool fatal = true, int player_id = Networking::INVALID_PLAYER_ID);
 
 /** creates a HOST_SP_GAME message*/
 FO_COMMON_API Message HostSPGameMessage(const SinglePlayerSetupData& setup_data, const std::map<std::string, std::string>& dependencies);
@@ -223,7 +225,7 @@ FO_COMMON_API Message GameStartMessage(
     const EmpireManager& empires, const Universe& universe,
     const SpeciesManager& species, CombatLogManager& combat_logs,
     const SupplyManager& supply, const std::map<int, PlayerInfo>& players,
-    const OrderSet& orders, const SaveGameUIData* ui_data,
+    const OrderSet& orders, const SaveGameUIData& ui_data,
     GalaxySetupData galaxy_setup_data, bool use_binary_serialization,
     bool use_compression);
 
@@ -326,7 +328,7 @@ FO_COMMON_API Message DispatchCombatLogsMessage(const std::vector<std::pair<int,
                                                 bool use_binary_serialization, bool use_compression);
 
 /** Sends logger configuration details to server or ai process. */
-FO_COMMON_API Message LoggerConfigMessage(int sender, const std::set<std::tuple<std::string, std::string, LogLevel>>& options);
+FO_COMMON_API Message LoggerConfigMessage(int sender, const std::vector<std::tuple<std::string, std::string, LogLevel>>& options);
 
 ////////////////////////////////////////////////
 // Multiplayer Lobby Message named ctors
@@ -359,7 +361,7 @@ FO_COMMON_API Message ServerPlayerChatMessage(int sender, const boost::posix_tim
 FO_COMMON_API Message StartMPGameMessage();
 
 /** creates a CHECKSUM message containing checksums of parsed content. */
-FO_COMMON_API Message ContentCheckSumMessage();
+FO_COMMON_API Message ContentCheckSumMessage(const SpeciesManager& species);
 
 /** creates a AUTH_REQUEST message containing \a player_name to login and \a auth additional authentication data. */
 FO_COMMON_API Message AuthRequestMessage(const std::string& player_name, const std::string& auth);
@@ -391,7 +393,8 @@ FO_COMMON_API Message RevertOrdersMessage();
 // Message data extractors
 ////////////////////////////////////////////////
 
-FO_COMMON_API void ExtractErrorMessageData(const Message& msg, int& player_id, std::string& problem, bool& fatal);
+FO_COMMON_API void ExtractErrorMessageData(const Message& msg, int& player_id, std::string& problem_key,
+                                           std::string& unlocalized_info, bool& fatal);
 
 FO_COMMON_API void ExtractHostMPGameMessageData(const Message& msg, std::string& host_player_name,
                                                 std::string& client_version_string, std::map<std::string, std::string>& dependencies);
@@ -475,7 +478,7 @@ FO_COMMON_API void ExtractRequestCombatLogsMessageData(const Message& msg, std::
 
 FO_COMMON_API void ExtractDispatchCombatLogsMessageData(const Message& msg, std::vector<std::pair<int, CombatLog>>& logs);
 
-FO_COMMON_API void ExtractLoggerConfigMessageData(const Message& msg, std::set<std::tuple<std::string, std::string, LogLevel>>& options);
+FO_COMMON_API std::vector<std::tuple<std::string, std::string, LogLevel>> ExtractLoggerConfigMessageData(const Message& msg);
 
 FO_COMMON_API void ExtractContentCheckSumMessageData(const Message& msg, std::map<std::string, unsigned int>& checksums);
 

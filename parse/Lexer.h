@@ -31,10 +31,7 @@ typedef boost::spirit::lex::lexertl::position_token<
 typedef boost::spirit::lex::lexertl::actor_lexer<token_type> spirit_lexer_base_type;
 
 /** The script file lexer. */
-struct lexer :
-    boost::spirit::lex::lexer<spirit_lexer_base_type>
-{
-    /** Ctor. */
+struct lexer : boost::spirit::lex::lexer<spirit_lexer_base_type> {
     lexer();
 
     /** \name Comment tokens */ ///@{
@@ -79,12 +76,16 @@ struct lexer :
     boost::spirit::lex::token_def<boost::spirit::lex::omit> error_token;
     //@}
 
-    static constexpr const char* bool_regex = "(?i:true|false)";
-    static constexpr const char* int_regex = "\\d+";
-    static constexpr const char* double_regex = "\\d+\\.\\d*|\\d*\\.\\d+";
-    static constexpr const char* string_regex = "\\\"[^\\\"]*\\\"";
-    static const lexer tok;
+    static inline const std::string bool_regex{"(?i:true|false)"};
+    static inline const std::string int_regex{"\\d+"};
+    static inline const std::string double_regex{"\\d+\\.\\d*|\\d*\\.\\d+"};
+    static inline const std::string string_regex{"\\\"[^\\\"]*\\\""};
 };
+
+inline const lexer& GetLexer() {
+    static const lexer tok;
+    return tok;
+}
 
 /** The type of iterator passed to the script file parser by the script file
     lexer. */

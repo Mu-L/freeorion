@@ -109,7 +109,7 @@ class _FreeOrionAISaveGameDecoder(json.JSONDecoder):
         try:
             setstate = new_instance.__setstate__
         except AttributeError:
-            if not type(parsed_content) == dict:
+            if not type(parsed_content) == dict:  # noqa: E721
                 raise InvalidSaveGameException("Could not set content for %s" % new_instance)
             new_instance.__dict__ = parsed_content
         else:
@@ -117,7 +117,7 @@ class _FreeOrionAISaveGameDecoder(json.JSONDecoder):
             setstate(parsed_content)
         return new_instance
 
-    def __interpret(self, x):  # noqa: max-complexity
+    def __interpret(self, x):  # noqa: C901
         """Interpret an object that was just decoded."""
         # primitive types do not have to be interpreted
         if isinstance(x, (int, float)):

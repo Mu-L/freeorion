@@ -36,7 +36,7 @@
 namespace GG {
 namespace detail {
     template <typename T, std::enable_if_t<std::is_integral_v<T>>* = nullptr>
-    constexpr inline std::size_t OneBits(T num) noexcept
+    constexpr std::size_t OneBits(T num) noexcept
     {
 #if defined(__cpp_lib_bitops)
         if constexpr (std::is_unsigned_v<T>) {
@@ -95,12 +95,8 @@ inline constexpr bool is_flag_type_v = is_flag_type<T>::value;
                 throw std::invalid_argument(                            \
                     "Non-bitflag passed to " #name " constructor");     \
         }                                                               \
-        constexpr bool operator==(name rhs) const noexcept              \
-        { return m_value == rhs.m_value; }                              \
-        constexpr bool operator!=(name rhs) const noexcept              \
-        { return m_value != rhs.m_value; }                              \
-        constexpr bool operator<(name rhs) const noexcept               \
-        { return m_value < rhs.m_value; }                               \
+        [[nodiscard]] constexpr bool operator==(const name& rhs) const noexcept \
+        { return m_value == rhs.m_value; };                             \
                                                                         \
     private:                                                            \
         InternalType m_value = 0;                                       \
@@ -262,7 +258,7 @@ public:
     }
 
     /** Adds \a flag, with stringification string \a name, to the FlagSpec. */
-    void insert(FlagType flag, const char* name)
+    void insert(FlagType flag, std::string_view name)
     {
         if (m_count >= digits)
             throw std::runtime_error("FlagSpec had too many flags inserted");
@@ -291,9 +287,6 @@ private:
 template <typename FlagType>
 class Flags
 {
-private:
-    struct ConvertibleToBoolDummy {int _;};
-
 public:
     // If you have received an error message directing you to the line below,
     // it means you probably have tried to use this class with a FlagsType
@@ -317,7 +310,7 @@ public:
     constexpr Flags(FlagType flag) :
         m_flags(flag.m_value)
     {
-#if 0 && defined(__cpp_lib_is_constant_evaluated)
+#if defined(__cpp_lib_is_constant_evaluated) && (!defined(__clang_major__) || (__clang_major__ >= 14))
         if (!std::is_constant_evaluated()) {
             if (!FlagSpec<FlagType>::instance().contains(flag))
                 throw UnknownFlag("Invalid flag with value " + std::to_string(flag.m_value));
@@ -328,20 +321,16 @@ public:
     /** Conversion to bool, so that a Flags object can be used as a boolean
       * test. Converts to true when it contains one or more flags and converts
       * to false otherwise. */
-    constexpr operator int ConvertibleToBoolDummy::* () const
-    { return m_flags ? &ConvertibleToBoolDummy::_ : 0; }
+    [[nodiscard]] constexpr operator bool() const noexcept { return m_flags; }
 
-    constexpr bool operator==(Flags<FlagType> rhs) const noexcept
-    { return m_flags == rhs.m_flags; }
-
-    constexpr bool operator!=(Flags<FlagType> rhs) const noexcept
-    { return m_flags != rhs.m_flags; }
-
-    /** Returns true iff the underlying storage of *this is less than the
-      * underlying storage of \a rhs.  Note that this is here for use in
-      * associative containers only; it is otherwise meaningless. */
-    constexpr bool operator<(Flags<FlagType> rhs) const noexcept
-    { return m_flags < rhs.m_flags; }
+#if defined(__cpp_impl_three_way_comparison)
+    [[nodiscard]] constexpr auto operator<=>(const Flags<FlagType>&) const noexcept = default;
+#else
+    [[nodiscard]] constexpr bool operator==(const Flags<FlagType>& rhs) const noexcept
+    { return m_flags == rhs.m_flags; };
+    [[nodiscard]] constexpr bool operator!=(const Flags<FlagType>& rhs) const noexcept
+    { return m_flags != rhs.m_flags; };
+#endif
 
     constexpr auto& operator|=(Flags<FlagType> rhs) noexcept
     {
@@ -359,7 +348,7 @@ public:
         return *this;
     }
 
-    constexpr operator InternalType() const noexcept { return m_flags; }
+    [[nodiscard]] constexpr operator InternalType() const noexcept { return m_flags; }
 
 private:
     InternalType m_flags = 0;

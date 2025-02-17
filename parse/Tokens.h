@@ -18,6 +18,8 @@
     (All)                                       \
     (AllyOf)                                    \
     (And)                                       \
+    (annexationcondition)                       \
+    (annexationcost)                            \
     (AnyEmpire)                                 \
     (Armed)                                     \
     (Armour)                                    \
@@ -35,10 +37,10 @@
     (Building)                                  \
     (BuildingTypesOwned)                        \
     (BuildingType)                              \
+    (BuildingTypeCost)                          \
     (BuildingTypesProduced)                     \
     (BuildingTypesScrapped)                     \
     (buildtime)                                 \
-    (CanAddStarlanesTo)                         \
     (CanColonize)                               \
     (CanProduceShips)                           \
     (CanSee)                                    \
@@ -52,6 +54,7 @@
     (ceil)                                      \
     (class)                                     \
     (ClockwiseNextPlanetType)                   \
+    (closeto)                                   \
     (Colony)                                    \
     (colour)                                    \
     (CombatBout)                                \
@@ -177,6 +180,7 @@
     (HasSpecial)                                \
     (HasSpecialCapacity)                        \
     (HasSpecialSinceTurn)                       \
+    (HasStarlane)                               \
     (HasTag)                                    \
     (high)                                      \
     (HighestCostEnqueuedTech)                   \
@@ -213,7 +217,10 @@
 #define TOKEN_SEQ_6                             \
     (label)                                     \
     (Large)                                     \
+    (LastColonizedByEmpire)                     \
+    (LastInvadedByEmpire)                       \
     (LastTurnActiveInBattle)                    \
+    (LastTurnAnnexed)                           \
     (LastTurnAttackedByShip)                    \
     (LastTurnBattleHere)                        \
     (LastTurnColonized)                         \
@@ -237,6 +244,7 @@
     (MaxCapacity)                               \
     (MaxDamage)                                 \
     (MaxDefense)                                \
+    (maxdotprod)                                \
     (MaxFuel)                                   \
     (MaximumNumberOf)                           \
     (MaxSecondaryStat)                          \
@@ -318,6 +326,7 @@
     (OutpostsOwned)                             \
     (OwnedBy)                                   \
     (Owner)                                     \
+    (OwnerBeforeLastConquered)                  \
     (OwnerHasShipPartAvailable)                 \
     (OwnerHasTech)                              \
     (parameters)                                \
@@ -405,6 +414,7 @@
     (SetEmpireMeter)                            \
     (SetEmpireTechProgress)                     \
     (SetEmpireStockpile)                        \
+    (SetFocus)                                  \
     (SetFuel)                                   \
     (SetHappiness)                              \
     (SetIndustry)                               \
@@ -437,6 +447,7 @@
     (SetSpecialCapacity)                        \
     (SetSpecies)                                \
     (SetSpeciesOpinion)                         \
+    (SetSpeciesTargetOpinion)                   \
     (SetSpeed)                                  \
     (SetStarType)                               \
     (SetStealth)                                \
@@ -500,8 +511,10 @@
     (SpeciesContentOpinion)                     \
     (SpeciesDislikes)                           \
     (SpeciesEmpireOpinion)                      \
+    (SpeciesEmpireTargetOpinion)                \
     (SpeciesLikes)                              \
     (SpeciesSpeciesOpinion)                     \
+    (SpeciesSpeciesTargetOpinion)               \
     (SpeciesPlanetsBombed)
 
 #define TOKEN_SEQ_15                            \
@@ -517,6 +530,9 @@
     (Spread)                                    \
     (stackinggroup)                             \
     (Star)                                      \
+    (StarlaneToWouldBeAngularlyCloseToExistingStarlane) \
+    (StarlaneToWouldBeCloseToObject)            \
+    (StarlaneToWouldCrossExistingStarlane)      \
     (StarType)                                  \
     (Stationary)                                \
     (Statistic)                                 \
@@ -570,6 +586,7 @@
     (turn)                                      \
     (Turn)                                      \
     (TurnPolicyAdopted)                         \
+    (TurnsSinceAnnexation)                      \
     (TurnsSinceColonization)                    \
     (TurnsSinceFocusChange)                     \
     (TurnsSinceLastConquered)                   \
@@ -578,6 +595,8 @@
     (TurnTechResearched)                        \
     (type)                                      \
     (Uninhabitable)                             \
+    (UniqueNumberOf)                            \
+    (Unique)                                    \
     (UniverseCentreX)                           \
     (UniverseCentreY)                           \
     (UniverseWidth)                             \

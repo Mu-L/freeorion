@@ -31,13 +31,7 @@ ImageBlock::ImageBlock(const fs::path& path, X x, Y y, X w,
             GetTextureManager().GetTexture(path),
             GRAPHIC_PROPSCALE | GRAPHIC_SHRINKFIT | GRAPHIC_CENTER);
     } catch (const GG::Texture::BadFile&) {
-        try {
-            m_graphic = Wnd::Create<StaticGraphic>(
-                GetVectorTextureManager().GetTexture(path),
-                GRAPHIC_PROPSCALE | GRAPHIC_SHRINKFIT | GRAPHIC_CENTER);
-        } catch (const GG::Texture::BadFile&) {
-            // No can do inside GiGi.
-        }
+        // :(
     }
 }
 
@@ -95,7 +89,7 @@ class ImageBlockFactory : public RichText::IBlockControlFactory {
 public:
     //! Create a Text block from a plain text tag.
     std::shared_ptr<BlockControl> CreateFromTag(const RichText::TAG_PARAMS& params, std::string,
-                                                std::shared_ptr<Font>, Clr, Flags<TextFormat>) override
+                                                std::shared_ptr<Font>, Clr, Flags<TextFormat>) const override
     {
         // Get the path from the parameters.
         fs::path param_path = ExtractPath(params);
@@ -109,7 +103,7 @@ public:
     }
 
     // Sets the root of image search path.
-    void SetRootPath(fs::path path)
+    void SetRootPath(fs::path path) noexcept
     { m_root_path = std::move(path); }
 
 private:
@@ -119,28 +113,33 @@ private:
     static fs::path ExtractPath(const RichText::TAG_PARAMS& params)
     {
         // Find the src.
-        auto src_param = params.find("src");
+        const auto src_param_it = std::find_if(params.begin(), params.end(),
+                                               [](const auto p) { return p.first == "src"; });
 
         // If src not found, error out.
-        if (src_param == params.end()) {
+        if (src_param_it == params.end()) {
             return fs::path();
+
         } else {
 #if defined(_WIN32)
+            const auto src_param = src_param_it->second;
             // convert UTF-8 path string to UTF-16
             fs::path::string_type str_native;
-            str_native.reserve(src_param->second.size());
-            utf8::utf8to16(src_param->second.begin(), src_param->second.end(), std::back_inserter(str_native));
+            str_native.reserve(src_param.size());
+            utf8::utf8to16(src_param.begin(), src_param.end(), std::back_inserter(str_native));
             return fs::path(str_native);
 #else
-            return fs::path(src_param->second);
+            return fs::path(std::string{src_param_it->second});
 #endif
         }
     }
 };
 
-// Register image block as the image tag handler.
-static int dummy = RichText::RegisterDefaultBlock(std::string{ImageBlock::IMAGE_TAG},
-                                                  std::make_shared<ImageBlockFactory>());
+namespace {
+    // Register image block as the image tag handler.
+    const auto dummy = RichText::RegisterDefaultBlock(ImageBlock::IMAGE_TAG,
+                                                      std::make_shared<ImageBlockFactory>());
+}
 
 //! Set the root path from which to look for images with the factory.
 bool ImageBlock::SetImagePath(RichText::IBlockControlFactory* factory, fs::path path)
@@ -161,8 +160,9 @@ bool ImageBlock::SetImagePath(RichText::IBlockControlFactory* factory, fs::path 
 bool ImageBlock::SetDefaultImagePath(fs::path path)
 {
     // Find the image block factory from the default map and give it the path.
-    auto factory_it = RichText::DefaultBlockFactoryMap()->find(IMAGE_TAG);
-    if (factory_it != RichText::DefaultBlockFactoryMap()->end()) {
+    auto& dbf{RichText::DefaultBlockFactoryMap()};
+    const auto factory_it = std::find_if(dbf.begin(), dbf.end(), [](auto f) { return f.first == IMAGE_TAG; });
+    if (factory_it != dbf.end()) {
         if (auto factory = dynamic_cast<ImageBlockFactory*>(factory_it->second.get()))
             return SetImagePath(factory, std::move(path));
     }

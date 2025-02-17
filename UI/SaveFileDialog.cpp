@@ -19,7 +19,6 @@
 
 #include <boost/filesystem/path.hpp>
 #include <boost/filesystem/operations.hpp>
-#include <boost/cast.hpp>
 #include <boost/format.hpp>
 
 #include <memory>
@@ -28,15 +27,15 @@
 namespace fs = boost::filesystem;
 
 namespace {
-    constexpr GG::X SAVE_FILE_DIALOG_WIDTH(600);
-    constexpr GG::Y SAVE_FILE_DIALOG_HEIGHT(400);
-    constexpr GG::X SAVE_FILE_DIALOG_MIN_WIDTH(160);
-    constexpr GG::Y SAVE_FILE_DIALOG_MIN_HEIGHT(100);
+    constexpr GG::X SAVE_FILE_DIALOG_WIDTH{600};
+    constexpr GG::Y SAVE_FILE_DIALOG_HEIGHT{400};
+    constexpr GG::X SAVE_FILE_DIALOG_MIN_WIDTH{160};
+    constexpr GG::Y SAVE_FILE_DIALOG_MIN_HEIGHT{100};
 
     constexpr std::string_view SAVE_FILE_WND_NAME = "dialog.save";
 
-    constexpr GG::X PROMT_WIDTH(200);
-    constexpr GG::Y PROMPT_HEIGHT(75);
+    constexpr GG::X PROMT_WIDTH{200};
+    constexpr GG::Y PROMPT_HEIGHT{75};
 
     constexpr double DEFAULT_STRETCH = 1.0;
 
@@ -94,14 +93,12 @@ namespace {
 
     /// Creates a text control that support resizing and word wrap.
     std::shared_ptr<GG::Label> CreateResizingText(std::string str, GG::X width) {
+        const auto font = ClientUI::GetFont();
         // Calculate the extent manually to ensure the control stretches to full
         // width when possible.  Otherwise it would always word break.
-        GG::Flags<GG::TextFormat> fmt = GG::FORMAT_NONE;
-        std::vector<std::shared_ptr<GG::Font::TextElement>> text_elements =
-            ClientUI::GetFont()->ExpensiveParseFromTextToTextElements(str, fmt);
-        std::vector<GG::Font::LineData> lines =
-            ClientUI::GetFont()->DetermineLines(str, fmt, width, text_elements);
-        GG::Pt extent = ClientUI::GetFont()->TextExtent(std::move(lines));
+        auto text_elements = font->ExpensiveParseFromTextToTextElements(str, GG::FORMAT_NONE);
+        const auto extent = font->TextExtent(font->DetermineLines(str, GG::FORMAT_NONE, width, text_elements));
+
         auto text = GG::Wnd::Create<CUILabel>(std::move(str), std::move(text_elements),
                                               GG::FORMAT_WORDBREAK | GG::FORMAT_LEFT,
                                               GG::NO_WND_FLAGS, GG::X0, GG::Y0, extent.x, extent.y);
@@ -111,8 +108,8 @@ namespace {
     }
 
     bool Prompt(std::string question) {
-        std::shared_ptr<GG::Font> font = ClientUI::GetFont();
-        auto prompt = GG::GUI::GetGUI()->GetStyleFactory()->NewThreeButtonDlg(
+        const auto font = ClientUI::GetFont();
+        auto prompt = GG::GUI::GetGUI()->GetStyleFactory().NewThreeButtonDlg(
             PROMT_WIDTH, PROMPT_HEIGHT, std::move(question), font,
             ClientUI::CtrlColor(), ClientUI::CtrlBorderColor(),
             ClientUI::CtrlColor(), ClientUI::TextColor(),
@@ -125,7 +122,7 @@ namespace {
 /** Describes how a column should be set up in the dialog */
 class SaveFileColumn {
 public:
-    static std::vector<SaveFileColumn> GetColumns(GG::X max_width) {
+    static auto GetColumns(GG::X max_width) {
         std::vector<SaveFileColumn> columns;
         columns.reserve(VALID_PREVIEW_COLUMNS.size());
         for (const auto& sv : VALID_PREVIEW_COLUMNS)
@@ -133,15 +130,13 @@ public:
         return columns;
     }
 
-    static std::shared_ptr<GG::Control> TitleForColumn(const SaveFileColumn& column) {
+    static auto TitleForColumn(const SaveFileColumn& column) {
         auto retval = GG::Wnd::Create<CUILabel>(column.Title(), GG::FORMAT_LEFT);
         retval->Resize(GG::Pt(GG::X1, ClientUI::GetFont()->Height()));
         return retval;
     }
 
-    static std::shared_ptr<GG::Control> CellForColumn(const SaveFileColumn& column,
-                                                      const FullPreview& full, GG::X max_width)
-    {
+    static auto CellForColumn(const SaveFileColumn& column, const FullPreview& full, GG::X max_width) {
         GG::Clr color = ClientUI::TextColor();
         std::string value = ColumnInPreview(full, column.m_name);
         if (column.m_name == "empire")
@@ -165,16 +160,16 @@ public:
         return retval;
     }
 
-    bool Fixed() const
+    bool Fixed() const noexcept
     { return m_fixed; }
 
-    GG::X FixedWidth() const
+    GG::X FixedWidth() const noexcept
     { return m_fixed_width; }
 
-    double Stretch() const
+    double Stretch() const noexcept
     { return m_stretch; }
 
-    const std::string& Name() const
+    const auto& Name() const noexcept
     { return m_name; }
 
 private:
@@ -198,16 +193,14 @@ private:
     template <class S1, class S2>
     SaveFileColumn(S1&& name, S2&& wide_as, GG::X max_width) :
         m_name(std::forward<S1>(name)),
-        m_fixed(true),
         m_wide_as(std::forward<S2>(wide_as)),
-        m_stretch(0.0)
+        m_fixed(true)
     { m_fixed_width = ComputeFixedWidth(Title(), m_wide_as, max_width);}
 
     /// Creates a stretchy column
     template <class S>
     SaveFileColumn(S&& name, double stretch, GG::X max_width) :
         m_name(std::forward<S>(name)),
-        m_fixed(false),
         m_stretch(stretch)
     { m_fixed_width = ComputeFixedWidth(Title(), m_wide_as, max_width);}
 
@@ -253,37 +246,34 @@ private:
         }
     }
 
-    static GG::X ComputeFixedWidth(const std::string& title, const std::string& wide_as,
-                                   GG::X max_width)
-    {
-        auto font = ClientUI::GetFont();
+    static GG::X ComputeFixedWidth(const std::string& title, const std::string& wide_as, GG::X max_width) {
+        const auto font = ClientUI::GetFont();
         // We need to maintain the fixed sizes since the base list box messes them
-        std::vector<GG::Font::LineData> lines;
         GG::Flags<GG::TextFormat> fmt = GG::FORMAT_NONE;
 
-        //TODO cache this resulting extent
-        auto text_elements = font->ExpensiveParseFromTextToTextElements(wide_as, fmt);
-        lines = font->DetermineLines(wide_as, fmt, max_width, text_elements);
-        GG::Pt extent1 = font->TextExtent(lines);
+        //TODO: cache this resulting extent
+        auto text_elements1 = font->ExpensiveParseFromTextToTextElements(wide_as, fmt);
+        auto lines1 = font->DetermineLines(wide_as, fmt, max_width, text_elements1);
+        GG::Pt extent1 = font->TextExtent(lines1);
 
-        text_elements = font->ExpensiveParseFromTextToTextElements(title, fmt);
-        lines = font->DetermineLines(title, fmt, max_width, text_elements);
-        GG::Pt extent2 = font->TextExtent(lines);
+        auto text_elements2 = font->ExpensiveParseFromTextToTextElements(title, fmt);
+        auto lines2 = font->DetermineLines(title, fmt, max_width, text_elements2);
+        GG::Pt extent2 = font->TextExtent(lines2);
 
         return std::max(extent1.x, extent2.x) + GG::X(SAVE_FILE_CELL_MARGIN);
     }
 
     /// The identifier of what data to show. Must be valid.
     std::string m_name;
-    /// If true, column width is fixed to be the width of m_wide_as under the current font.
-    /// If false, column stretches with factor m_stretch
-    bool m_fixed;
-    /// The wideset fixed width from wide_as or the title
-    GG::X m_fixed_width = GG::X0;
     /// The string to be used in determining the width of the column
     std::string m_wide_as;
     /// The stretch of the column.
-    double m_stretch;
+    double m_stretch = 0.0;
+    /// The wideset fixed width from wide_as or the title
+    GG::X m_fixed_width = GG::X0;
+    /// If true, column width is fixed to be the width of m_wide_as under the current font.
+    /// If false, column stretches with factor m_stretch
+    bool m_fixed = false;
 };
 
 /** A Specialized row for the save dialog list box. */
@@ -302,7 +292,7 @@ public:
     virtual void Init()
     { m_initialized = true;}
 
-    const std::string&  Filename() const
+    const std::string& Filename() const noexcept
     { return m_filename; }
 
     void PreRender() override {
@@ -333,7 +323,7 @@ public:
         interaction with the ListBox base class that sets the column widths back to those defined
         by SetColWidths().*/
     virtual void AdjustColumns() {
-        auto&& layout = GetLayout();
+        auto layout = GetLayout();
         if (!layout)
             return;
         for (unsigned int i = 0; i < m_columns.size(); ++i) {
@@ -349,7 +339,7 @@ protected:
     bool m_initialized = false;
 };
 
-class SaveFileHeaderRow: public SaveFileRow {
+class SaveFileHeaderRow final : public SaveFileRow {
 public:
     SaveFileHeaderRow(const std::vector<SaveFileColumn>& columns) :
         SaveFileRow(columns, "")
@@ -365,10 +355,10 @@ public:
         AdjustColumns();
     }
 
-    void Render() override {}
+    void Render() noexcept override {}
 };
 
-class SaveFileDirectoryRow: public SaveFileRow {
+class SaveFileDirectoryRow final : public SaveFileRow {
 public:
     SaveFileDirectoryRow(const std::vector<SaveFileColumn>& columns, const std::string& directory) :
         SaveFileRow(columns, directory)
@@ -381,16 +371,18 @@ public:
 
     void Init() override {
         SaveFileRow::Init();
+        const auto font_height = ClientUI::GetFont()->Height();
+
         for (unsigned int i = 0; i < m_columns.size(); ++i) {
             if (i == 0) {
                 auto label = GG::Wnd::Create<CUILabel>(PATH_DELIM_BEGIN + m_filename + PATH_DELIM_END,
                                                        GG::FORMAT_NOWRAP | GG::FORMAT_LEFT);
-                label->Resize(GG::Pt(DirectoryNameSize(), ClientUI::GetFont()->Height()));
+                label->Resize(GG::Pt(DirectoryNameSize(), font_height));
                 push_back(std::move(label));
             } else {
                 // Dummy columns so that all rows have the same number of cols
                 auto label = GG::Wnd::Create<CUILabel>("", GG::FORMAT_NOWRAP);
-                label->Resize(GG::Pt(GG::X0, ClientUI::GetFont()->Height()));
+                label->Resize(GG::Pt(GG::X0, font_height));
                 push_back(std::move(label));
             }
         }
@@ -399,7 +391,7 @@ public:
         GetLayout()->PreRender();
     }
 
-    SortKeyType SortKey(std::size_t column) const override
+    SortKeyType SortKey(std::size_t) const noexcept override
     { return m_filename; }
 
     GG::X DirectoryNameSize() {
@@ -408,15 +400,14 @@ public:
             return ClientUI::GetFont()->SpaceWidth() * 10;
 
         // Give the directory label at least all the room that the other columns demand anyway
-        GG::X sum(0);
-        for (const auto& column : m_columns) {
+        GG::X sum(GG::X0);
+        for (const auto& column : m_columns)
             sum += column.FixedWidth();
-        }
         return sum;
     }
 };
 
-class SaveFileFileRow: public SaveFileRow {
+class SaveFileFileRow final : public SaveFileRow {
 public:
     /// Creates a row for the given savefile
     SaveFileFileRow(FullPreview&& full,
@@ -450,7 +441,7 @@ public:
         GetLayout()->PreRender();
     }
 
-    SortKeyType SortKey(std::size_t column) const override
+    SortKeyType SortKey(std::size_t) const noexcept override
     { return m_full_preview.preview.save_time; }
 
 private:
@@ -555,7 +546,7 @@ public:
 
     bool HasFile(const std::string& filename) {
         for (const auto& row : *this) {
-            SaveFileRow* srow = dynamic_cast<SaveFileRow*>(row.get());
+            auto* srow = dynamic_cast<const SaveFileRow*>(row.get());
             if (srow && srow->Filename() == filename)
                 return true;
         }
@@ -566,14 +557,12 @@ private:
     std::vector<SaveFileColumn> m_columns;
     std::vector<SaveFileColumn> m_visible_columns;
 
-    static std::vector<SaveFileColumn> FilterColumns(
-        const std::vector<SaveFileColumn>& all_cols)
-    {
+    static std::vector<SaveFileColumn> FilterColumns(const std::vector<SaveFileColumn>& all_cols) {
         std::vector<SaveFileColumn> columns;
         columns.reserve(all_cols.size());
 
-        std::vector<std::string> names = GetOptionsDB().Get<std::vector<std::string>>("ui.dialog.save.columns");
-        for (std::string& column_name : names) {
+        const auto names = GetOptionsDB().Get<std::vector<std::string>>("ui.dialog.save.columns");
+        for (const auto& column_name : names) {
             bool found_col = false;
             for (const auto& column : all_cols) {
                 if (column.Name() == column_name) {
@@ -594,19 +583,30 @@ private:
     /// a) always be first
     /// b) be sorted alphabetically
     /// This custom comparer achieves these goals.
-    static bool DirectoryAwareCmp(const Row& row1, const Row& row2, int column_int) {
-        std::string key1(row1.SortKey(0));
-        std::string key2(row2.SortKey(0));
+    static bool DirectoryAwareCmp(const Row& row1, const Row& row2, int column_int) noexcept {
+        const auto* row1_as_filerow = dynamic_cast<const SaveFileRow*>(&row1);
+        const auto* row2_as_filerow = dynamic_cast<const SaveFileRow*>(&row2);
+        if (!row1_as_filerow)
+            return !row2_as_filerow; // row1 is not a file row, should be sorted greater than (after) anything that is, and equal with another not a file row
+        if (!row2_as_filerow)
+            return true;             // row2 is not a file row, but row1 is, so row1 should be less than (before) row2
 
-        const bool row1_is_directory = dynamic_cast<const SaveFileDirectoryRow*>(&row1);
-        const bool row2_is_directory = dynamic_cast<const SaveFileDirectoryRow*>(&row2);
-        if (!row1_is_directory && !row2_is_directory) {
-            return key1.compare(key2) <= 0;
-        } else if ( row1_is_directory && row2_is_directory ) {
-            // Directories always return directory name as sort key
-            return key1.compare(key2) >= 0;
+        const auto* row1_as_directory = dynamic_cast<const SaveFileDirectoryRow*>(&row1);
+        const auto* row2_as_directory = dynamic_cast<const SaveFileDirectoryRow*>(&row2);
+
+        if (row1_as_directory && row2_as_directory) {
+            // both are directories: compare keys
+            return row1_as_directory->SortKey(0).compare(row2_as_directory->SortKey(0)) >= 0;
+
+        } else if (!row1_as_directory && !row2_as_directory) {
+            // both not directories: compare keys
+            return row1_as_filerow->SortKey(0).compare(row2_as_filerow->SortKey(0)) <= 0;
+
         } else {
-            return ( !row1_is_directory && row2_is_directory );
+            // one directory, one not: put directories first.
+            // if row1 is a directory, and row2 isn't, row1 should be first
+            // if row1 is not directory, it is equal with or should be after row2
+            return !row1_as_directory || row2_as_directory;
         }
     }
 };
@@ -617,7 +617,7 @@ SaveFileDialog::SaveFileDialog(const Purpose purpose, const SaveType type) :
            std::string{SAVE_FILE_WND_NAME}),
     m_extension((type == SaveType::SinglePlayer) ? SP_SAVE_FILE_EXTENSION : MP_SAVE_FILE_EXTENSION),
     m_load_only(purpose == Purpose::Load),
-    m_server_previews((type == SaveType::SinglePlayer) ? false : true)
+    m_server_previews(type != SaveType::SinglePlayer)
 {}
 
 void SaveFileDialog::CompleteConstruction() {
@@ -688,9 +688,8 @@ void SaveFileDialog::Init() {
     m_layout->SetRowStretch      (1, 1.0 );
     GG::Flags<GG::TextFormat> fmt = GG::FORMAT_NONE;
     std::string cancel_text(cancel_btn->Text());
-    std::vector<std::shared_ptr<GG::Font::TextElement>> text_elements =
-    font->ExpensiveParseFromTextToTextElements(cancel_text, fmt);
-    std::vector<GG::Font::LineData> lines = ClientUI::GetFont()->DetermineLines(
+    auto text_elements = font->ExpensiveParseFromTextToTextElements(cancel_text, fmt);
+    auto lines = ClientUI::GetFont()->DetermineLines(
         cancel_text, fmt, GG::X(1 << 15), text_elements);
     GG::Pt extent = ClientUI::GetFont()->TextExtent(lines);
     m_layout->SetMinimumRowHeight(3, extent.y);
@@ -748,7 +747,7 @@ void SaveFileDialog::ModalInit() {
     GG::GUI::GetGUI()->SetFocusWnd(m_name_edit);
 }
 
-void SaveFileDialog::KeyPress(GG::Key key, std::uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys ) {
+void SaveFileDialog::KeyPress(GG::Key key, uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys ) {
     // Return without filename
     if (key == GG::Key::GGK_ESCAPE) {
         Cancel();
@@ -832,7 +831,7 @@ void SaveFileDialog::Confirm() {
             if (!Prompt(std::move(question)))
                 return;
         } else if (fs::exists(chosen_full_path)) {
-            ErrorLogger() << "SaveFileDialog::Confirm: Invalid status for file: " << Result();
+            ErrorLogger() << "SaveFileDialog::Confirm: Invalid status for file: " << ResultString();
             return;
         }
     }
@@ -844,32 +843,31 @@ void SaveFileDialog::AskDelete() {
     if (m_server_previews)
         return;
 
-    fs::path chosen(Result());
-    if (fs::exists (chosen) && fs::is_regular_file (chosen)) {
-        std::string filename = m_name_edit->Text();
+    fs::path chosen(ResultPath());
+    if (!fs::exists(chosen) || !fs::is_regular_file(chosen))
+        return;
+    const auto& filename = m_name_edit->Text();
 
-        boost::format templ(UserString("SAVE_REALLY_DELETE"));
+    boost::format templ(UserString("SAVE_REALLY_DELETE"));
+    const auto answer = Prompt(str(templ % filename));
+    if (!answer)
+        return;
 
-        std::string question = str(templ % filename);
-        if (Prompt (question)) {
-            fs::remove(chosen);
-            // Move selection to next if any or previous, if any
-            auto it = m_file_list->Selections().begin();
-            if (it != m_file_list->Selections().end()) {
-                auto row_it = *it;
-                auto next_it(row_it);
-                ++next_it;
-                if (next_it != m_file_list->end()) {
-                    m_file_list->SelectRow(next_it, true);
-                } else if (row_it != m_file_list->begin()) {
-                    auto prev_it(row_it);
-                    --prev_it;
-                    m_file_list->SelectRow(next_it, true);
-                }
-                m_file_list->Erase(row_it);
-            }
-        }
-    }
+    fs::remove(chosen);
+    // Move selection to next if any or previous, if any
+    const auto sel_it = m_file_list->Selections().begin();
+    if (sel_it == m_file_list->Selections().end())
+        return;
+
+    const auto init_sel_row_it{*sel_it};
+    if (init_sel_row_it == m_file_list->end())
+        return;
+
+    if (std::next(init_sel_row_it) != m_file_list->end())
+        m_file_list->SelectRow(std::next(init_sel_row_it), true);
+    else if (init_sel_row_it != m_file_list->begin())
+        m_file_list->SelectRow(std::prev(init_sel_row_it), true);
+    m_file_list->Erase(init_sel_row_it);
 }
 
 void SaveFileDialog::DoubleClickRow(GG::ListBox::iterator row, GG::Pt pt, GG::Flags<GG::ModKey> modkeys) {
@@ -884,10 +882,10 @@ void SaveFileDialog::Cancel() {
 }
 
 void SaveFileDialog::SelectionChanged(const GG::ListBox::SelectionSet& selections) {
-    if ( selections.size() == 1 ) {
-        auto& row = **selections.begin();
-        SaveFileRow* save_row = boost::polymorphic_downcast<SaveFileRow*> (row.get());
-        m_name_edit -> SetText ( save_row->Filename() );
+    if (selections.size() == 1) {
+        const auto* row = (*selections.begin())->get();
+        if (const auto* save_row = dynamic_cast<const SaveFileRow*>(row))
+            m_name_edit->SetText(save_row->Filename());
     } else {
         DebugLogger() << "SaveFileDialog::SelectionChanged: Unexpected selection size: " << selections.size();
     }
@@ -1033,14 +1031,17 @@ void SaveFileDialog::SetDirPath(std::string dirname) {
     m_current_dir_edit->SetText(std::move(dirname));
 }
 
-std::string SaveFileDialog::Result() const {
-    std::string choice = m_name_edit->Text();
+fs::path SaveFileDialog::ResultPath() const {
+    const auto& choice = m_name_edit->Text();
     if (choice.empty())
-        return "";
+        return {};
 
     fs::path choice_path = FilenameToPath(choice);
     fs::path current_dir = FilenameToPath(GetDirPath());
     fs::path chosen_full_path = current_dir / choice_path;
 
-    return PathToString(chosen_full_path);
+    return chosen_full_path;
 }
+
+std::string SaveFileDialog::ResultString() const
+{ return PathToString(ResultPath()); }

@@ -4,7 +4,6 @@
 #include <iomanip>
 #include <cctype>
 #include <boost/algorithm/string/predicate.hpp>
-#include <boost/cast.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <GG/Button.h>
 #include <GG/Layout.h>
@@ -20,8 +19,8 @@
 
 
 namespace {
-    constexpr GG::X WINDOW_WIDTH(400);
-    constexpr GG::Y WINDOW_HEIGHT(535);
+    constexpr GG::X WINDOW_WIDTH{400};
+    constexpr GG::Y WINDOW_HEIGHT{535};
 
     bool NameOK(const std::string& name) {
         for (const auto& character : name) {
@@ -97,7 +96,7 @@ void ServerConnectWnd::CompleteConstruction() {
     m_ok_bn = Wnd::Create<CUIButton>(UserString("OK"));
     m_cancel_bn = Wnd::Create<CUIButton>(UserString("CANCEL"));
 
-    static constexpr GG::X OK_CANCEL_BUTTON_WIDTH(100);
+    static constexpr GG::X OK_CANCEL_BUTTON_WIDTH{100};
     static constexpr int CONTROL_MARGIN = 5;
 
     auto layout = GG::Wnd::Create<GG::Layout>(GG::X0, GG::Y0, GG::X1, GG::Y1, 8, 4, CONTROL_MARGIN);
@@ -174,7 +173,7 @@ GG::Rect ServerConnectWnd::CalculatePosition() const {
     return GG::Rect(new_ul, new_ul + new_sz);
 }
 
-void ServerConnectWnd::KeyPress(GG::Key key, std::uint32_t key_code_point,
+void ServerConnectWnd::KeyPress(GG::Key key, uint32_t key_code_point,
                                 GG::Flags<GG::ModKey> mod_keys)
 {
     if (!m_ok_bn->Disabled() && (key == GG::Key::GGK_RETURN || key == GG::Key::GGK_KP_ENTER)) {
@@ -186,27 +185,38 @@ void ServerConnectWnd::KeyPress(GG::Key key, std::uint32_t key_code_point,
     }
 }
 
-const ServerConnectWnd::Result& ServerConnectWnd::GetResult() const
-{ return m_result; }
+namespace {
+    auto to_string_vec(const std::vector<std::string_view>& svs) {
+        std::vector<std::string> retval;
+        retval.reserve(svs.size());
+        std::transform(svs.begin(), svs.end(), std::back_inserter(retval),
+                       [](const auto sv) { return std::string{sv}; });
+        return retval;
+    }
+}
 
 void ServerConnectWnd::PopulateServerList() {
     m_servers_lb->Clear();
-    const auto server_names = GGHumanClientApp::GetApp()->Networking().DiscoverLANServerNames();
-    for (const auto& server : server_names) {
-        auto row = GG::Wnd::Create<GG::ListBox::Row>();
-        row->push_back(GG::Wnd::Create<CUILabel>(server));
-        m_servers_lb->Insert(row);
+    {
+        auto server_names = GGHumanClientApp::GetApp()->Networking().DiscoverLANServerNames();
+        for (const auto& server_name : server_names) {
+            auto row = GG::Wnd::Create<GG::ListBox::Row>();
+            row->push_back(GG::Wnd::Create<CUILabel>(std::move(server_name)));
+            m_servers_lb->Insert(row);
+        }
     }
-    std::set<std::string> known_servers;
-    GetOptionsDB().FindOptions(known_servers, "network.known-servers", true);
-    for (const auto& option : known_servers) {
+    // make local copies of server name options, since code below will possibly add more options.
+    // that could invalidate any views into names of existing options.
+    auto known_servers_options = to_string_vec(GetOptionsDB().FindOptions("network.known-servers", true));
+
+    for (const auto& option : known_servers_options) {
         if (boost::algorithm::ends_with(option, ".address")) {
             if (!GetOptionsDB().OptionExists(option))
                 GetOptionsDB().Add<std::string>(option, "OPTIONS_DB_SERVER_COOKIE", "");
-            std::string server = GetOptionsDB().Get<std::string>(option);
+            auto server = GetOptionsDB().Get<std::string>(option);
             auto row = GG::Wnd::Create<GG::ListBox::Row>();
-            row->push_back(GG::Wnd::Create<CUILabel>(server));
-            m_servers_lb->Insert(row);
+            row->push_back(GG::Wnd::Create<CUILabel>(std::move(server)));
+            m_servers_lb->Insert(std::move(row));
         }
     }
 }
@@ -234,18 +244,21 @@ void ServerConnectWnd::OkClicked() {
     m_result.player_name = *m_player_name_edit;
     auto it = m_client_type_list->CurrentItem();
     if (it != m_client_type_list->end()) {
-        const ClientTypeRow* type_row = boost::polymorphic_downcast<const ClientTypeRow*>(it->get());
-        if (type_row) {
+        if (const auto* type_row = dynamic_cast<const ClientTypeRow*>(it->get()))
             m_result.type = type_row->type;
-        }
     }
     if (m_host_or_join_radio_group->CheckedButton() == 0) {
         m_result.server_dest = "HOST GAME SELECTED";
     } else {
         m_result.server_dest = *m_IP_address_edit;
-        if (m_result.server_dest.empty() && !(***m_servers_lb->Selections().begin()).empty()) {
-            m_result.server_dest = boost::polymorphic_downcast<GG::Label*>(
-                (***m_servers_lb->Selections().begin()).at(0))->Text() ;
+        if (m_result.server_dest.empty()) {
+            const auto& sels{m_servers_lb->Selections()};
+            if (!sels.empty()) {
+                if (const auto* sel_row{(*sels.begin())->get()})
+                    if (!sel_row->empty())
+                        if (const auto* label = dynamic_cast<const GG::Label*>(sel_row->at(0)))
+                             m_result.server_dest = label->Text();
+            }
         }
     }
     CUIWnd::CloseClicked();

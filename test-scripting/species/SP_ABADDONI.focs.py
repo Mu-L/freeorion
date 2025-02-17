@@ -1,23 +1,28 @@
-from species.common.env import BROAD_EP, INFERNO_BROAD_EP
-from species.common.focus import (
+try:
+    from focs._effects import EffectsGroup, GiveEmpireTech, IsSource, Target, Turn
+    from focs._species import *
+except ModuleNotFoundError:
+    pass
+from species.species_macros.env import BROAD_EP, INFERNO_BROAD_EP
+from species.species_macros.focus import (
     HAS_ADVANCED_FOCI,
     HAS_GROWTH_FOCUS,
     HAS_INDUSTRY_FOCUS,
     HAS_INFLUENCE_FOCUS,
     HAS_RESEARCH_FOCUS,
 )
-from species.common.happiness import GOOD_HAPPINESS
-from species.common.industry import AVERAGE_INDUSTRY
-from species.common.influence import GREAT_INFLUENCE
-from species.common.planet_defense import AVERAGE_PLANETARY_DEFENSE
-from species.common.planet_shields import AVERAGE_PLANETARY_SHIELDS
-from species.common.planet_size import LARGE_PLANET
-from species.common.population import AVERAGE_POPULATION
-from species.common.research import BAD_RESEARCH
-from species.common.shields import STANDARD_SHIP_SHIELDS
-from species.common.stockpile import AVERAGE_STOCKPILE
-from species.common.supply import AVERAGE_SUPPLY
-from species.common.troops import BAD_DEFENSE_TROOPS
+from species.species_macros.happiness import GOOD_HAPPINESS
+from species.species_macros.industry import AVERAGE_INDUSTRY
+from species.species_macros.influence import GREAT_INFLUENCE
+from species.species_macros.planet_defense import AVERAGE_PLANETARY_DEFENSE
+from species.species_macros.planet_shields import AVERAGE_PLANETARY_SHIELDS
+from species.species_macros.planet_size import LARGE_PLANET
+from species.species_macros.population import AVERAGE_POPULATION
+from species.species_macros.research import BAD_RESEARCH
+from species.species_macros.shields import STANDARD_SHIP_SHIELDS
+from species.species_macros.stockpile import AVERAGE_STOCKPILE
+from species.species_macros.supply import AVERAGE_SUPPLY
+from species.species_macros.troops import BAD_DEFENSE_TROOPS
 
 Species(
     name="SP_ABADDONI",
@@ -88,10 +93,10 @@ Species(
         # not for description
         *AVERAGE_PLANETARY_SHIELDS,
         *AVERAGE_PLANETARY_DEFENSE,
-        LARGE_PLANET,
+        *LARGE_PLANET,
         BROAD_EP,
         *STANDARD_SHIP_SHIELDS,
     ],
-    **INFERNO_BROAD_EP,
+    environments=INFERNO_BROAD_EP,
     graphic="icons/species/abaddonnian.png",
 )

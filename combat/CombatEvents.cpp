@@ -7,12 +7,10 @@
 #include "../util/AppInterface.h"
 #include "../util/VarText.h"
 #include "../util/GameRules.h"
+#include "../util/GameRuleRanks.h"
 
 #include "../Empire/Empire.h"
 
-#if __has_include(<charconv>)
-  #include <charconv>
-#endif
 #include <sstream>
 
 namespace {
@@ -21,10 +19,15 @@ namespace {
     void AddRules(GameRules& rules) {
         rules.Add<int>(UserStringNop("RULE_NUM_COMBAT_ROUNDS"),
                        UserStringNop("RULE_NUM_COMBAT_ROUNDS_DESC"),
-                       "", 4, true, RangedValidator<int>(2, 20));
+                       GameRuleCategories::GameRuleCategory::GENERAL,
+                       4, true,
+                       GameRuleRanks::RULE_NUM_COMBAT_ROUNDS_RANK,
+                       RangedValidator<int>(2, 20));
         rules.Add<bool>(UserStringNop("RULE_AGGRESSIVE_SHIPS_COMBAT_VISIBLE"),
                         UserStringNop("RULE_AGGRESSIVE_SHIPS_COMBAT_VISIBLE_DESC"),
-                        "", false, true);
+                        GameRuleCategories::GameRuleCategory::GENERAL,
+                        false, true,
+                        GameRuleRanks::RULE_AGGRESSIVE_SHIPS_COMBAT_VISIBLE_RANK);
 
     }
     bool temp_bool = RegisterGameRules(&AddRules);
@@ -69,46 +72,57 @@ namespace {
         return retval;
     }
 
-    //Copied pasted from Font.cpp due to Font not being linked into AI and server code
+    constexpr auto* UInt8ToChars(std::string::value_type* out_it, const uint8_t num) noexcept {
+        const uint8_t hundreds = num / 100u;
+        const uint8_t less_than_100 = num - hundreds*100u;
+        const uint8_t tens = less_than_100 / 10u;
+        const uint8_t ones = less_than_100 - tens*10u;
+        if (hundreds > 0)
+            *out_it++ = (hundreds + '0');
+        if (tens > 0 || hundreds > 0)
+            *out_it++ = (tens + '0');
+        *out_it++ = (ones + '0');
+        return out_it;
+    };
+
+    constexpr auto* ToChars(std::string::value_type* it, EmpireColor c) noexcept {
+        it = UInt8ToChars(it, c[0]);
+        *it++ = ' ';
+        it = UInt8ToChars(it, c[1]);
+        *it++ = ' ';
+        it = UInt8ToChars(it, c[2]);
+        *it++ = ' ';
+        it = UInt8ToChars(it, c[3]);
+        return it;
+    }
+
+
     std::string WrapColorTag(std::string_view text, EmpireColor c) {
         static constexpr auto lim = std::numeric_limits<EmpireColor::value_type>::max();
         static_assert(lim < 1000); // ensure no more than 3 characters will be consumed per number
         assert(c.size() >= 4);
+        //                                      <rgba  255  ' ' '>'  0
+        static constexpr std::size_t rgba_tag_sz = 6 + 4*3 + 3 + 1 + 1;
+        std::array<std::string::value_type, rgba_tag_sz> rgba_tag{"<rgba "}; // rest should be nulls
+        static constexpr std::string_view rgba_close_tag{"</rgba>"};
 
         std::string retval;
+        retval.reserve(text.size() + rgba_tag_sz + rgba_close_tag.size());
 
-#if defined(__cpp_lib_to_chars)
-        std::array<std::string::value_type, 6 + 4*4 + 1> buffer{"<rgba "}; // rest should be nulls
-        auto result = std::to_chars(buffer.data() + 6, buffer.data() + 9, static_cast<int>(c[0]));
-        *result.ptr = ' ';
-        result = std::to_chars(result.ptr + 1, result.ptr + 4, static_cast<int>(c[1]));
-        *result.ptr = ' ';
-        result = std::to_chars(result.ptr + 1, result.ptr + 4, static_cast<int>(c[2]));
-        *result.ptr = ' ';
-        result = std::to_chars(result.ptr + 1, result.ptr + 4, static_cast<int>(c[3]));
-        *result.ptr = '>';
-        retval.reserve(buffer.size() + text.size() + 7 + 1);
-        retval.append(buffer.data()).append(text).append("</rgba>");
-#else
-        retval.reserve(6 + 4*4 + text.size() + 7 + 4);
-        retval.append("<rgba ")
-              .append(std::to_string(static_cast<int>(std::get<0>(c)))).append(" ")
-              .append(std::to_string(static_cast<int>(std::get<1>(c)))).append(" ")
-              .append(std::to_string(static_cast<int>(std::get<2>(c)))).append(" ")
-              .append(std::to_string(static_cast<int>(std::get<3>(c)))).append(">")
-              .append(text).append("</rgba>");
-#endif
+        auto next_it = ToChars(std::next(rgba_tag.data(), 6), c);
+        *next_it++ = '>';
+        const auto tag_view = std::string_view(rgba_tag.data(), std::distance(rgba_tag.data(), next_it));
+
+        retval.append(tag_view).append(text).append(rgba_close_tag);
+
         return retval;
     }
 
-    std::string EmpireColorWrappedText(int empire_id, std::string_view text,
-                                       const ScriptingContext& context)
-    {
-        // TODO: refactor this to somewhere that links with the UI code.
-        // Hardcoded default color becauses not linked with UI code.
-        auto empire = context.GetEmpire(empire_id);
-        return WrapColorTag(text, empire ? empire->Color() : EmpireColor{{80, 255, 128, 255}});
-    }
+    std::string EmpireColorWrappedText(const auto& empire, std::string_view text)
+    { return WrapColorTag(text, empire ? empire->Color() : EmpireColor{{80, 255, 128, 255}}); }
+
+    std::string EmpireColorWrappedText(int empire_id, std::string_view text, const ScriptingContext& context)
+    { return EmpireColorWrappedText(context.GetEmpire(empire_id), text); }
 
     /// Creates a link tag of the appropriate type for object_id,
     /// with the content being the public name from the point of view of empire_id.
@@ -137,17 +151,16 @@ namespace {
         if (empire_id == ALL_EMPIRES) {
             return UserString("NEUTRAL");
         } else if (auto empire = context.GetEmpire(empire_id)) {
-            return EmpireColorWrappedText(
-                empire_id, WrapWithTagAndId(empire->Name(), VarText::EMPIRE_ID_TAG, empire_id),
-                context);
+            return EmpireColorWrappedText(empire,
+                                          WrapWithTagAndId(empire->Name(), VarText::EMPIRE_ID_TAG, empire_id));
         } else {
             return UserString("ENC_COMBAT_UNKNOWN_OBJECT");
         }
     }
 
     std::string ShipPartLink(std::string_view part) {
-        return part.empty() ? UserString("ENC_COMBAT_UNKNOWN_OBJECT")
-            : WrapUserStringWithTag(part, VarText::SHIP_PART_TAG);
+        return part.empty() ?
+            UserString("ENC_COMBAT_UNKNOWN_OBJECT") : WrapUserStringWithTag(part, VarText::SHIP_PART_TAG);
     }
 }
 
@@ -155,10 +168,6 @@ namespace {
 //////////////////////////////////////////
 ///////// BoutBeginEvent//////////////////
 //////////////////////////////////////////
-BoutBeginEvent::BoutBeginEvent(int bout_) :
-    bout(bout_)
-{}
-
 std::string BoutBeginEvent::DebugString(const ScriptingContext&) const
 { return std::string{"Bout "}.append(std::to_string(bout)).append(" begins."); }
 
@@ -169,13 +178,6 @@ std::string BoutBeginEvent::CombatLogDescription(int viewing_empire_id, const Sc
 //////////////////////////////////////////
 ///////// BoutEvent /////////////
 //////////////////////////////////////////
-BoutEvent::BoutEvent(int _bout):
-    bout(_bout)
-{}
-
-void BoutEvent::AddEvent(CombatEventPtr event)
-{ events.push_back(std::move(event)); }
-
 std::string BoutEvent::DebugString(const ScriptingContext&) const {
     std::stringstream ss;
     ss << "Bout " << bout << " has " << events.size() << " events";
@@ -195,47 +197,26 @@ std::vector<ConstCombatEventPtr> BoutEvent::SubEvents(int viewing_empire_id) con
 void SimultaneousEvents::AddEvent(CombatEventPtr event)
 { events.push_back(std::move(event)); }
 
-// The following two function definitions were moved to the header because the linker refuses to find them otherwise...
-
-//std::string SimultaneousEvents::DebugString(const ScriptingContext&) const {
-//    std::stringstream ss;
-//    ss << "SimultaneousEvents has " << events.size() << " events";
-//    return ss.str();
-//}
-
-//std::string SimultaneousEvents::CombatLogDescription(int viewing_empire_id, const ScriptingContext& context) const
-//{ return ""; }
+std::string SimultaneousEvents::DebugString(const ScriptingContext&) const
+{ return "SimultaneousEvents has " + std::to_string(events.size()) + " events"; }
 
 std::vector<ConstCombatEventPtr> SimultaneousEvents::SubEvents(int viewing_empire_id) const {
-    // Sort the events by viewing empire, then ALL_EMPIRES and then
-    // other empires.
-    std::multimap<int, ConstCombatEventPtr> empire_to_event;
-    typedef std::multimap<int, ConstCombatEventPtr>::iterator iterator;
-    typedef std::pair<iterator, iterator> range;
-
-    for (CombatEventPtr event : events) {
-        boost::optional<int> maybe_faction = event->PrincipalFaction(viewing_empire_id);
-        int faction = maybe_faction.get_value_or(ALL_EMPIRES);
-        empire_to_event.emplace(faction, event);
-    }
+    // Sort the events by viewing empire, then ALL_EMPIRES, and then other empires.
+    std::vector<std::pair<int, ConstCombatEventPtr>> empire_to_event;
+    empire_to_event.reserve(events.size());
+    const auto to_faction_event = [viewing_empire_id](const auto& event)
+    { return std::pair{event->PrincipalFaction(viewing_empire_id).get_value_or(ALL_EMPIRES), event}; };
+    range_copy(events | range_transform(to_faction_event), std::back_inserter(empire_to_event));
+    // put viewer events first
+    const auto viewer_events_end_it = std::stable_partition(empire_to_event.begin(), empire_to_event.end(),
+                                                            [viewing_empire_id](const auto& e) { return e.first == viewing_empire_id; });
+    // sort remaining events by viewer id. ALL_EMPIRES should be lower than other empire IDs so appears next
+    std::stable_sort(viewer_events_end_it, empire_to_event.end(),
+                     [](const auto& lhs, const auto& rhs) { return lhs.first < rhs.first; });
 
     std::vector<ConstCombatEventPtr> ordered_events;
     ordered_events.reserve(empire_to_event.size());
-
-    range viewing_empire_events = empire_to_event.equal_range(viewing_empire_id);
-    range all_empire_events = empire_to_event.equal_range(ALL_EMPIRES);
-
-    for (iterator it = viewing_empire_events.first; it != viewing_empire_events.second; ++it)
-        ordered_events.push_back(it->second);
-
-    for (iterator it = all_empire_events.first; it != all_empire_events.second; ++it)
-        ordered_events.push_back(it->second);
-
-    for (auto& entry : empire_to_event) {
-        if (entry.first != viewing_empire_id && entry.first != ALL_EMPIRES)
-            ordered_events.push_back(entry.second);
-    }
-
+    range_copy(empire_to_event | range_values, std::back_inserter(ordered_events));
     return ordered_events;
 }
 
@@ -243,20 +224,20 @@ std::vector<ConstCombatEventPtr> SimultaneousEvents::SubEvents(int viewing_empir
 //////////////////////////////////////////
 ///////// InitialStealthEvent /////////////
 //////////////////////////////////////////
-InitialStealthEvent::InitialStealthEvent(const EmpireToObjectVisibilityMap& x) :
-    empire_to_object_visibility(x)
-{}
-
 std::string InitialStealthEvent::DebugString(const ScriptingContext& context) const {
+    auto get_obj_id_owner = [&context](const auto id) -> std::pair<int, int> {
+        const auto* obj = context.ContextObjects().getRaw(id);
+        return obj ? std::pair(obj->ID(), obj->Owner()) : std::pair(INVALID_OBJECT_ID, ALL_EMPIRES);
+    };
+
     std::stringstream ss;
     ss << "InitialStealthEvent: ";
     for (auto& [empire_id, empire_object_vis] : empire_to_object_visibility) {
         ss << " Viewing Empire: " << EmpireLink(empire_id, context) << "\n";
 
-        for (auto& [object_id, object_vis] : empire_object_vis) {
-            (void)object_vis; // quiet warning
-            const auto obj = context.ContextObjects().get(object_id);
-            int owner_id = obj ? obj->Owner() : ALL_EMPIRES;
+        for (const auto [object_id, owner_id] : empire_object_vis
+             | range_keys | range_transform(get_obj_id_owner))
+        {
             if (owner_id == ALL_EMPIRES)
                 continue;
             ss << FighterOrPublicNameLink(ALL_EMPIRES, object_id, owner_id, context);
@@ -288,6 +269,10 @@ std::string InitialStealthEvent::CombatLogDescription(int viewing_empire_id, con
             if (object_vis > Visibility::VIS_NO_VISIBILITY)
                 continue;
 
+            // ignore fleets from mention of being initially unable to detect - individual ships are mentioned already
+            if (obj && obj->ObjectType() == UniverseObjectType::OBJ_FLEET)
+                continue;
+
             // all empires specifies empire to use for link color if this is a fighter
             cloaked_attackers.push_back(FighterOrPublicNameLink(
                 viewing_empire_id, object_id, ALL_EMPIRES, context));
@@ -312,23 +297,6 @@ std::string InitialStealthEvent::CombatLogDescription(int viewing_empire_id, con
 //////////////////////////////////////////
 ///////// StealthChangeEvent /////////////
 //////////////////////////////////////////
-StealthChangeEvent::StealthChangeEvent(int bout_) :
-    bout(bout_)
-{}
-
-StealthChangeEvent::StealthChangeEventDetail::StealthChangeEventDetail() :
-    StealthChangeEventDetail(INVALID_OBJECT_ID, INVALID_OBJECT_ID, ALL_EMPIRES, ALL_EMPIRES, Visibility::VIS_NO_VISIBILITY)
-{}
-
-StealthChangeEvent::StealthChangeEventDetail::StealthChangeEventDetail(
-    int attacker_id_, int target_id_, int attacker_empire_, int target_empire_, Visibility new_visibility_) :
-    attacker_id(attacker_id_),
-    target_id(target_id_),
-    attacker_empire_id(attacker_empire_),
-    target_empire_id(target_empire_),
-    visibility(new_visibility_)
-{}
-
 std::string StealthChangeEvent::StealthChangeEventDetail::DebugString(const ScriptingContext& context) const {
     std::stringstream ss;
     ss << "StealthChangeDetailEvent"
@@ -341,14 +309,22 @@ std::string StealthChangeEvent::StealthChangeEventDetail::CombatLogDescription(
     int viewing_empire_id, const ScriptingContext& context) const
 {
     std::string attacker_link = FighterOrPublicNameLink(viewing_empire_id, attacker_id, attacker_empire_id, context);
-    std::string target_link = FighterOrPublicNameLink(viewing_empire_id, target_id, target_empire_id, context);
-    std::string empire_link = EmpireLink(target_empire_id, context);
-    const std::string& template_str = UserString("ENC_COMBAT_STEALTH_DECLOAK_ATTACK");
+    std::string target_empire_link = EmpireLink(target_empire_id, context);
 
-    return str(FlexibleFormat(template_str)
-               % attacker_link
-               % target_link
-               % empire_link);
+    if (is_fighter_launch) {
+        const std::string& template_str = UserString("ENC_COMBAT_STEALTH_DECLOAK_LAUNCH");
+        return str(FlexibleFormat(template_str)
+                   % attacker_link
+                   % target_empire_link);
+
+    } else {
+        std::string target_link = FighterOrPublicNameLink(viewing_empire_id, target_id, target_empire_id, context);
+        const std::string& template_str = UserString("ENC_COMBAT_STEALTH_DECLOAK_ATTACK");
+        return str(FlexibleFormat(template_str)
+                   % attacker_link
+                   % target_link
+                   % target_empire_link);
+    }
 }
 
 
@@ -358,6 +334,14 @@ void StealthChangeEvent::AddEvent(int attacker_id_, int target_id_, int attacker
     events[target_empire_].push_back(
         std::make_shared<StealthChangeEventDetail>(
             attacker_id_, target_id_, attacker_empire_, target_empire_, new_visibility_));
+}
+
+void StealthChangeEvent::AddEvent(int launcher_id_, int launcher_empire_id_,
+                                  int observer_empire_id_, Visibility new_visibility_)
+{
+    events[observer_empire_id_].push_back(
+        std::make_shared<StealthChangeEventDetail>(
+            launcher_id_, launcher_empire_id_, observer_empire_id_, new_visibility_));
 }
 
 std::string StealthChangeEvent::DebugString(const ScriptingContext& context) const {
@@ -407,9 +391,6 @@ std::string StealthChangeEvent::CombatLogDescription(int viewing_empire_id, cons
     return desc;
 }
 
-bool StealthChangeEvent::AreSubEventsEmpty(int viewing_empire_id) const
-{ return events.empty(); }
-
 std::vector<ConstCombatEventPtr> StealthChangeEvent::SubEvents(int viewing_empire_id) const {
     std::vector<ConstCombatEventPtr> all_events;
     all_events.reserve(events.size());  // underestimate probably
@@ -423,19 +404,6 @@ std::vector<ConstCombatEventPtr> StealthChangeEvent::SubEvents(int viewing_empir
 //////////////////////////////////////////
 ///////// Attack Event////////////////////
 //////////////////////////////////////////
-WeaponFireEvent::WeaponFireEvent(
-    int bout_, int round_, int attacker_id_, int target_id_, std::string weapon_name_,
-    const std::tuple<float, float, float>& power_shield_damage,
-    int attacker_owner_id_, int target_owner_id_) :
-    bout(bout_),
-    round(round_),
-    attacker_id(attacker_id_),
-    target_id(target_id_),
-    weapon_name(std::move(weapon_name_)),
-    attacker_owner_id(attacker_owner_id_),
-    target_owner_id(target_owner_id_)
-{ std::tie(power, shield, damage) = power_shield_damage; }
-
 std::string WeaponFireEvent::DebugString(const ScriptingContext&) const {
     std::stringstream ss;
     ss << "rnd: " << round << " : "
@@ -475,32 +443,15 @@ std::string WeaponFireEvent::CombatLogDetails(int viewing_empire_id) const {
                    % damage);
 }
 
-boost::optional<int> WeaponFireEvent::PrincipalFaction(int viewing_empire_id) const
-{ return attacker_id; }
-
 
 //////////////////////////////////////////
 ///////// IncapacitationEvent/////////////
 //////////////////////////////////////////
-
-IncapacitationEvent::IncapacitationEvent() :
-    bout(-1),
-    object_id(INVALID_OBJECT_ID),
-    object_owner_id(ALL_EMPIRES)
-{}
-
-IncapacitationEvent::IncapacitationEvent(int bout_, int object_id_, int object_owner_id_) :
-    bout(bout_),
-    object_id(object_id_),
-    object_owner_id(object_owner_id_)
-{}
-
 std::string IncapacitationEvent::DebugString(const ScriptingContext&) const {
     std::stringstream ss;
     ss << "incapacitation of " << object_id << " owned by " << object_owner_id << " at bout " << bout;
     return ss.str();
 }
-
 
 std::string IncapacitationEvent::CombatLogDescription(int viewing_empire_id, const ScriptingContext& context) const {
     auto object = context.ContextObjects().get(object_id);
@@ -540,10 +491,6 @@ boost::optional<int> IncapacitationEvent::PrincipalFaction(int viewing_empire_id
 //////////////////////////////////////////
 ///////// FightersAttackFightersEvent ////
 //////////////////////////////////////////
-FightersAttackFightersEvent::FightersAttackFightersEvent(int bout_) :
-    bout(bout_)
-{}
-
 void FightersAttackFightersEvent::AddEvent(int attacker_empire_, int target_empire_)
 { events[{attacker_empire_, target_empire_}] += 1; }
 
@@ -611,15 +558,6 @@ std::string FightersAttackFightersEvent::CombatLogDescription(int viewing_empire
 //////////////////////////////////////////
 /////////// FighterLaunchEvent ///////////
 //////////////////////////////////////////
-FighterLaunchEvent::FighterLaunchEvent(int bout_, int launched_from_id_,
-                                       int fighter_owner_empire_id_,
-                                       int number_launched_) :
-    bout(bout_),
-    fighter_owner_empire_id(fighter_owner_empire_id_),
-    launched_from_id(launched_from_id_),
-    number_launched(number_launched_)
-{}
-
 std::string FighterLaunchEvent::DebugString(const ScriptingContext&) const {
     std::stringstream ss;
     ss << "launch from object " << launched_from_id
@@ -655,10 +593,6 @@ boost::optional<int> FighterLaunchEvent::PrincipalFaction(int viewing_empire_id)
 //////////////////////////////////////////
 ///////// FightersDestroyedEvent ////
 //////////////////////////////////////////
-FightersDestroyedEvent::FightersDestroyedEvent(int bout_) :
-    bout(bout_)
-{}
-
 void FightersDestroyedEvent::AddEvent(int target_empire_)
 { events[target_empire_] += 1; }
 
@@ -726,12 +660,6 @@ std::string FightersDestroyedEvent::CombatLogDescription(int viewing_empire_id,
 //////////////////////////////////////////
 ///////// WeaponsPlatformEvent /////////////
 //////////////////////////////////////////
-WeaponsPlatformEvent::WeaponsPlatformEvent(int bout_, int attacker_id_, int attacker_owner_id_) :
-    bout(bout_),
-    attacker_id(attacker_id_),
-    attacker_owner_id(attacker_owner_id_)
-{}
-
 void WeaponsPlatformEvent::AddEvent(int round_, int target_id_, int target_owner_id_,
                                     const std::string& weapon_name_, float power_,
                                     float shield_, float damage_)
@@ -747,8 +675,7 @@ std::string WeaponsPlatformEvent::DebugString(const ScriptingContext& context) c
     std::stringstream desc;
     desc << "WeaponsPlatformEvent bout = " << bout << " attacker_id = "
         << attacker_id << " attacker_owner = "<< attacker_owner_id;
-    for (auto& [ignored, event_vec] : events) {
-        (void)ignored;
+    for (auto& event_vec : events | range_values) {
         for (const auto& attack : event_vec)
             desc << "\n" << attack->DebugString(context);
     }
@@ -803,9 +730,6 @@ std::string WeaponsPlatformEvent::CombatLogDescription(int viewing_empire_id, co
     }
     return desc;
 }
-
-bool WeaponsPlatformEvent::AreSubEventsEmpty(int viewing_empire_id) const
-{ return events.empty(); }
 
 std::vector<ConstCombatEventPtr> WeaponsPlatformEvent::SubEvents(int viewing_empire_id) const {
     std::vector<ConstCombatEventPtr> all_events;

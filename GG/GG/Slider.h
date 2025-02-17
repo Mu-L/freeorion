@@ -76,7 +76,7 @@ public:
     void Render() override;
     void SizeMove(Pt ul, Pt lr) override;
     void Disable(bool b = true) override;
-    void SetColor(Clr c) override;
+    void SetColor(Clr c) noexcept override;
 
     void SizeSlider(T min, T max); ///< sets the logical range of the control; \a min must not equal \a max
     void SetMax(T max);            ///< sets the maximum value of the control
@@ -96,7 +96,7 @@ protected:
     T       PtToPosn(Pt pt) const; ///< maps an arbitrary screen point to its nearest logical slider position
 
     void LClick(Pt pt, Flags<ModKey> mod_keys) override;
-    void KeyPress(Key key, std::uint32_t key_code_point, Flags<ModKey> mod_keys) override;
+    void KeyPress(Key key, uint32_t key_code_point, Flags<ModKey> mod_keys) override;
     bool EventFilter(Wnd* w, const WndEvent& event) override;
 
     void MoveTabToPosn(); ///< moves the tab to the current logical position
@@ -112,16 +112,16 @@ private:
         std::string m_name;
     };
 
-    T                         m_posn;
-    T                         m_range_min;
-    T                         m_range_max;
-    T                         m_page_sz;
-    Orientation               m_orientation;
-    unsigned int              m_line_width;
-    unsigned int              m_tab_width;
-    int                       m_tab_drag_offset;
+    T                         m_posn{};
+    T                         m_range_min{};
+    T                         m_range_max{};
+    T                         m_page_sz = INVALID_PAGE_SIZE;
+    Orientation               m_orientation = Orientation::VERTICAL;
+    unsigned int              m_line_width = 1;
+    unsigned int              m_tab_width = 1;
+    int                       m_tab_drag_offset = -1;
     std::shared_ptr<Button>   m_tab;
-    bool                      m_dragging_tab;
+    bool                      m_dragging_tab = false;
 };
 
 template <typename T>
@@ -132,15 +132,12 @@ Slider<T>::Slider(T min, T max, Orientation orientation,
     m_posn(min),
     m_range_min(min),
     m_range_max(max),
-    m_page_sz(INVALID_PAGE_SIZE),
     m_orientation(orientation),
     m_line_width(line_width),
     m_tab_width(tab_width),
-    m_tab_drag_offset(-1),
     m_tab(m_orientation == Orientation::VERTICAL ?
-          GetStyleFactory()->NewVSliderTabButton(color) :
-          GetStyleFactory()->NewHSliderTabButton(color)),
-    m_dragging_tab(false)
+          GetStyleFactory().NewVSliderTabButton(color) :
+          GetStyleFactory().NewHSliderTabButton(color))
 {
     Control::SetColor(color);
 }
@@ -232,7 +229,7 @@ void Slider<T>::Disable(bool b)
 }
 
 template <typename T>
-void Slider<T>::SetColor(Clr c)
+void Slider<T>::SetColor(Clr c) noexcept
 {
     Control::SetColor(c);
     m_tab->SetColor(c);
@@ -288,7 +285,7 @@ T Slider<T>::PtToPosn(Pt pt) const
         line_max = Value(Width() - (m_tab->Width() - m_tab->Width() / 2));
         pixel_nearest_to_pt_on_line = std::max(line_min, std::min(Value(pt.x - ul.x), line_max));
     }
-    double fractional_distance = static_cast<double>(pixel_nearest_to_pt_on_line) / (line_max - line_min);
+    double fractional_distance = static_cast<double>(pixel_nearest_to_pt_on_line) / static_cast<double>(line_max - line_min);
     return m_range_min + static_cast<T>((m_range_max - m_range_min) * fractional_distance);
 }
 
@@ -297,7 +294,7 @@ void Slider<T>::LClick(Pt pt, Flags<ModKey> mod_keys)
 { SlideToImpl(m_posn < PtToPosn(pt) ? m_posn + PageSize() : m_posn - PageSize(), true); }
 
 template <typename T>
-void Slider<T>::KeyPress(Key key, std::uint32_t key_code_point, Flags<ModKey> mod_keys)
+void Slider<T>::KeyPress(Key key, uint32_t key_code_point, Flags<ModKey> mod_keys)
 {
     if (!Disabled()) {
         switch (key) {

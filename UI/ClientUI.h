@@ -6,6 +6,7 @@
 
 #include <boost/filesystem/path.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/container/flat_map.hpp>
 
 #include "SaveFileDialog.h"
 #include "../universe/EnumsFwd.h"
@@ -35,8 +36,9 @@ public:
     ClientUI();
     ~ClientUI();
 
-    std::shared_ptr<MapWnd>                 GetMapWnd();                //!< Returns the main map window.
-    MapWnd const*                           GetMapWndConst() const;     //!< Returns the main map window.
+    MapWnd*                                 GetMapWnd(bool construct);  //!< Returns the main map window. if \a is true, creates a MapWnd if one doesn't already exist. if \a is false, may return nullptr
+    const MapWnd*                           GetMapWndConst() const noexcept { return m_map_wnd.get(); }
+    std::shared_ptr<MapWnd>                 GetMapWndShared();          //!< Returns the main map window, constructing one if not already available
     std::shared_ptr<MessageWnd>             GetMessageWnd();            //!< Returns the chat / message window.
     std::shared_ptr<PlayerListWnd>          GetPlayerListWnd();         //!< Returns the players list window.
     std::shared_ptr<IntroScreen>            GetIntroScreen();           //!< Returns the intro screen / splash window.
@@ -44,7 +46,7 @@ public:
     std::shared_ptr<PasswordEnterWnd>       GetPasswordEnterWnd();      //!< Returns the authentication window.
     std::shared_ptr<SaveFileDialog>         GetSaveFileDialog();        //!< Returns a perhaps nullptr to any existing SaveFileDialog
     ShipDesignManager*                      GetShipDesignManager() { return m_ship_designs.get(); };
-    void                                    GetSaveGameUIData(SaveGameUIData& data) const; //!< populates the relevant UI state that should be restored after a save-and-load cycle
+    void                                    GetSaveGameUIData(SaveGameUIData& data); //!< populates the relevant UI state that should be restored after a save-and-load cycle
 
     /** Return the IntroScreen. Hides the MapWnd, MessageWnd and
       * PlayerListWnd if visible, but doesn't create them just to hide them. **/
@@ -74,20 +76,20 @@ public:
     void ZoomToFleet(std::shared_ptr<const Fleet> fleet);   //!< Zooms to a particular fleet on the galaxy map and opens the fleet window
 
     bool ZoomToContent(const std::string& name, bool reverse_lookup = false);
-    bool ZoomToTech(const std::string& tech_name);                  //!< Opens the technology screen and presents a description of the given technology
-    bool ZoomToPolicy(const std::string& policy_name);              //!< ???
-    bool ZoomToBuildingType(const std::string& building_type_name); //!< Opens the production screen and presents a description of the given building type
-    bool ZoomToSpecial(const std::string& special_name);            //!< Opens the ??? screen and presents a description of the given special
-    bool ZoomToShipHull(const std::string& hull_name);              //!< Opens the design screen and presents a description of the given hull type
-    bool ZoomToShipPart(const std::string& part_name);              //!< Opens the design screen and presents a description of the given part type
-    bool ZoomToSpecies(const std::string& species_name);            //!< Opens the ??? screen and presents a description of the given species
-    bool ZoomToFieldType(const std::string& field_type_name);       //!< Opens the ??? screen and presents a description of the given field type
+    bool ZoomToTech(std::string tech_name);                  //!< Opens the technology screen and presents a description of the given technology
+    bool ZoomToPolicy(std::string policy_name);              //!< ???
+    bool ZoomToBuildingType(std::string building_type_name); //!< Opens the production screen and presents a description of the given building type
+    bool ZoomToSpecial(std::string special_name);            //!< Opens the ??? screen and presents a description of the given special
+    bool ZoomToShipHull(std::string hull_name);              //!< Opens the design screen and presents a description of the given hull type
+    bool ZoomToShipPart(std::string part_name);              //!< Opens the design screen and presents a description of the given part type
+    bool ZoomToSpecies(std::string species_name);            //!< Opens the ??? screen and presents a description of the given species
+    bool ZoomToFieldType(std::string field_type_name);       //!< Opens the ??? screen and presents a description of the given field type
 
-    bool ZoomToShipDesign(int design_id);                           //!< Opens the design screen and presents a description of the given ship design
-    bool ZoomToEmpire(int empire_id);                               //!< Opens the ??? screen and presents a description of the given empire
-    bool ZoomToMeterTypeArticle(const std::string& meter_string);   //!< Opens the encyclopedia and presents the entry for MeterType @a meter_string
-    bool ZoomToMeterTypeArticle(MeterType meter_type);              //!< Opens the encyclopedia and presents the entry for MeterType @a meter_type
-    bool ZoomToEncyclopediaEntry(const std::string& str);           //!< Opens the encyclodedia window and presents the entry for the given term
+    bool ZoomToShipDesign(int design_id);                    //!< Opens the design screen and presents a description of the given ship design
+    bool ZoomToEmpire(int empire_id);                        //!< Opens the ??? screen and presents a description of the given empire
+    bool ZoomToMeterTypeArticle(std::string meter_string);   //!< Opens the encyclopedia and presents the entry for MeterType @a meter_string
+    bool ZoomToMeterTypeArticle(MeterType meter_type);       //!< Opens the encyclopedia and presents the entry for MeterType @a meter_type
+    bool ZoomToEncyclopediaEntry(std::string str);           //!< Opens the encyclodedia window and presents the entry for the given term
 
     void DumpObject(int object_id);                                 //!< Displays debug info about specified object in messages window
 
@@ -206,9 +208,9 @@ public:
     static GG::Clr  TechWndProgressBarColor();
     static GG::Clr  CategoryColor(std::string_view category_name);
 
-    static std::string_view PlanetTypeFilePrefix(PlanetType planet_type);
-    static std::string_view StarTypeFilePrefix(StarType star_type);
-    static std::string_view HaloStarTypeFilePrefix(StarType star_type);
+    static std::string_view PlanetTypeFilePrefix(PlanetType planet_type) noexcept;
+    static std::string_view StarTypeFilePrefix(StarType star_type) noexcept;
+    static std::string_view HaloStarTypeFilePrefix(StarType star_type) noexcept;
     //!@}
 
 private:
@@ -227,12 +229,12 @@ private:
     //!< when textures are looked up with GetPrefixedTextures, the specified
     //!< dir is searched for filenames that start with the prefix. pointers
     //!< to the Texture objects for these files are stored as the mapped value.
-    std::map<std::string, std::vector<std::shared_ptr<GG::Texture>>, std::less<>>
+    boost::container::flat_map<std::string, std::vector<std::shared_ptr<GG::Texture>>, std::less<>>
                                             m_prefixed_textures;
 
     std::unique_ptr<ShipDesignManager>      m_ship_designs;         //!< ship designs the client knows about, and their ordering in the UI
 
-    static ClientUI*                        s_the_UI;   //!< the singleton ClientUI object
+    static constinit ClientUI*              s_the_UI;               //!< the singleton ClientUI object
 };
 
 namespace GG {

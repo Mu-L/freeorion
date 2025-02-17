@@ -22,7 +22,7 @@ apps:
     environment:
       LD_LIBRARY_PATH: $SNAP/usr/lib/${CRAFT_ARCH_TRIPLET}/freeorion:$SNAP/usr/lib/${CRAFT_ARCH_TRIPLET}
       LIBGL_DRIVERS_PATH: $SNAP/usr/lib/${CRAFT_ARCH_TRIPLET}/dri
-      # PYTHONPATH: $SNAP/usr/lib/python3.6
+      # PYTHONPATH: $SNAP_DESKTOP_RUNTIME/usr/lib/python3.10
   freeorion-godot:
     # LD_LIBRARY_PATH=$SNAP/usr/lib/x86_64-linux-gnu/freeorion:$SNAP/usr/lib/x86_64-linux-gnu/:$SNAP/usr/lib/x86_64-linux-gnu/pulseaudio LIBGL_DRIVERS_PATH=$SNAP/usr/lib/x86_64-linux-gnu/dri godot3-runner   --resource.path $SNAP/usr/share/freeorion/default/ -S $SNAP_USER_COMMON/save
     command: usr/bin/godot3-runner --main-pack $SNAP/usr/share/freeorion/freeorion.pck --resource.path $SNAP/usr/share/freeorion/default/ -S $SNAP_USER_COMMON/save
@@ -32,19 +32,19 @@ apps:
     environment:
       LD_LIBRARY_PATH: $SNAP/usr/lib/${CRAFT_ARCH_TRIPLET}/freeorion:$SNAP/usr/lib/${CRAFT_ARCH_TRIPLET}
       LIBGL_DRIVERS_PATH: $SNAP/usr/lib/${CRAFT_ARCH_TRIPLET}/dri
-      #PYTHONPATH: $SNAP/usr/lib/python3.6
+      #PYTHONPATH: $SNAP_DESKTOP_RUNTIME/usr/lib/python3.10
   freeoriond:
     command: usr/bin/freeoriond
     plugs: [home, network, network-bind]
     environment:
-      LD_LIBRARY_PATH: $SNAP/usr/lib/${CRAFT_ARCH_TRIPLET}/freeorion:$SNAP/usr/lib/${CRAFT_ARCH_TRIPLET}
-      #PYTHONPATH: $SNAP/usr/lib/python3.6
+      LD_LIBRARY_PATH: $SNAP/usr/lib/${CRAFT_ARCH_TRIPLET}/freeorion:$SNAP/usr/lib/${CRAFT_ARCH_TRIPLET}:$SNAP_DESKTOP_RUNTIME/usr/lib/${CRAFT_ARCH_TRIPLET}
+      #PYTHONPATH: $SNAP_DESKTOP_RUNTIME/usr/lib/python3.10
   freeoriond-dedicated:
     command: usr/bin/freeoriond --hostless --network.server.unconn-human-empire-players.max 0 --network.server.conn-human-empire-players.min 0
     plugs: [home, network, network-bind]
     environment:
-      LD_LIBRARY_PATH: $SNAP/usr/lib/${CRAFT_ARCH_TRIPLET}/freeorion:$SNAP/usr/lib/${CRAFT_ARCH_TRIPLET}
-      #PYTHONPATH: $SNAP/usr/lib/python3.6
+      LD_LIBRARY_PATH: $SNAP/usr/lib/${CRAFT_ARCH_TRIPLET}/freeorion:$SNAP/usr/lib/${CRAFT_ARCH_TRIPLET}:$SNAP_DESKTOP_RUNTIME/usr/lib/${CRAFT_ARCH_TRIPLET}
+      #PYTHONPATH: $SNAP_DESKTOP_RUNTIME/usr/lib/python3.10
 
 layout:
   # the path to the freeorion libs has to be known when snapcraft exports the godot client
@@ -96,7 +96,7 @@ parts:
       - libalut-dev
       - libboost1.74-all-dev
       - libfreetype6-dev
-      - libgl1-mesa-dev
+#      - libgl1-mesa-dev
       - libglew-dev
       - libjpeg-dev
       - libogg-dev
@@ -125,7 +125,7 @@ parts:
       - libboost-thread1.74.0
       - libboost-test1.74.0
       - libglew2.2
-      - libglu1-mesa
+#      - libglu1-mesa
       - libopenal1
       - libsdl2-2.0-0
       - libvorbis0a
@@ -134,4 +134,14 @@ parts:
       - libfreetype6
       - godot3-runner
       - libenet7
-
+  # Find files provided by the base and platform snap and ensure they aren't
+  # duplicated in this snap; boilerplate inspired by gnome-calculator snapcraft.yaml
+  cleanup:
+    after: [freeorion]
+    plugin: nil
+    build-snaps: [core22, gtk-common-themes, gnome-42-2204]
+    override-prime: |
+      set -eux
+      for snap in "core22" "gtk-common-themes" "gnome-42-2204"; do
+        cd "/snap/$snap/current" && find . -type f,l -name *.so.* -exec rm -f "$CRAFT_PRIME/{}" \;
+      done

@@ -34,7 +34,7 @@ public:
             type(slot_type), x(x_), y(y_)
         {}
 
-        bool operator==(const Slot& rhs) const noexcept
+        [[nodiscard]] bool operator==(const Slot& rhs) const noexcept
         { return type == rhs.type && x == rhs.x && y == rhs.y; }
 
         ShipSlotType type = ShipSlotType::INVALID_SHIP_SLOT_TYPE;
@@ -53,9 +53,7 @@ public:
 
     ~ShipHull();
 
-    bool operator==(const ShipHull& rhs) const;
-    bool operator!=(const ShipHull& rhs) const
-    { return !(*this == rhs); }
+    [[nodiscard]] bool operator==(const ShipHull& rhs) const;
 
     //! Returns name of hull
     [[nodiscard]] const auto& Name() const noexcept { return m_name; }
@@ -184,6 +182,7 @@ class FO_COMMON_API ShipHullManager {
 public:
     using container_type = std::map<std::string, std::unique_ptr<ShipHull>, std::less<>>;
     using iterator = container_type::const_iterator;
+    using const_iterator = iterator;
 
     //! Returns the hull type with the name @a name; you should use the free
     //! function GetShipHull() instead

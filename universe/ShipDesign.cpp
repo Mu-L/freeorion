@@ -14,7 +14,9 @@
 #include "../util/AppInterface.h"
 #include "../util/CheckSums.h"
 #include "../util/GameRules.h"
+#include "../util/GameRuleRanks.h"
 #include "../util/i18n.h"
+#include <numeric>
 
 
 namespace {
@@ -22,11 +24,11 @@ namespace {
         // makes all ships cost 1 PP and take 1 turn to produce
         rules.Add<bool>(UserStringNop("RULE_CHEAP_AND_FAST_SHIP_PRODUCTION"),
                         UserStringNop("RULE_CHEAP_AND_FAST_SHIP_PRODUCTION_DESC"),
-                        "TEST", false, true);
+                        GameRuleCategories::GameRuleCategory::TEST, false, true,
+                        GameRuleRanks::RULE_CHEAP_AND_FAST_SHIP_PRODUCTION_RANK);
     }
     bool temp_bool = RegisterGameRules(&AddRules);
 
-    const std::string EMPTY_STRING;
     constexpr float ARBITRARY_LARGE_COST = 999999.9f;
 
     bool DesignsTheSame(const ShipDesign& one, const ShipDesign& two) {
@@ -184,12 +186,9 @@ float ShipDesign::ProductionCost(int empire_id, int location_id, const Scripting
     if (const ShipHull* hull = GetShipHull(m_hull))
         cost_accumulator += hull->ProductionCost(empire_id, location_id, context, m_id);
 
-    int part_count = 0;
     for (const std::string& part_name : m_parts) {
-        if (const ShipPart* part = GetShipPart(part_name)) {
+        if (const ShipPart* part = GetShipPart(part_name))
             cost_accumulator += part->ProductionCost(empire_id, location_id, context, m_id);
-            part_count++;
-        }
     }
 
     // Assuming no reasonable combination of parts and hull will add up to more
@@ -334,10 +333,8 @@ std::vector<std::string> ShipDesign::Weapons() const {
 }
 
 int ShipDesign::PartCount() const {
-    int count = 0;
-    for (auto& entry : m_num_part_classes)
-         count += entry.second;
-    return count;
+    auto rng = m_num_part_classes | range_values;
+    return std::accumulate(rng.begin(), rng.end(), 0);
 }
 
 bool ShipDesign::ProductionLocation(int empire_id, int location_id, const ScriptingContext& context) const {
@@ -371,9 +368,6 @@ bool ShipDesign::ProductionLocation(int empire_id, int location_id, const Script
     // ships can only be produced by species that are not planetbound
     if (!species->CanProduceShips())
         return false;
-    // also, species that can't colonize can't produce colony ships
-    if (this->CanColonize() && !species->CanColonize())
-        return false;
 
     // apply hull location conditions to potential location
     const ShipHull* hull = GetShipHull(m_hull);
@@ -382,7 +376,7 @@ bool ShipDesign::ProductionLocation(int empire_id, int location_id, const Script
         return false;
     }
     // evaluate using location as the source, as it should be an object owned by this empire.
-    const ScriptingContext location_as_source_context{location, context};
+    const ScriptingContext location_as_source_context{context, ScriptingContext::Source{}, location};
     if (!hull->Location()->EvalOne(location_as_source_context, location))
         return false;
 
@@ -532,7 +526,7 @@ ShipDesign::MaybeInvalidDesign(std::string hull, std::vector<std::string> parts,
                 if (std::count(parts.begin(), parts.end(), x) > 1) {
                     is_valid = false;
                     if (produce_log)
-                        WarnLogger() << "Invalid ShipDesign part \"" << part_name << "\" excludes itself. Removing first copy.";;
+                        WarnLogger() << "Invalid ShipDesign part \"" << part_name << "\" excludes itself. Removing first copy.";
                     part_name.clear();
                     break; // don't need to check any later exclusions of removed part
                 }
@@ -695,14 +689,12 @@ void ShipDesign::BuildStatCaches() {
     }
 
     // collect unique tags
-    std::sort(tags.begin(), tags.end());
+    std::stable_sort(tags.begin(), tags.end());
     auto last = std::unique(tags.begin(), tags.end());
 
     // compile concatenated tags into contiguous storage
-    // TODO: transform_reduce when available on all platforms...
-    std::size_t tags_sz = 0;
-    std::for_each(tags.begin(), last, [&tags_sz](auto str) { tags_sz += str.size(); });
-
+    std::size_t tags_sz = std::transform_reduce(tags.begin(), tags.end(), 0u, std::plus{},
+                                                [](const auto& tag) { return tag.size(); });
     m_tags_concatenated.reserve(tags_sz);
     m_tags.clear();
     m_tags.reserve(tags.size());
@@ -759,37 +751,10 @@ uint32_t ShipDesign::GetCheckSum() const {
     return retval;
 }
 
-bool operator ==(const ShipDesign& first, const ShipDesign& second) {
-    if (first.Hull() != second.Hull())
-        return false;
-
-    std::map<std::string, int> first_parts;
-    std::map<std::string, int> second_parts;
-
-    // don't care if order is different, as long as the types and numbers of parts is the same
-    for (const std::string& part_name : first.Parts())
-        ++first_parts[part_name];
-
-    for (const std::string& part_name : second.Parts())
-        ++second_parts[part_name];
-
-    return first_parts == second_parts;
-}
-
 
 /////////////////////////////////////
 // PredefinedShipDesignManager     //
 /////////////////////////////////////
-PredefinedShipDesignManager* PredefinedShipDesignManager::s_instance = nullptr;
-
-PredefinedShipDesignManager::PredefinedShipDesignManager() {
-    if (s_instance)
-        throw std::runtime_error("Attempted to create more than one PredefinedShipDesignManager.");
-
-    // Only update the global pointer on sucessful construction.
-    s_instance = this;
-}
-
 namespace {
     void AddDesignToUniverse(Universe& universe, std::unordered_map<std::string, int>& design_generic_ids,
                              const std::unique_ptr<ShipDesign>& design, bool monster)
@@ -891,10 +856,9 @@ void PredefinedShipDesignManager::SetMonsterDesignTypes(
 { m_pending_monsters = std::move(pending_designs); }
 
 namespace {
-    template <typename Map1, typename Map2, typename Ordering>
     void FillDesignsOrderingAndNameTables(
         PredefinedShipDesignManager::ParsedShipDesignsType& parsed_designs,
-        Map1& designs, Ordering& ordering, Map2& name_to_uuid)
+        auto& designs, auto& ordering, auto& name_to_uuid)
     {
         // Remove the old designs
         for (const auto& name_and_uuid: name_to_uuid)
@@ -930,9 +894,8 @@ namespace {
         }
     }
 
-    template <typename PendingShips, typename Map1, typename Map2, typename Ordering>
     void CheckPendingAndFillDesignsOrderingAndNameTables(
-        PendingShips& pending, Map1& designs, Ordering& ordering, Map2& name_to_uuid, bool are_monsters)
+        auto& pending, auto& designs, auto& ordering, auto& name_to_uuid, bool are_monsters)
     {
         if (!pending)
             return;
@@ -944,8 +907,7 @@ namespace {
         DebugLogger() << "Populating pre-defined ships with "
                       << std::string(are_monsters ? "monster" : "ship") << " designs.";
 
-        FillDesignsOrderingAndNameTables(
-            *parsed, designs, ordering, name_to_uuid);
+        FillDesignsOrderingAndNameTables(*parsed, designs, ordering, name_to_uuid);
 
         // Make the monsters monstrous
         if (are_monsters)
@@ -1024,44 +986,43 @@ LoadShipDesignsAndManifestOrderFromParseResults(
         }
     }
 
+    static constexpr auto not_nil = [](const boost::uuids::uuid uuid) noexcept { return !uuid.is_nil(); };
+
     // Verify that all UUIDs in ordering exist
     std::vector<boost::uuids::uuid> ordering;
     ordering.reserve(disk_ordering.size());
     bool ship_manifest_inconsistent = false;
-    for (auto& uuid : disk_ordering) {
-        // Skip the nil UUID.
-        if (uuid.is_nil())
-            continue;
-
-        if (!saved_designs.contains(uuid)) {
-            WarnLogger() << "UUID " << uuid << " is in ship design manifest for "
-                         << "a ship design that does not exist.";
+    for (const auto uuid : disk_ordering | range_filter(not_nil)) { // Skip the nil UUID.
+        if (saved_designs.contains(uuid)) {
+            ordering.push_back(uuid);
+        } else {
+            WarnLogger() << "UUID " << uuid << " is in ship design manifest for a ship design that does not exist.";
             ship_manifest_inconsistent = true;
-            continue;
         }
-        ordering.push_back(uuid);
     }
 
     // Verify that every design in saved_designs is in ordering.
     if (ordering.size() != saved_designs.size()) {
         // Add any missing designs in alphabetical order to the end of the list
-        std::unordered_set<boost::uuids::uuid, boost::hash<boost::uuids::uuid>>
-            uuids_in_ordering{ordering.begin(), ordering.end()};
-        std::map<std::string, boost::uuids::uuid> missing_uuids_sorted_by_name;
-        for (auto& uuid_to_design_and_filename : saved_designs) {
-            if (uuids_in_ordering.contains(uuid_to_design_and_filename.first))
+        std::vector<std::pair<std::string_view, boost::uuids::uuid>> names_and_missing_uuids;
+        names_and_missing_uuids.reserve(saved_designs.size());
+
+        const auto in_ordering = [&ordering](const auto& uuid) {
+            return std::any_of(ordering.begin(), ordering.end(),
+                               [uuid](const auto uuid_in_order) noexcept { return uuid == uuid_in_order; });
+        };
+
+        for (auto& [uuid, design_and_filename] : saved_designs) {
+            if (!in_ordering(uuid)) // using range_filter above may cause an internal compiler error in MSVC
                 continue;
             ship_manifest_inconsistent = true;
-            missing_uuids_sorted_by_name.emplace(
-                uuid_to_design_and_filename.second.first->Name(),
-                uuid_to_design_and_filename.first);
+            names_and_missing_uuids.emplace_back(design_and_filename.first->Name(), uuid);
         }
+        std::stable_sort(names_and_missing_uuids.begin(), names_and_missing_uuids.end());
 
-        for (auto& name_and_uuid: missing_uuids_sorted_by_name) {
-            WarnLogger() << "Missing ship design " << name_and_uuid.second
-                         << " called " << name_and_uuid.first
-                         << " added to the manifest.";
-            ordering.push_back(name_and_uuid.second);
+        for (auto& [name, uuid] : names_and_missing_uuids) {
+            WarnLogger() << "Missing ship design " << uuid << " called " << name << " added to the manifest.";
+            ordering.push_back(uuid);
         }
     }
 

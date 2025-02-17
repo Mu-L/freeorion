@@ -1,37 +1,66 @@
 name: "Build PR"
 on:
   pull_request:
-    branches: [ 'master' ]
+    branches:
+      - master
+      - 'release-v*'
     types: ['opened', 'reopened', 'synchronize']
-    paths-ignore:
-      - 'msvc*/**'
-      - 'check/**'
-      - 'doc/**'
-      - 'packaging/**'
-      - 'snap/**'
-      - '*.md'
-      - 'check/**'
-      - 'default/**'
-      - 'test-scripting/**'
-      - '.github/ISSUE_TEMPLATE/**'
-      - "pyproject.toml"
 jobs:
+  detect_changed_files:
+    runs-on: ubuntu-latest
+    steps:
+      - id: set_files_changed
+        uses: cjkjvfnby/run_only_needed_actions@v1
+        with:
+             config-file: ".github/workflows/pr_run_config.toml"
+    outputs:
+      build_windows_with_cmake: ${{ steps.set_files_changed.outputs.output-01 }}
+      build_windows_with_msvs: ${{ steps.set_files_changed.outputs.output-02 }}
+      build_android: ${{ steps.set_files_changed.outputs.output-03 }}
+      build_macos: ${{ steps.set_files_changed.outputs.output-04 }}
+      build_ubuntu: ${{ steps.set_files_changed.outputs.output-05 }}
+      lint_py_focs: ${{ steps.set_files_changed.outputs.output-06 }}
+      lint_python: ${{ steps.set_files_changed.outputs.output-07 }}
+      lint_string_tables: ${{ steps.set_files_changed.outputs.output-08 }}
+      lint_codeql: ${{ steps.set_files_changed.outputs.output-09 }}
   android:
+    needs: detect_changed_files
+    if: ${{ needs.detect_changed_files.outputs.build_android == 'true' }}
     uses: ./.github/workflows/_build-android.yml
   macos:
+    needs: detect_changed_files
+    if: ${{ needs.detect_changed_files.outputs.build_macos == 'true' }}
     strategy:
       matrix:
-        os: [ macos-11, macos-12, macos-13 ]
+        os: [ macos-14, macos-13 ]
     uses: ./.github/workflows/_build-macos.yml
     with:
       os: ${{ matrix.os }}
   ubuntu:
+    needs: detect_changed_files
+    if: ${{ needs.detect_changed_files.outputs.build_ubuntu == 'true' }}
     uses: ./.github/workflows/_build-ubuntu.yml
-  windows:
-    uses: ./.github/workflows/_build-windows.yml
-  windows-msvc:
-    uses: ./.github/workflows/_build-windows-msvs.yml
   docker:
+    needs: detect_changed_files
+    if: ${{ needs.detect_changed_files.outputs.build_ubuntu == 'true' }}
     uses: ./.github/workflows/_build-docker.yml
-  snapcraft:
-    uses: ./.github/workflows/_build_snapcraft.yml
+  windows-msvc:
+    needs: detect_changed_files
+    if: ${{ needs.detect_changed_files.outputs.build_windows_with_msvs == 'true' }}
+    uses: ./.github/workflows/_build-windows-msvs.yml
+  windows:
+    needs: detect_changed_files
+    if: ${{ needs.detect_changed_files.outputs.build_windows_with_cmake == 'true' }}
+    uses: ./.github/workflows/_build-windows.yml
+  lint-py-focs:
+    needs: detect_changed_files
+    if: ${{ needs.detect_changed_files.outputs.lint_py_focs == 'true' }}
+    uses: ./.github/workflows/_lint_py_focs.yml
+  lint-python:
+    needs: detect_changed_files
+    if: ${{ needs.detect_changed_files.outputs.lint_python == 'true' }}
+    uses: ./.github/workflows/_lint-python.yml
+  lint-string-tables:
+    needs: detect_changed_files
+    if: ${{ needs.detect_changed_files.outputs.lint_string_tables == 'true' }}
+    uses: ./.github/workflows/_lint_string-tables.yml

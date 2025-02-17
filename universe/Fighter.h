@@ -15,13 +15,11 @@
 class FO_COMMON_API Fighter final : public UniverseObject {
 public:
     Fighter(int empire_id, int launched_from_id, const std::string& species_name,
-            float damage, const ::Condition::Condition* combat_targets/*, int current_turn*/);
+            float damage, const ::Condition::Condition* combat_targets);
     Fighter() : UniverseObject(UniverseObjectType::OBJ_FIGHTER) {}
 
     [[nodiscard]] bool               HostileToEmpire(int empire_id, const EmpireManager& empires) const override;
     [[nodiscard]] std::string        Dump(uint8_t ntabs = 0) const override;
-
-    std::shared_ptr<UniverseObject> Accept(const UniverseObjectVisitor& visitor) const override;
 
     void Copy(const UniverseObject& copied_object, const Universe& universe, int empire_id = ALL_EMPIRES) override;
     void Copy(const Fighter& copied_fighter, const Universe& universe, int empire_id = ALL_EMPIRES);

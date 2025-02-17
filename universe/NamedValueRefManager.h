@@ -4,13 +4,9 @@
 #include <map>
 #include <thread>
 #include "ValueRef.h"
+#include "../util/CheckSums.h"
 
 [[nodiscard]] FO_COMMON_API const std::string& UserString(const std::string& str);
-
-namespace CheckSums {
-    FO_COMMON_API void CheckSumCombine(uint32_t& sum, const char* s);
-    FO_COMMON_API void CheckSumCombine(uint32_t& sum, const std::string& c);
-}
 
 class NamedValueRefManager;
 [[nodiscard]] FO_COMMON_API auto GetNamedValueRefManager() -> NamedValueRefManager&;
@@ -33,25 +29,25 @@ struct FO_COMMON_API NamedRef final : public ValueRef<T>
                       << m_value_ref_name << "  is_lookup_only: " << m_is_lookup_only;
     }
 
-    bool RootCandidateInvariant() const override
+    [[nodiscard]] bool RootCandidateInvariant() const override
     { return NamedRefInitInvariants() ? m_root_candidate_invariant_local : false; }
 
-    bool LocalCandidateInvariant() const override
+    [[nodiscard]] bool LocalCandidateInvariant() const override
     { return NamedRefInitInvariants() ? m_local_candidate_invariant_local : false; }
 
-    bool TargetInvariant() const override
+    [[nodiscard]] bool TargetInvariant() const override
     { return NamedRefInitInvariants() ? m_target_invariant_local : false; }
 
-    bool SourceInvariant() const override
+    [[nodiscard]] bool SourceInvariant() const override
     { return NamedRefInitInvariants() ? m_source_invariant_local : false; }
 
-    bool SimpleIncrement() const override
+    [[nodiscard]] bool SimpleIncrement() const override
     { return NamedRefInitInvariants() ? GetValueRef()->SimpleIncrement() : false; }
 
-    bool ConstantExpr() const override
+    [[nodiscard]] bool ConstantExpr() const override
     { return NamedRefInitInvariants() ? GetValueRef()->ConstantExpr() : false; }
 
-    bool operator==(const ValueRef<T>& rhs) const override {
+    [[nodiscard]] bool operator==(const ValueRef<T>& rhs) const override {
         if (&rhs == this)
             return true;
         if (typeid(rhs) != typeid(*this))
@@ -60,7 +56,7 @@ struct FO_COMMON_API NamedRef final : public ValueRef<T>
         return (m_value_ref_name == rhs_.m_value_ref_name);
     }
 
-    T Eval(const ScriptingContext& context) const override {
+    [[nodiscard]] T Eval(const ScriptingContext& context) const override {
         TraceLogger() << "NamedRef<" << typeid(T).name() << ">::Eval()";
         auto ref = GetValueRef();
         if (!ref) {
@@ -73,23 +69,22 @@ struct FO_COMMON_API NamedRef final : public ValueRef<T>
         return retval;
     }
 
-    std::string Description() const override {
+    [[nodiscard]] std::string Description() const override {
         auto ref = GetValueRef();
         return ref ? ref->Description() : UserString("NAMED_REF_UNKNOWN");
     }
 
     [[nodiscard]] std::string Dump(uint8_t ntabs = 0) const override {
         std::string retval = "Named";
-        if constexpr (std::is_same<T, int>::value) {
+        if constexpr (std::is_same_v<T, int>)
             retval += "Integer";
-        } else if constexpr (std::is_same<T, double>::value) {
+        else if constexpr (std::is_same_v<T, double>)
             retval += "Real";
-        } else {
+        else
             retval += "Generic";
-        }
-        if (m_is_lookup_only) {
+
+        if (m_is_lookup_only)
             retval += "Lookup";
-        }
         retval += " name = \"" + m_value_ref_name + "\"";
         if (!m_is_lookup_only) {
             auto ref = GetValueRef();
@@ -133,7 +128,7 @@ private:
             DebugLogger() << "NamedRef<T>::NamedRefInitInvariants() could not find value ref, will sleep a bit and retry.";
         }
 
-        constexpr int MAX_TRIES = 5;
+        static constexpr int MAX_TRIES = 5;
         for (int try_num = 1; try_num <= MAX_TRIES; ++try_num) {
             if (vref) {
                 std::scoped_lock invariants_lock(m_invariants_mutex);

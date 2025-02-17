@@ -69,6 +69,7 @@ private:
 [[nodiscard]] FO_COMMON_API SitRepEntry CreateCombatDestroyedObjectSitRep(
     const UniverseObject* obj, int combat_system_id, int empire_id, int current_turn);
 [[nodiscard]] SitRepEntry               CreatePlanetDepopulatedSitRep(int planet_id, int current_turn);
+[[nodiscard]] FO_COMMON_API SitRepEntry CreatePlanetAnnexedSitRep(int planet_id, int original_owner_id, int annexer_empire_id, int current_turn);
 [[nodiscard]] FO_COMMON_API SitRepEntry CreatePlanetColonizedSitRep(int planet_id, std::string species, int current_turn);
 [[nodiscard]] FO_COMMON_API SitRepEntry CreatePlanetOutpostedSitRep(int planet_id, int current_turn);
 [[nodiscard]] FO_COMMON_API SitRepEntry CreatePlanetEstablishFailedSitRep(int planet_id, int ship_id, int current_turn);
@@ -78,8 +79,14 @@ private:
 [[nodiscard]] FO_COMMON_API SitRepEntry CreatePlanetGiftedSitRep(int planet_id, int empire_id, int current_turn);
 [[nodiscard]] FO_COMMON_API SitRepEntry CreateFleetGiftedSitRep(int fleet_id, int empire_id, int current_turn);
 
-[[nodiscard]] FO_COMMON_API SitRepEntry CreateFleetArrivedAtDestinationSitRep(int system_id, int fleet_id, int recipient_empire_id,
-                                                                              const ScriptingContext& context);
+[[nodiscard]] FO_COMMON_API SitRepEntry CreateFleetArrivedAtDestinationSitRep(
+    int system_id, int fleet_id, int recipient_empire_id, const ScriptingContext& context);
+[[nodiscard]] FO_COMMON_API SitRepEntry CreateFleetBlockadedSitRep(
+    int system_id, int blockaded_fleet_id, int blockaded_empire_id,
+    int blockading_empire_id, const ScriptingContext& context);
+[[nodiscard]] FO_COMMON_API SitRepEntry CreateFleetBlockadedSitRep(
+    int system_id, int blockaded_fleet_id, int blockaded_empire_id, const ScriptingContext& context);
+
 [[nodiscard]] SitRepEntry               CreateEmpireEliminatedSitRep(int empire_id, int current_turn);
 [[nodiscard]] SitRepEntry               CreateVictorySitRep(std::string reason_string, int empire_id, int current_turn);
 [[nodiscard]] FO_COMMON_API SitRepEntry CreateSitRep(std::string template_string, int turn,

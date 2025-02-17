@@ -11,6 +11,8 @@
 #include "ValueRefs.h"
 #include "../util/AppInterface.h"
 #include "../util/CheckSums.h"
+#include "../util/GameRules.h"
+#include "../util/GameRuleRanks.h"
 #include "../util/Logger.h"
 #include "../util/OptionsDB.h"
 #include "../util/Random.h"
@@ -20,18 +22,9 @@
 /////////////////////////////////////////////////
 // FocusType                                   //
 /////////////////////////////////////////////////
-FocusType::FocusType(std::string& name, std::string& description,
+FocusType::FocusType(std::string name, std::string description,
                      std::unique_ptr<Condition::Condition>&& location,
-                     std::string& graphic) :
-    m_name(std::move(name)),
-    m_description(std::move(description)),
-    m_location(std::move(location)),
-    m_graphic(std::move(graphic))
-{}
-
-FocusType::FocusType(std::string&& name, std::string&& description,
-                     std::unique_ptr<Condition::Condition>&& location,
-                     std::string&& graphic) :
+                     std::string graphic) :
     m_name(std::move(name)),
     m_description(std::move(description)),
     m_location(std::move(location)),
@@ -53,9 +46,8 @@ bool FocusType::operator==(const FocusType& rhs) const {
         // check next member
     } else if (!m_location || !rhs.m_location) {
         return false;
-    } else {
-        if (*m_location != *(rhs.m_location))
-            return false;
+    } else if (*m_location != *(rhs.m_location)) {
+        return false;
     }
 
     return true;
@@ -86,57 +78,79 @@ uint32_t FocusType::GetCheckSum() const {
 // Species                                     //
 /////////////////////////////////////////////////
 namespace {
-    template <typename S1, typename S2, typename S3>
-    std::string ConcatenateAsString(S1&& s1, S2&& s2, S3&& s3)
-    {
-        std::string retval;
-        for (const auto& s : {s1, s2, s3})
-            for (const auto& t : s)
-                retval += boost::to_upper_copy<std::string>(t);
+    void AddRules(GameRules& rules) {
+        rules.Add<double>(UserStringNop("RULE_ANNEX_COST_OPINION_EXP_BASE"),
+                          UserStringNop("RULE_ANNEX_COST_OPINION_EXP_BASE_DESC"),
+                          GameRuleCategories::GameRuleCategory::BALANCE_STABILITY, 1.2, true,
+                          GameRuleRanks::RULE_ANNEX_COST_OPINION_EXP_BASE_RANK,
+                          RangedValidator<double>(0.0, 3.0));
+        rules.Add<double>(UserStringNop("RULE_ANNEX_COST_STABILITY_EXP_BASE"),
+                          UserStringNop("RULE_ANNEX_COST_STABILITY_EXP_BASE_DESC"),
+                          GameRuleCategories::GameRuleCategory::BALANCE_STABILITY, 1.1, true,
+                          GameRuleRanks::RULE_ANNEX_COST_STABILITY_EXP_BASE_RANK,
+                          RangedValidator<double>(0.0, 3.0));
+        rules.Add<double>(UserStringNop("RULE_ANNEX_COST_SCALING"),
+                          UserStringNop("RULE_ANNEX_COST_SCALING_DESC"),
+                          GameRuleCategories::GameRuleCategory::BALANCE_STABILITY, 5.0, true,
+                          GameRuleRanks::RULE_ANNEX_COST_SCALING_RANK,
+                          RangedValidator<double>(0.0, 50.0));
+        rules.Add<double>(UserStringNop("RULE_BUILDING_ANNEX_COST_SCALING"),
+                          UserStringNop("RULE_BUILDING_ANNEX_COST_SCALING_DESC"),
+                          GameRuleCategories::GameRuleCategory::BALANCE_STABILITY, 0.25, true,
+                          GameRuleRanks::RULE_BUILDING_ANNEX_COST_SCALING_RANK,
+                          RangedValidator<double>(0.0, 5.0));
+        rules.Add<double>(UserStringNop("RULE_ANNEX_COST_MINIMUM"),
+                          UserStringNop("RULE_ANNEX_COST_MINIMUM_DESC"),
+                          GameRuleCategories::GameRuleCategory::BALANCE_STABILITY, 5.0, true,
+                          GameRuleRanks::RULE_ANNEX_COST_MINIMUM_RANK,
+                          RangedValidator<double>(0.0, 50.0));
+    }
+    bool temp_bool = RegisterGameRules(&AddRules);
+
+    auto ConcatenateAsVector(auto&& stringset1, auto&& stringset2, auto&& stringset3) {
+        std::vector<std::string::value_type> retval;
+        retval.reserve((stringset1.size() + stringset2.size() + stringset3.size())*30); // guesstimate
+        for (const auto& s : {stringset1, stringset2, stringset3})
+            for (const auto& t : s) {
+                const auto upperized_t = boost::to_upper_copy<std::string>(t);
+                retval.insert(retval.end(), upperized_t.begin(), upperized_t.end());
+            }
         return retval;
     }
 
-    template <typename S1>
-    std::vector<std::string_view> StringViewsForTags(
-        S1&& tags, std::string_view concat_tags)
-    {
+    std::vector<std::string_view> StringViewsForTags(const auto& tags, std::string_view concat_tags) {
         std::vector<std::string_view> retval;
         retval.reserve(tags.size());
         std::size_t next_idx = 0;
 
         // store views into concatenated tags/likes string
-        std::for_each(tags.begin(), tags.end(),
-                      [&next_idx, &retval, concat_tags](const auto t)
-        {
-            std::string upper_t = boost::to_upper_copy<std::string>(t);
-            retval.push_back(concat_tags.substr(next_idx, upper_t.size()));
-            next_idx += upper_t.size();
+        std::for_each(tags.begin(), tags.end(), [&next_idx, &retval, concat_tags](const auto tag) {
+            // determine how much space each tag takes up after being converted to upper case
+            const auto upperized_tag = boost::to_upper_copy<std::string>(tag);
+            const auto upper_sz = upperized_tag.size();
+            retval.push_back(concat_tags.substr(next_idx, upper_sz));
+            next_idx += upper_sz;
         });
         return retval;
     }
 
-    template <typename S1>
-    std::vector<std::string_view> StringViewsForPediaTags(
-        S1&& tags, std::string_view concat_tags)
-    {
+    std::vector<std::string_view> StringViewsForPediaTags(const auto& tags, std::string_view concat_tags) {
         std::vector<std::string_view> retval;
         retval.reserve(tags.size());
-
         std::size_t next_idx = 0;
 
         // store views into concatenated tags/likes string
-        std::for_each(tags.begin(), tags.end(),
-                      [&next_idx, &retval, concat_tags] (const auto tag)
-        {
-            std::string upper_t = boost::to_upper_copy<std::string>(tag);
+        std::for_each(tags.begin(), tags.end(), [&next_idx, &retval, concat_tags] (const auto tag) {
+            const auto upperized_tag = boost::to_upper_copy<std::string>(tag);
+            const auto upper_sz = upperized_tag.size();
             static constexpr auto len{TAG_PEDIA_PREFIX.length()};
             if (tag.substr(0, len) == TAG_PEDIA_PREFIX) {
                 // store string views into the pedia tag after the "PEDIA" prefix
-                auto full_tag = concat_tags.substr(next_idx, upper_t.size());
-                auto after_prefix_tag = full_tag.substr(len);
+                const auto full_tag = concat_tags.substr(next_idx, upper_sz);
+                const auto after_prefix_tag = full_tag.substr(len);
                 retval.push_back(after_prefix_tag);
             }
-            next_idx += upper_t.size();
+            next_idx += upper_sz;
         });
         return retval;
     }
@@ -166,6 +180,206 @@ namespace {
 
         return retval;
     }
+
+    auto SourceOwner()
+    { return std::make_unique<ValueRef::Variable<int>>(ValueRef::ReferenceType::SOURCE_REFERENCE, "Owner"); }
+
+    auto NoRebelTroops() {
+        return std::make_unique<Condition::MeterValue>(MeterType::METER_REBEL_TROOPS,
+                                                       nullptr,
+                                                       std::make_unique<ValueRef::Constant<double>>(0.0));
+    }
+
+    auto HasPopulation() {
+        return std::make_unique<Condition::MeterValue>(MeterType::METER_POPULATION,
+                                                       std::make_unique<ValueRef::Constant<double>>(0.001),
+                                                       nullptr);
+    }
+
+    auto NotConqueredRecently(ValueRef::ReferenceType ref_type = ValueRef::ReferenceType::CONDITION_LOCAL_CANDIDATE_REFERENCE) {
+        return std::make_unique<Condition::ValueTest>(
+            std::make_unique<ValueRef::Variable<int>>(ref_type, "TurnsSinceLastConquered"),
+            Condition::ComparisonType::GREATER_THAN,
+            std::make_unique<ValueRef::Constant<int>>(1)
+        );
+    }
+    auto NotAnnexedRecently(ValueRef::ReferenceType ref_type = ValueRef::ReferenceType::CONDITION_LOCAL_CANDIDATE_REFERENCE) {
+        return std::make_unique<Condition::ValueTest>(
+            std::make_unique<ValueRef::Variable<int>>(ref_type, "TurnsSinceAnnexation"),
+            Condition::ComparisonType::GREATER_THAN,
+            std::make_unique<ValueRef::Constant<int>>(1)
+        );
+    }
+    auto NotColonizedRecently(ValueRef::ReferenceType ref_type = ValueRef::ReferenceType::CONDITION_LOCAL_CANDIDATE_REFERENCE) {
+        return std::make_unique<Condition::ValueTest>(
+            std::make_unique<ValueRef::Variable<int>>(ref_type, "TurnsSinceColonization"),
+            Condition::ComparisonType::GREATER_THAN,
+            std::make_unique<ValueRef::Constant<int>>(1)
+        );
+    }
+
+    auto ResourceSupplyConnectedToAcceptableAnnexerPlanet() {
+        return std::make_unique<Condition::ResourceSupplyConnectedByEmpire>(
+            SourceOwner(),
+            std::make_unique<Condition::And>(
+                std::make_unique<Condition::Type>(UniverseObjectType::OBJ_PLANET),
+                std::make_unique<Condition::EmpireAffiliation>(SourceOwner()),
+                NotConqueredRecently(),
+                NotAnnexedRecently(),
+                NotColonizedRecently()
+            )
+        );
+    }
+
+    auto DefaultAnnexationCondition() {
+        return std::make_unique<Condition::And>(
+            std::make_unique<Condition::Or>(
+                std::make_unique<Condition::EmpireAffiliation>(EmpireAffiliationType::AFFIL_NONE),
+                std::make_unique<Condition::EmpireAffiliation>(SourceOwner(), EmpireAffiliationType::AFFIL_ENEMY)
+            ),
+            NotConqueredRecently(),
+            NotAnnexedRecently(),
+            NotColonizedRecently(),
+            std::make_unique<Condition::VisibleToEmpire>(SourceOwner()),
+            HasPopulation(),
+            NoRebelTroops(),
+            ResourceSupplyConnectedToAcceptableAnnexerPlanet()
+        );
+    }
+
+    auto LocalCandidateOwner()
+    { return std::make_unique<ValueRef::Variable<int>>(ValueRef::ReferenceType::CONDITION_LOCAL_CANDIDATE_REFERENCE, "Owner"); }
+
+    auto SpeciesOpinion(std::unique_ptr<ValueRef::Variable<int>>&& empire_id_ref) {
+        return std::make_unique<ValueRef::ComplexVariable<double>>(
+            "SpeciesEmpireOpinion",
+            std::move(empire_id_ref),
+            nullptr, nullptr,
+            std::make_unique<ValueRef::Variable<std::string>>(
+                ValueRef::ReferenceType::CONDITION_LOCAL_CANDIDATE_REFERENCE, "Species")
+        );
+    }
+
+    auto HasOwner() { // 0.0 if unowned or 1.0 if owned by an empire
+        return std::make_unique<ValueRef::StaticCast<int, double>>(
+            std::make_unique<ValueRef::Operation<int>>(
+                ValueRef::OpType::COMPARE_NOT_EQUAL,
+                std::make_unique<ValueRef::Constant<int>>(ALL_EMPIRES),
+                LocalCandidateOwner()
+            )
+        );
+    }
+
+    template <typename VR>
+    concept evalable = requires(const VR vr, const ScriptingContext c) { vr->Eval(c); };
+
+    auto operator+(evalable auto&& lhs, evalable auto&& rhs) {
+        return std::make_unique<ValueRef::Operation<double>>(
+            ValueRef::OpType::PLUS, std::forward<decltype(lhs)>(lhs), std::forward<decltype(rhs)>(rhs));
+    }
+
+    auto operator-(evalable auto&& lhs, evalable auto&& rhs) {
+        return std::make_unique<ValueRef::Operation<double>>(
+            ValueRef::OpType::MINUS, std::forward<decltype(lhs)>(lhs), std::forward<decltype(rhs)>(rhs));
+    }
+
+    auto operator*(evalable auto&& lhs, evalable auto&& rhs) {
+        return std::make_unique<ValueRef::Operation<double>>(
+            ValueRef::OpType::TIMES, std::forward<decltype(lhs)>(lhs), std::forward<decltype(rhs)>(rhs));
+    }
+
+    auto operator^(evalable auto&& lhs, evalable auto&& rhs) {
+        return std::make_unique<ValueRef::Operation<double>>(
+            ValueRef::OpType::EXPONENTIATE, std::forward<decltype(lhs)>(lhs), std::forward<decltype(rhs)>(rhs));
+    }
+
+    auto operator-(evalable auto&& rhs) {
+        return std::make_unique<ValueRef::Operation<double>>(
+            ValueRef::OpType::NEGATE, std::forward<decltype(rhs)>(rhs));
+    }
+
+    auto SpeciesOpinionOfOwnerOrZero() // 0.0 if unowned, or the opinion of the species on the planet of the owner empire
+    { return HasOwner() * SpeciesOpinion(LocalCandidateOwner()); }
+
+    auto PlanetStability() {
+        return std::make_unique<ValueRef::Variable<double>>(
+            ValueRef::ReferenceType::CONDITION_LOCAL_CANDIDATE_REFERENCE, "Happiness"
+        );
+    }
+
+    auto AnnexCostScaling() {
+        return std::make_unique<ValueRef::ComplexVariable<double>>(
+            "GameRule", nullptr, nullptr, nullptr,
+            std::make_unique<ValueRef::Constant<std::string>>("RULE_ANNEX_COST_SCALING"));
+    }
+
+    auto LocalCandidatePop() {
+        return std::make_unique<ValueRef::Variable<double>>(
+            ValueRef::ReferenceType::CONDITION_LOCAL_CANDIDATE_REFERENCE, "Population");
+    }
+
+    auto ScaledPop() // (pop * scale_factor)
+    { return AnnexCostScaling() * LocalCandidatePop(); }
+
+    auto AnnexCostOpinionBase() {
+        return std::make_unique<ValueRef::ComplexVariable<double>>(
+            "GameRule", nullptr, nullptr, nullptr,
+            std::make_unique<ValueRef::Constant<std::string>>("RULE_ANNEX_COST_OPINION_EXP_BASE"));
+    }
+
+    auto ExpBaseSpeciesOpinion() // (base^(owner_opinion - annexer_opinion))
+    { return AnnexCostOpinionBase() ^ (SpeciesOpinionOfOwnerOrZero() - SpeciesOpinion(SourceOwner())); }
+
+    auto AnnexCostStabilityBase() {
+        return std::make_unique<ValueRef::ComplexVariable<double>>(
+            "GameRule", nullptr, nullptr, nullptr,
+            std::make_unique<ValueRef::Constant<std::string>>("RULE_ANNEX_COST_STABILITY_EXP_BASE"));
+    }
+
+    auto ExpBaseStability() // (base^stability)
+    { return AnnexCostStabilityBase() ^ PlanetStability(); }
+
+    auto MinimumAnnexCost() {
+        return std::make_unique<ValueRef::ComplexVariable<double>>(
+            "GameRule", nullptr, nullptr, nullptr,
+            std::make_unique<ValueRef::Constant<std::string>>("RULE_ANNEX_COST_MINIMUM"));
+    }
+
+    auto BuildingAnnexCostScaling() {
+        return std::make_unique<ValueRef::ComplexVariable<double>>(
+            "GameRule", nullptr, nullptr, nullptr,
+            std::make_unique<ValueRef::Constant<std::string>>("RULE_BUILDING_ANNEX_COST_SCALING"));
+    }
+
+    auto BuildingCostsSum(std::unique_ptr<ValueRef::Variable<int>>&& for_empire_ref) {
+        return std::make_unique<ValueRef::Statistic<double>>(
+            std::make_unique<ValueRef::ComplexVariable<double>>(
+                "BuildingTypeCost",                                                               // cost to produce buildings
+                std::move(for_empire_ref),                                                        // by passed-in empire
+                std::make_unique<ValueRef::Variable<int>>(
+                    ValueRef::ReferenceType::CONDITION_LOCAL_CANDIDATE_REFERENCE, "PlanetID"),    // at the planet the building is already on
+                nullptr,
+                std::make_unique<ValueRef::Variable<std::string>>(
+                    ValueRef::ReferenceType::CONDITION_LOCAL_CANDIDATE_REFERENCE, "BuildingType") // for each building's building type
+            ),
+            ValueRef::StatisticType::SUM,
+            std::make_unique<Condition::And>(
+                std::make_unique<Condition::Type>(UniverseObjectType::OBJ_BUILDING),
+                std::make_unique<Condition::OnPlanet>(                  // for buildings on the planet being annexed
+                    std::make_unique<ValueRef::Variable<int>>(
+                        ValueRef::ReferenceType::CONDITION_ROOT_CANDIDATE_REFERENCE, "ID")
+                )
+            )
+        );
+    }
+
+    auto DefaultAnnexationCost() {
+        return std::make_unique<ValueRef::Operation<double>>(
+            ValueRef::OpType::MAXIMUM,
+            MinimumAnnexCost(),
+            (ScaledPop() * ExpBaseSpeciesOpinion() * ExpBaseStability()) + (BuildingAnnexCostScaling() * BuildingCostsSum(SourceOwner()))
+        );
+    }
 }
 
 Species::Species(std::string&& name, std::string&& desc,
@@ -177,6 +391,8 @@ Species::Species(std::string&& name, std::string&& desc,
                  bool playable, bool native, bool can_colonize, bool can_produce_ships,
                  const std::set<std::string>& tags,
                  std::set<std::string>&& likes, std::set<std::string>&& dislikes,
+                 std::unique_ptr<Condition::Condition>&& annexation_condition,
+                 std::unique_ptr<ValueRef::ValueRef<double>>&& annexation_cost,
                  std::string&& graphic,
                  double spawn_rate, int spawn_limit) :
     m_name(name), // not moving so available later in member initializer list
@@ -200,20 +416,32 @@ Species::Species(std::string&& name, std::string&& desc,
             cond->SetTopLevelContent(name);
         return std::move(cond);
     }(std::move(combat_targets), name)),
+    m_annexation_condition([](auto&& annexation_condition, const auto& name) {
+        if (!annexation_condition)
+            annexation_condition = DefaultAnnexationCondition();
+        annexation_condition->SetTopLevelContent(name);
+        return std::move(annexation_condition);
+    }(std::move(annexation_condition), name)),
+    m_annexation_cost([](auto&& annexation_cost, const auto& name) {
+        if (!annexation_cost)
+            annexation_cost = DefaultAnnexationCost();
+        annexation_cost->SetTopLevelContent(name);
+        return std::move(annexation_cost);
+    }(std::move(annexation_cost), name)),
     m_playable(playable),
     m_native(native),
     m_can_colonize(can_colonize),
     m_can_produce_ships(can_produce_ships),
     m_spawn_rate(spawn_rate),
     m_spawn_limit(spawn_limit),
-    m_tags_concatenated(ConcatenateAsString(tags, likes, dislikes)),
-    m_tags(StringViewsForTags(tags, m_tags_concatenated)),
-    m_pedia_tags(StringViewsForPediaTags(tags, m_tags_concatenated)),
+    m_tags_concatenated(ConcatenateAsVector(tags, likes, dislikes)),
+    m_tags(StringViewsForTags(tags, m_tags_concatenated.data())),
+    m_pedia_tags(StringViewsForPediaTags(tags, m_tags_concatenated.data())),
     m_likes([&likes, this]() {
         std::vector<std::string_view> retval;
         retval.reserve(likes.size());
 
-        const std::string_view sv{m_tags_concatenated};
+        const std::string_view sv{m_tags_concatenated.data(), m_tags_concatenated.size()};
         std::size_t next_idx = 0;
         // find starting point for first like, after end of tags, within m_tags_concatenated
         std::for_each(m_tags.begin(), m_tags.end(), [&next_idx](const auto& t) { next_idx += t.size(); });
@@ -231,7 +459,7 @@ Species::Species(std::string&& name, std::string&& desc,
         std::vector<std::string_view> retval;
         retval.reserve(dislikes.size());
 
-        const std::string_view sv{m_tags_concatenated};
+        const std::string_view sv{m_tags_concatenated.data(), m_tags_concatenated.size()};
         std::size_t next_idx = 0;
         // find starting point for first dislike, after end of tags and likes, within m_tags_concatenated
         std::for_each(m_tags.begin(), m_tags.end(), [&next_idx](const auto& t) { next_idx += t.size(); });
@@ -258,6 +486,8 @@ Species::Species(std::string&& name, std::string&& desc,
                  bool playable, bool native, bool can_colonize, bool can_produce_ships,
                  const std::set<std::string>& tags,
                  std::set<std::string>&& likes, std::set<std::string>&& dislikes,
+                 std::unique_ptr<Condition::Condition>&& annexation_condition,
+                 std::unique_ptr<ValueRef::ValueRef<double>>&& annexation_cost,
                  std::string&& graphic,
                  double spawn_rate, int spawn_limit) :
     Species(
@@ -274,7 +504,9 @@ Species::Species(std::string&& name, std::string&& desc,
             return retval;
         }(),
         std::move(combat_targets), playable, native, can_colonize, can_produce_ships,
-        tags, std::move(likes), std::move(dislikes), std::move(graphic), spawn_rate, spawn_limit)
+        tags, std::move(likes), std::move(dislikes),
+        std::move(annexation_condition), std::move(annexation_cost),
+        std::move(graphic), spawn_rate, spawn_limit)
 {}
 
 Species::~Species() = default;
@@ -344,6 +576,21 @@ std::string Species::Dump(uint8_t ntabs) const {
             retval += focus.Dump(ntabs+2);
         retval += DumpIndent(ntabs+1) + "]\n";
     }
+    retval += DumpIndent(ntabs+1) + "defaultfocus = \"" + m_default_focus + "\"\n";
+    retval += DumpIndent(ntabs+1) + "likes = [";
+    for (const auto& entry : m_likes) {
+        retval += "\"";
+        retval += entry;
+        retval += "\" ";
+    }
+    retval += "]\n";
+    retval += DumpIndent(ntabs+1) + "dislikes = [";
+    for (const auto& entry : m_dislikes) {
+        retval += "\"";
+        retval += entry;
+        retval += "\" ";
+    }
+    retval += "]\n";
     if (m_effects.size() == 1) {
         retval += DumpIndent(ntabs+1) + "effectsgroups =\n";
         retval += m_effects.front().Dump(ntabs+2);
@@ -518,8 +765,12 @@ uint32_t Species::GetCheckSum() const {
     // opinions and homeworlds are per-game specific, so not included in checksum
     CheckSums::CheckSumCombine(retval, m_foci);
     CheckSums::CheckSumCombine(retval, m_default_focus);
+    CheckSums::CheckSumCombine(retval, m_likes);
+    CheckSums::CheckSumCombine(retval, m_dislikes);
     CheckSums::CheckSumCombine(retval, m_planet_environments);
     CheckSums::CheckSumCombine(retval, m_combat_targets);
+    CheckSums::CheckSumCombine(retval, m_annexation_condition);
+    CheckSums::CheckSumCombine(retval, m_annexation_cost);
     CheckSums::CheckSumCombine(retval, m_effects);
     CheckSums::CheckSumCombine(retval, m_location);
     CheckSums::CheckSumCombine(retval, m_playable);
@@ -537,14 +788,13 @@ uint32_t Species::GetCheckSum() const {
 /////////////////////////////////////////////////
 // SpeciesManager                              //
 /////////////////////////////////////////////////
-SpeciesManager& SpeciesManager::operator=(SpeciesManager&& rhs) {
+SpeciesManager& SpeciesManager::operator=(SpeciesManager&& rhs) noexcept {
     // intentionally not moving m_pending_types, m_species, or m_census_order
     // as these are parsed once
 
     m_species_homeworlds = std::move(rhs.m_species_homeworlds);
     m_species_empire_opinions = std::move(rhs.m_species_empire_opinions);
     m_species_species_opinions = std::move(rhs.m_species_species_opinions);
-    m_species_object_populations = std::move(rhs.m_species_object_populations);
     m_species_species_ships_destroyed = std::move(rhs.m_species_species_ships_destroyed);
 
     return *this;
@@ -628,7 +878,11 @@ int SpeciesManager::NumNativeSpecies() const
 { return std::distance(native_begin(), native_end()); }
 
 namespace {
+#if defined(__cpp_lib_constexpr_string) && ((!defined(__GNUC__) || (__GNUC__ > 12) || (__GNUC__ == 12 && __GNUC_MINOR__ >= 2))) && ((!defined(_MSC_VER) || (_MSC_VER >= 1934))) && ((!defined(__clang_major__) || (__clang_major__ >= 17)))
+    constexpr std::string EMPTY_STRING;
+#else
     const std::string EMPTY_STRING;
+#endif
 }
 
 const std::string& SpeciesManager::RandomSpeciesName() const {
@@ -657,24 +911,74 @@ const std::string& SpeciesManager::SequentialPlayableSpeciesName(int id) const {
     return std::next(playable_begin(), species_idx)->first;
 }
 
-void SpeciesManager::SetSpeciesHomeworlds(std::map<std::string, std::set<int>>&& species_homeworld_ids)
-{ m_species_homeworlds = std::move(species_homeworld_ids); }
-
-void SpeciesManager::SetSpeciesEmpireOpinions(std::map<std::string, std::map<int, float>>&& species_empire_opinions)
-{ m_species_empire_opinions = std::move(species_empire_opinions); }
-
-void SpeciesManager::SetSpeciesEmpireOpinion(const std::string& species_name, int empire_id, float opinion)
-{ m_species_empire_opinions[species_name][empire_id] = opinion; }
-
-void SpeciesManager::SetSpeciesSpeciesOpinions(std::map<std::string,
-                                               std::map<std::string, float>>&& species_species_opinions)
-{ m_species_species_opinions = std::move(species_species_opinions); }
+void SpeciesManager::SetSpeciesHomeworlds(std::map<std::string, std::set<int>>&& species_homeworld_ids) {
+    m_species_homeworlds.clear();
+    using homeworlds_value_t = decltype(m_species_homeworlds)::value_type;
+    std::transform(species_homeworld_ids.begin(), species_homeworld_ids.end(),
+                   std::inserter(m_species_homeworlds, m_species_homeworlds.end()),
+                   [](auto& sp_ids) -> homeworlds_value_t
+                   { return {sp_ids.first, {sp_ids.second.begin(), sp_ids.second.end()}}; });
+}
 
 void SpeciesManager::SetSpeciesSpeciesOpinion(const std::string& opinionated_species,
-                                              const std::string& rated_species, float opinion)
-{ m_species_species_opinions[opinionated_species][rated_species] = opinion; }
+                                              const std::string& rated_species, float opinion, bool target)
+{
+    auto& [opinion_meter, target_meter] = m_species_species_opinions[opinionated_species][rated_species];
+    if (target)
+        target_meter.SetCurrent(opinion);
+    else
+        opinion_meter.SetCurrent(opinion);
+}
 
-float SpeciesManager::SpeciesEmpireOpinion(const std::string& species_name, int empire_id) const {
+void SpeciesManager::SetSpeciesEmpireOpinion(const std::string& opinionated_species,
+                                             int empire_id, float opinion, bool target)
+{
+    auto& [opinion_meter, target_meter] = m_species_empire_opinions[opinionated_species][empire_id];
+    if (target)
+        target_meter.SetCurrent(opinion);
+    else
+        opinion_meter.SetCurrent(opinion);
+}
+
+void SpeciesManager::ResetSpeciesOpinions(bool active, bool target) {
+    for (auto& [species, empire_ops] : m_species_empire_opinions) {
+        for (auto& [empire_id, ops] : empire_ops) {
+            if (active)
+                ops.first.SetCurrent(ops.first.Initial());
+            if (target)
+                ops.second.ResetCurrent();
+        }
+    }
+
+    for (auto& [opinionated_species, species_ops] : m_species_species_opinions) {
+        for (auto& [about_species, ops] : species_ops) {
+            if (active)
+                ops.second.SetCurrent(ops.second.Initial());
+            if (target)
+                ops.second.ResetCurrent();
+        }
+    }
+}
+
+void SpeciesManager::BackPropagateOpinions() {
+    for (auto& empire_ops : m_species_empire_opinions | range_values) {
+        for (auto& [op, target_op] : empire_ops | range_values) {
+            op.BackPropagate();
+            target_op.BackPropagate();
+        }
+    }
+
+    for (auto& species_ops : m_species_species_opinions | range_values) {
+        for (auto& [op, target_op] : species_ops | range_values) {
+            op.BackPropagate();
+            target_op.BackPropagate();
+        }
+    }
+}
+
+float SpeciesManager::SpeciesEmpireOpinion(const std::string& species_name, int empire_id,
+                                           bool target, bool current) const
+{
     const auto sp_it = m_species_empire_opinions.find(species_name);
     if (sp_it == m_species_empire_opinions.end())
         return 0.0f;
@@ -682,11 +986,15 @@ float SpeciesManager::SpeciesEmpireOpinion(const std::string& species_name, int 
     const auto emp_it = emp_map.find(empire_id);
     if (emp_it == emp_map.end())
         return 0.0f;
-    return emp_it->second;
+    TraceLogger() << "SpeciesEmpireOpinion " << species_name << ", " << empire_id
+                  << ": " << emp_it->second.first.Dump().data() << " / " << emp_it->second.second.Dump().data();
+    const auto& meter = target ? emp_it->second.second : emp_it->second.first;
+    return current ? meter.Current() : meter.Initial();
 }
 
 float SpeciesManager::SpeciesSpeciesOpinion(const std::string& opinionated_species_name,
-                                            const std::string& rated_species_name) const
+                                            const std::string& rated_species_name,
+                                            bool target, bool current) const
 {
     const auto sp_it = m_species_species_opinions.find(opinionated_species_name);
     if (sp_it == m_species_species_opinions.end())
@@ -695,7 +1003,8 @@ float SpeciesManager::SpeciesSpeciesOpinion(const std::string& opinionated_speci
     const auto ra_sp_it = ra_sp_map.find(rated_species_name);
     if (ra_sp_it == ra_sp_map.end())
         return 0.0f;
-    return ra_sp_it->second;
+    const auto& meter = target ? ra_sp_it->second.second : ra_sp_it->second.first;
+    return current ? meter.Current() : meter.Initial();
 }
 
 std::vector<std::string_view> SpeciesManager::SpeciesThatLike(std::string_view content_name) const {
@@ -722,11 +1031,6 @@ std::vector<std::string_view> SpeciesManager::SpeciesThatDislike(std::string_vie
     return retval;
 }
 
-void SpeciesManager::ClearSpeciesOpinions() {
-    m_species_empire_opinions.clear();
-    m_species_species_opinions.clear();
-}
-
 void SpeciesManager::AddSpeciesHomeworld(std::string species, int homeworld_id) {
     if (homeworld_id == INVALID_OBJECT_ID)
         return;
@@ -748,30 +1052,14 @@ void SpeciesManager::RemoveSpeciesHomeworld(const std::string& species, int home
 void SpeciesManager::ClearSpeciesHomeworlds()
 { m_species_homeworlds.clear(); }
 
-void SpeciesManager::UpdatePopulationCounter(const ObjectMap& objects) {
-    // ships of each species and design
-    m_species_object_populations.clear();
-    for (const auto& [obj_id, obj] : objects.allExisting()) {
-        if (obj->ObjectType() != UniverseObjectType::OBJ_PLANET)
-            continue;
-
-        auto pop_center = std::dynamic_pointer_cast<const Planet>(obj); // TODO: static_cast
-        const std::string& species = pop_center->SpeciesName();
-        if (species.empty())
-            continue;
-
-        try {
-            m_species_object_populations[species][obj_id] +=
-                obj->GetMeter(MeterType::METER_POPULATION)->Current();
-        } catch (...) {}
-    }
+void SpeciesManager::SetSpeciesShipsDestroyed(std::map<std::string, std::map<std::string, int>> ssd) {
+    m_species_species_ships_destroyed.clear();
+    using opinions_value_t = decltype(m_species_species_ships_destroyed)::value_type;
+    std::transform(ssd.begin(), ssd.end(),
+                   std::inserter(m_species_species_ships_destroyed, m_species_species_ships_destroyed.end()),
+                   [](auto& sp_objs) -> opinions_value_t
+                   { return {sp_objs.first, {sp_objs.second.begin(), sp_objs.second.end()}}; });
 }
-
-void SpeciesManager::SetSpeciesObjectPopulations(std::map<std::string, std::map<int, float>> sop)
-{ m_species_object_populations = std::move(sop); }
-
-void SpeciesManager::SetSpeciesShipsDestroyed(std::map<std::string, std::map<std::string, int>> ssd)
-{ m_species_species_ships_destroyed = std::move(ssd); }
 
 uint32_t SpeciesManager::GetCheckSum() const {
     CheckPendingSpeciesTypes();

@@ -233,10 +233,9 @@ namespace {
             GG::X icon_left(spacer.x);
             GG::X text_left(icon_left + GG::X(icon_dim) + sitrep_spacing);
             GG::X text_width(ClientWidth() - text_left - spacer.x);
-            const ScriptingContext context;
 
             m_link_text = GG::Wnd::Create<SitRepLinkText>(
-                GG::X0, GG::Y0, text_width, m_sitrep_entry.GetText(context) + " ", ClientUI::GetFont(),
+                GG::X0, GG::Y0, text_width, m_sitrep_entry.GetText(IApp::GetApp()->GetContext()) + " ", ClientUI::GetFont(),
                 GG::FORMAT_LEFT | GG::FORMAT_VCENTER | GG::FORMAT_WORDBREAK, ClientUI::TextColor());
             m_link_text->SetDecorator(VarText::EMPIRE_ID_TAG, TextLinker::DecoratorType::ColorByEmpire);
             m_link_text->SetDecorator(TextLinker::BROWSE_PATH_TAG, TextLinker::DecoratorType::PathType);
@@ -412,30 +411,28 @@ void SitRepPanel::CompleteConstruction() {
 }
 
 void SitRepPanel::DoLayout() {
-    GG::X BUTTON_WIDTH(ClientUI::Pts()*4);
+    GG::X BUTTON_WIDTH{ClientUI::Pts()*4};
     GG::Y BUTTON_HEIGHT = m_last_turn_button->MinUsableSize().y;
-    int PAD(3);
+    static constexpr GG::X SITREP_PANEL_PAD{3};
 
     GG::Pt button_ul(ClientWidth() - GG::X(INNER_BORDER_ANGLE_OFFSET) - BUTTON_WIDTH,
                      ClientHeight() - BUTTON_HEIGHT);
 
     m_last_turn_button->SizeMove(button_ul, button_ul + GG::Pt(BUTTON_WIDTH, BUTTON_HEIGHT));
-    button_ul -= GG::Pt(BUTTON_WIDTH + GG::X(PAD), GG::Y0);
+    button_ul -= GG::Pt(BUTTON_WIDTH + SITREP_PANEL_PAD, GG::Y0);
     m_next_turn_button->SizeMove(button_ul, button_ul + GG::Pt(BUTTON_WIDTH, BUTTON_HEIGHT));
-    button_ul -= GG::Pt(BUTTON_WIDTH + GG::X(PAD), GG::Y0);
+    button_ul -= GG::Pt(BUTTON_WIDTH + SITREP_PANEL_PAD, GG::Y0);
     m_prev_turn_button->SizeMove(button_ul, button_ul + GG::Pt(BUTTON_WIDTH, BUTTON_HEIGHT));
-    button_ul -= GG::Pt(BUTTON_WIDTH + GG::X(PAD), GG::Y0);
+    button_ul -= GG::Pt(BUTTON_WIDTH + SITREP_PANEL_PAD, GG::Y0);
 
-    m_sitreps_lb->SizeMove(GG::Pt(GG::X0, GG::Y0), GG::Pt(ClientWidth() - 1, button_ul.y));
+    m_sitreps_lb->SizeMove(GG::Pt0, GG::Pt(ClientWidth() - 1, button_ul.y));
 
     m_filter_button->SizeMove(GG::Pt(GG::X0, button_ul.y), GG::Pt(BUTTON_WIDTH*2, button_ul.y + BUTTON_HEIGHT));
 
     SetMinSize(GG::Pt(6*BUTTON_WIDTH, 6*BUTTON_HEIGHT));
 }
 
-void SitRepPanel::KeyPress(GG::Key key, std::uint32_t key_code_point,
-                           GG::Flags<GG::ModKey> mod_keys)
-{
+void SitRepPanel::KeyPress(GG::Key key, uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys) {
     switch (key) {
     case GG::Key::GGK_RETURN:
     case GG::Key::GGK_KP_ENTER:
@@ -449,9 +446,8 @@ void SitRepPanel::KeyPress(GG::Key key, std::uint32_t key_code_point,
 }
 
 void SitRepPanel::SizeMove(GG::Pt ul, GG::Pt lr) {
-    GG::Pt old_size = GG::Wnd::Size();
-    std::size_t first_visible_queue_row = std::distance(m_sitreps_lb->begin(),
-                                                        m_sitreps_lb->FirstRowShown());
+    const GG::Pt old_size = GG::Wnd::Size();
+    const std::size_t first_visible_queue_row = std::distance(m_sitreps_lb->begin(), m_sitreps_lb->FirstRowShown());
 
     CUIWnd::SizeMove(ul, lr);
 
@@ -497,7 +493,7 @@ namespace {
         if (hidden_templates.contains(label))
             return true;
 
-        const ScriptingContext context;
+        const ScriptingContext& context = IApp::GetApp()->GetContext();
 
         // Validation is time consuming because all variables are substituted.
         // Having ui.map.sitrep.invalid.shown off / disabled will hide sitreps that do not
@@ -646,8 +642,7 @@ void SitRepPanel::IgnoreSitRep(GG::ListBox::iterator it, GG::Pt pt, GG::Flags<GG
     if (sitrep.GetTurn() <= 0)
         return;
 
-    const ScriptingContext context;
-    snoozed_sitreps[sitrep.GetTurn()].insert(sitrep.GetText(context));
+    snoozed_sitreps[sitrep.GetTurn()].insert(sitrep.GetText(IApp::GetApp()->GetContext()));
 
     Update();
 }
@@ -664,9 +659,8 @@ void SitRepPanel::DismissalMenu(GG::ListBox::iterator it, GG::Pt pt, GG::Flags<G
     submenu_ignore.label = entry_margin + UserString("SITREP_IGNORE_MENU");
 
     if (sitrep_row) {
-        const ScriptingContext context;
         const SitRepEntry& sitrep_entry = sitrep_row->GetSitRepEntry();
-        sitrep_text = sitrep_entry.GetText(context);
+        sitrep_text = sitrep_entry.GetText(IApp::GetApp()->GetContext());
         start_turn = sitrep_entry.GetTurn();
         if (start_turn > 0) {
             auto snooze5_action = [&sitrep_text, start_turn]() { SnoozeSitRepForNTurns(sitrep_text, start_turn, 5); };

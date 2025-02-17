@@ -52,7 +52,7 @@ class Texture;
     GG does not apply; when you set the end frame index to N, the last frame
     to be shown will be N, not N - 1. Also, while this control does not need
     to be the same size as the frames replayed within it, the size of the
-    frames is taken from the size of the control when it is contructed. */
+    frames is taken from the size of the control when it is constructed. */
 class GG_API DynamicGraphic : public Control
 {
 public:
@@ -188,8 +188,8 @@ protected:
         std::size_t frames = 0;                 ///< the number of frames in this texture
     };
 
-    std::size_t FramesInTexture(const Texture* t) const;///< returns the maximum number of frames that could be stored in \a t given the size of the control and Margin()
-    const std::vector<FrameSet>& Textures() const;      ///< returns the shared_ptrs to texture objects with all animation frames
+    std::size_t FramesInTexture(const Texture* t) const;   ///< returns the maximum number of frames that could be stored in \a t given the size of the control and Margin()
+    auto& Textures() const noexcept { return m_textures; } ///< returns the shared_ptrs to texture objects with all animation frames
 
     std::size_t  CurrentTexture() const;    ///< returns the current Texture being shown (part of it, anyway); INVALID_INDEX if none
     std::size_t  CurrentSubTexture() const; ///< returns the current frame being shown within Texture number CurrTexture(); INVALID_INDEX if none

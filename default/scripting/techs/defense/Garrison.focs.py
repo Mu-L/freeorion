@@ -1,5 +1,21 @@
-from common.base_prod import TECH_COST_MULTIPLIER, TROOPS_PER_POP
-from common.priorities import (
+from focs._effects import (
+    CurrentTurn,
+    EffectsGroup,
+    LocalCandidate,
+    MinOf,
+    NamedReal,
+    OwnedBy,
+    Planet,
+    Population,
+    SetMaxTroops,
+    SetTroops,
+    Source,
+    Target,
+    Value,
+)
+from focs._tech import *
+from macros.base_prod import TECH_COST_MULTIPLIER, TROOPS_PER_POP
+from macros.priorities import (
     AFTER_ALL_TARGET_MAX_METERS_PRIORITY,
     TARGET_AFTER_SCALING_PRIORITY,
     TARGET_EARLY_BEFORE_SCALING_PRIORITY,
@@ -35,7 +51,10 @@ Tech(
     researchturns=5,
     tags=["PEDIA_DEFENSE_CATEGORY"],
     prerequisites=["DEF_GARRISON_1"],
-    unlock=Item(type=UnlockPolicy, name="PLC_CHECKPOINTS"),
+    unlock=[
+        Item(type=UnlockPolicy, name="PLC_CHECKPOINTS"),
+        Item(type=UnlockPolicy, name="PLC_INSURGENCY"),
+    ],
     effectsgroups=[
         EffectsGroup(
             scope=Planet()

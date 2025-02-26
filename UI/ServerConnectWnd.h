@@ -24,10 +24,10 @@ public:
 
     void ModalInit() override;
 
-    void KeyPress(GG::Key key, std::uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys) override;
+    void KeyPress(GG::Key key, uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys) override;
 
     /** returns a the player's name (.player_name); the location of the server (.server_dest -- IP address or name), or "" if none was selected and client type (.type) */
-    const Result& GetResult() const;
+    const auto& GetResult() const noexcept { return m_result; }
 
 protected:
     GG::Rect CalculatePosition() const override;

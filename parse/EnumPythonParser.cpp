@@ -2,6 +2,7 @@
 
 #include <boost/python/dict.hpp>
 
+#include "../universe/BuildingType.h"
 #include "../universe/Enums.h"
 #include "../universe/Planet.h"
 #include "../universe/Species.h"
@@ -12,8 +13,8 @@
 
 void RegisterGlobalsEnums(boost::python::dict& globals) {
     for (const auto& op : std::initializer_list<std::pair<const char*, ResourceType>>{
-        {"Influence", ResourceType::RE_INFLUENCE},
-        {"Industry",  ResourceType::RE_INDUSTRY}})
+        {"ResourceInfluence", ResourceType::RE_INFLUENCE},
+        {"ResourceIndustry",  ResourceType::RE_INDUSTRY}})
     {
         globals[op.first] = enum_wrapper<ResourceType>(op.second);
     }
@@ -30,7 +31,16 @@ void RegisterGlobalsEnums(boost::python::dict& globals) {
     {
         globals[op.first] = enum_wrapper<EmpireAffiliationType>(op.second);
     }
-                   
+
+// TODO more meter types
+    for (const auto& op : std::initializer_list<std::pair<const char*, MeterType>>{
+            {"Capacity",         MeterType::METER_CAPACITY},
+            {"MaxCapacity",      MeterType::METER_MAX_CAPACITY},
+            {"SecondaryStat",    MeterType::METER_SECONDARY_STAT},
+            {"MaxSecondaryStat", MeterType::METER_MAX_SECONDARY_STAT}})
+    {
+        globals[op.first] = enum_wrapper<MeterType>(op.second);
+    }
 
     for (const auto& op : std::initializer_list<std::pair<const char*, ::PlanetEnvironment>>{
             {"Uninhabitable", PlanetEnvironment::PE_UNINHABITABLE},
@@ -119,6 +129,25 @@ void RegisterGlobalsEnums(boost::python::dict& globals) {
             {"BuildShip", BuildType::BT_SHIP}})
     {
         globals[op.first] = enum_wrapper<BuildType>(op.second);
+    }
+
+    // visibility_parser_rules
+    for (const auto& vis : std::initializer_list<std::pair<const char*, Visibility>>{
+            {"Invisible", Visibility::VIS_NO_VISIBILITY},
+            {"Basic",     Visibility::VIS_BASIC_VISIBILITY},
+            {"Partial",   Visibility::VIS_PARTIAL_VISIBILITY},
+            {"Full",      Visibility::VIS_FULL_VISIBILITY}})
+    {
+        globals[vis.first] = enum_wrapper<Visibility>(vis.second);
+    }
+
+    // capture_result_enum_grammar
+    for (const auto& capt : std::initializer_list<std::pair<const char*, CaptureResult>>{
+            {"Capture",          CaptureResult::CR_CAPTURE},
+            {"Retain",           CaptureResult::CR_RETAIN},
+            {"DestroyOnCapture", CaptureResult::CR_DESTROY}})
+    {
+        globals[capt.first] = enum_wrapper<CaptureResult>(capt.second);
     }
 }
 

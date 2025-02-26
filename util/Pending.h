@@ -67,10 +67,10 @@ namespace Pending {
             // multiple threads might be waiting but not care about the results
             if (do_not_care_about_result) {
                 if (pending.pending->valid()) {
-                    DebugLogger() << "Dont care for result of parsing \"" << pending.filename << "\". Have to get() once to release shared state in pending future.";
+                    DebugLogger() << "Don't care for result of parsing \"" << pending.filename << "\". Have to get() once to release shared state in pending future.";
                     pending.pending->get(); // needs to be called once to release state
                 }
-                DebugLogger() << "Dont care for result of parsing \"" << pending.filename << "\". Was already released.";
+                DebugLogger() << "Don't care for result of parsing \"" << pending.filename << "\". Was already released.";
                 return boost::none;
             }
             DebugLogger() << "Retrieve result of parsing \"" << pending.filename << "\".";
@@ -130,25 +130,35 @@ namespace Pending {
     /** Return a Pending<T> constructed with \p parser, \p arg1, and \p path*/
     template <typename Func, typename Arg1>
     [[nodiscard]] auto ParseSynchronously(const Func& parser, const Arg1& arg1, const boost::filesystem::path& path)
-        -> Pending<decltype(parser(arg1, path))>
+        -> Pending<decltype(parser(arg1, path, std::declval<bool&>()))>
     {
-        auto result = parser(arg1, path);
-        auto promise = std::promise<decltype(parser(arg1, path))>();
-        promise.set_value(std::move(result));
-        return Pending<decltype(parser(arg1, path))>(promise.get_future(), path.filename().string());
+        bool success = true;
+        auto result = parser(arg1, path, success);
+        auto promise = std::promise<decltype(parser(arg1, path, std::declval<bool&>()))>();
+        if (success)
+            promise.set_value(std::move(result));
+        else
+            promise.set_exception(std::make_exception_ptr(std::runtime_error(path.string())));
+        return Pending<decltype(parser(arg1, path, std::declval<bool&>()))>(promise.get_future(), path.filename().string());
     }
 
     /** Return a Pending<T> constructed with \p parser, \p arg1, and \p path*/
     template <typename Func, typename Arg1>
     [[nodiscard]] auto ParseSynchronously(const Func& parser, const Arg1& arg1, const boost::filesystem::path& path,
                             std::promise<void>&& barrier)
-        -> Pending<decltype(parser(arg1, path))>
+        -> Pending<decltype(parser(arg1, path, std::declval<bool&>()))>
     {
-        auto result = parser(arg1, path);
-        auto promise = std::promise<decltype(parser(arg1, path))>();
-        promise.set_value(std::move(result));
-        barrier.set_value();
-        return Pending<decltype(parser(arg1, path))>(promise.get_future(), path.filename().string());
+        bool success = true;
+        auto result = parser(arg1, path, success);
+        auto promise = std::promise<decltype(parser(arg1, path, std::declval<bool&>()))>();
+        if (success) {
+            promise.set_value(std::move(result));
+            barrier.set_value();
+        } else {
+            promise.set_exception(std::make_exception_ptr(std::runtime_error(path.string())));
+            barrier.set_exception(std::make_exception_ptr(std::runtime_error(path.string())));
+        }
+        return Pending<decltype(parser(arg1, path, std::declval<bool&>()))>(promise.get_future(), path.filename().string());
     }
 
     /** Helper struct for use with std::async. operator() evaluates \a _parser

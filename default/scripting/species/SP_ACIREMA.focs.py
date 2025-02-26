@@ -1,23 +1,45 @@
-from common.misc import PLANET_DEFENSE_FACTOR, PLANET_SHIELD_FACTOR
-from species.common.env import RADIATED_STANDARD_EP
-from species.common.focus import (
+from focs._effects import (
+    AnyEmpire,
+    Blue,
+    Contains,
+    CreateBuilding,
+    CreateShip,
+    EffectsGroup,
+    IsSource,
+    Object,
+    OwnedBy,
+    Planet,
+    SetMaxDefense,
+    SetMaxShield,
+    SetStarType,
+    Source,
+    System,
+    Turn,
+    Value,
+    WithinStarlaneJumps,
+)
+from focs._species import *
+from macros.misc import PLANET_DEFENSE_FACTOR, PLANET_SHIELD_FACTOR
+from species.species_macros.empire_opinions import COMMON_OPINION_EFFECTS
+from species.species_macros.env import RADIATED_STANDARD_EP
+from species.species_macros.focus import (
     HAS_ADVANCED_FOCI,
     HAS_GROWTH_FOCUS,
     HAS_INDUSTRY_FOCUS,
     HAS_INFLUENCE_FOCUS,
     HAS_RESEARCH_FOCUS,
 )
-from species.common.happiness import AVERAGE_HAPPINESS
-from species.common.industry import GREAT_INDUSTRY
-from species.common.influence import GOOD_INFLUENCE
-from species.common.planet_defense import AVERAGE_PLANETARY_DEFENSE
-from species.common.planet_shields import AVERAGE_PLANETARY_SHIELDS
-from species.common.population import AVERAGE_POPULATION
-from species.common.research import GOOD_RESEARCH
-from species.common.shields import ULTIMATE_SHIP_SHIELDS
-from species.common.stockpile import GREAT_STOCKPILE
-from species.common.supply import GREAT_SUPPLY
-from species.common.troops import AVERAGE_DEFENSE_TROOPS
+from species.species_macros.happiness import AVERAGE_HAPPINESS
+from species.species_macros.industry import GREAT_INDUSTRY
+from species.species_macros.influence import GOOD_INFLUENCE
+from species.species_macros.planet_defense import AVERAGE_PLANETARY_DEFENSE
+from species.species_macros.planet_shields import AVERAGE_PLANETARY_SHIELDS
+from species.species_macros.population import AVERAGE_POPULATION
+from species.species_macros.research import GOOD_RESEARCH
+from species.species_macros.shields import ULTIMATE_SHIP_SHIELDS
+from species.species_macros.stockpile import GREAT_STOCKPILE
+from species.species_macros.supply import GREAT_SUPPLY
+from species.species_macros.troops import AVERAGE_DEFENSE_TROOPS
 
 Species(
     name="SP_ACIREMA",
@@ -46,6 +68,7 @@ Species(
     likes=[
         "PLC_EXPLORATION",
         "PLC_INDUSTRIALISM",
+        "PLC_ISOLATION",
         "PLC_CENTRALIZATION",
         "PLC_MARTIAL_LAW",
         "PLC_RACIAL_PURITY",
@@ -64,9 +87,18 @@ Species(
         *GREAT_STOCKPILE,
         *AVERAGE_POPULATION,
         *AVERAGE_HAPPINESS,
+        COMMON_OPINION_EFFECTS("SP_ACIREMA"),
         *GREAT_SUPPLY,
         *AVERAGE_DEFENSE_TROOPS,
         # not for description
+        EffectsGroup(
+            scope=IsSource,
+            activation=Turn(low=1, high=1),
+            effects=[
+                CreateBuilding(type="BLD_SHIPYARD_BASE"),
+                CreateBuilding(type="BLD_SHIPYARD_ENRG_COMP"),
+            ],
+        ),
         EffectsGroup(
             scope=IsSource,
             activation=Planet()
@@ -99,6 +131,6 @@ Species(
         *AVERAGE_PLANETARY_SHIELDS,
         *AVERAGE_PLANETARY_DEFENSE,
     ],
-    **RADIATED_STANDARD_EP,
+    environments=RADIATED_STANDARD_EP,
     graphic="icons/species/acirema.png",
 )

@@ -25,25 +25,25 @@ using namespace GG;
 HueSaturationPicker::HueSaturationPicker(X x, Y y, X w, Y h) :
     Control(x, y, w, h, INTERACTIVE)
 {
-    static constexpr int SAMPLES = 100;
-    static constexpr double INCREMENT = 1.0 / (SAMPLES + 1);
+    static constexpr std::size_t SAMPLES = 100u;
+    static constexpr double INCREMENT = 1.0 / (SAMPLES + 1u);
     static constexpr double VALUE = 1.0;
     m_vertices.resize(SAMPLES, std::vector<std::pair<double, double>>(2 * (SAMPLES + 1)));
     m_colors.resize(SAMPLES, std::vector<Clr>(2 * (SAMPLES + 1)));
-    for (int col = 0; col < SAMPLES; ++col) {
-        for (int row = 0; row < SAMPLES + 1; ++row) {
-            m_vertices[col][2 * row] =      {col * INCREMENT, row * INCREMENT};
-            m_vertices[col][2 * row + 1] =  {(col + 1) * INCREMENT, row * INCREMENT};
-            m_colors[col][2 * row] =        HSVClr(col * INCREMENT, 1.0 - row * INCREMENT, VALUE);
-            m_colors[col][2 * row + 1] =    HSVClr((col + 1) * INCREMENT, 1.0 - row * INCREMENT, VALUE);
+    for (std::size_t col = 0u; col < SAMPLES; ++col) {
+        for (std::size_t row = 0u; row < SAMPLES + 1; ++row) {
+            m_vertices[col][2*row] =     {col * INCREMENT, row * INCREMENT};
+            m_vertices[col][2*row + 1] = {(col + 1) * INCREMENT, row * INCREMENT};
+            m_colors[col][2*row] =       HSVClr(col * INCREMENT, 1.0 - row * INCREMENT, VALUE);
+            m_colors[col][2*row + 1] =   HSVClr((col + 1) * INCREMENT, 1.0 - row * INCREMENT, VALUE);
         }
     }
 }
 
 void HueSaturationPicker::Render()
 {
-    Pt ul = UpperLeft(), lr = LowerRight();
-    Pt size = Size();
+    const auto ul = UpperLeft(), lr = LowerRight();
+    const auto size = Size();
     glDisable(GL_TEXTURE_2D);
 
     glPushClientAttrib(GL_CLIENT_ALL_ATTRIB_BITS);
@@ -56,8 +56,8 @@ void HueSaturationPicker::Render()
     glTranslated(Value(ul.x), Value(ul.y), 0.0);
     glScaled(Value(size.x), Value(size.y), 1.0);
     for (std::size_t i = 0; i < m_vertices.size(); ++i) {
-        glVertexPointer(2, GL_DOUBLE, 0, &m_vertices[i][0]);
-        glColorPointer(4, GL_UNSIGNED_BYTE, 0, &m_colors[i][0]);
+        glVertexPointer(2, GL_DOUBLE, 0, m_vertices[i].data());
+        glColorPointer(4, GL_UNSIGNED_BYTE, 0, m_colors[i].data());
         glDrawArrays(GL_QUAD_STRIP, 0, m_vertices[i].size());
     }
     glPopMatrix();
@@ -66,8 +66,8 @@ void HueSaturationPicker::Render()
 
     // lines to indicate currently selected colour
     glLineWidth(1.5f);
-    Pt color_position(static_cast<X>(ul.x + size.x * m_hue),
-                      static_cast<Y>(ul.y + size.y * (1.0 - m_saturation)));
+    Pt color_position(ToX(ul.x + size.x * m_hue),
+                      ToY(ul.y + size.y * (1.0 - m_saturation)));
     glColor(CLR_SHADOW);
 
     static constexpr float GAP(3.0f);
@@ -131,9 +131,9 @@ void HueSaturationPicker::SetHueSaturationFromPt(Pt pt)
         pt.x = lr.x;
     if (lr.y < pt.y)
         pt.y = lr.y;
-    Pt size = Size();
-    m_hue = Value((pt.x - ul.x) * 1.0 / size.x);
-    m_saturation = Value(1.0 - (pt.y - ul.y) * 1.0 / size.y);
+    const auto size = Size();
+    m_hue = Value((pt.x - ul.x)) * 1.0 / Value(size.x);
+    m_saturation = 1.0 - (pt.y - ul.y)*1.0/Value(size.y);
     ChangedSignal(m_hue, m_saturation);
 }
 
@@ -172,7 +172,7 @@ void ValuePicker::Render()
     colour_buf.store(HSVClr(m_hue, m_saturation, 0.0));
 
     // line indicating currently-selected lightness
-    Y color_position(eff_ul.y + h * (1.0 - m_value));
+    Y color_position(ToY(eff_ul.y + h * (1.0 - m_value)));
     vert_buf.store(Value(eff_ul.x),    Value(color_position));
     colour_buf.store(CLR_SHADOW);
     vert_buf.store(Value(eff_lr.x),    Value(color_position));
@@ -238,7 +238,7 @@ void ValuePicker::SetValueFromPt(Pt pt)
     if (lr.y < pt.y)
         pt.y = lr.y;
     Y h = Height();
-    m_value = Value(1.0 - (pt.y - ul.y) * 1.0 / h);
+    m_value = 1.0 - (pt.y - ul.y) * 1.0 / Value(h);
     ChangedSignal(m_value);
 }
 
@@ -311,7 +311,7 @@ void ColorDlg::ColorDisplay::Render()
     full_alpha_color.a = 255;
 
 
-    GLfloat verts[12];
+    GLfloat verts[12] = {};
     // upper left: full alpha colour
     verts[0] = Value(lr.x); verts[1] = Value(ul.y);
     verts[2] = Value(ul.x); verts[3] = Value(ul.y);
@@ -391,12 +391,10 @@ ColorDlg::ColorDlg(X x, Y y, Clr original_color, const std::shared_ptr<Font>& fo
                                                  1, 1, 0, 4);
     m_new_color_square = Wnd::Create<ColorDisplay>(color);
     if (m_original_color_specified) {
-        m_new_color_square_text = style->NewTextControl(style->Translate("New"), font,
-                                                        m_text_color, FORMAT_RIGHT);
+        m_new_color_square_text = style.NewTextControl(style.Translate("New"), font, m_text_color, FORMAT_RIGHT);
         m_color_squares_layout->Add(m_new_color_square_text, 0, 0);
         m_color_squares_layout->Add(m_new_color_square, 0, 1);
-        m_old_color_square_text = style->NewTextControl(style->Translate("Old"), font,
-                                                        m_text_color, FORMAT_RIGHT);
+        m_old_color_square_text = style.NewTextControl(style.Translate("Old"), font, m_text_color, FORMAT_RIGHT);
         m_color_squares_layout->Add(m_old_color_square_text, 1, 0);
         m_old_color_square = Wnd::Create<ColorDisplay>(m_original_color);
         m_color_squares_layout->Add(m_old_color_square, 1, 1);
@@ -436,22 +434,20 @@ ColorDlg::ColorDlg(X x, Y y, Clr original_color, const std::shared_ptr<Font>& fo
             std::make_tuple(static_cast<int>(m_current_color.v * 255), 0, 255, "V:")
         })
     {
-        m_slider_labels.push_back(style->NewTextControl(style->Translate(color_label), font,
-                                                        m_text_color, FORMAT_RIGHT));
+        m_slider_labels.push_back(style.NewTextControl(style.Translate(color_label), font, m_text_color, FORMAT_RIGHT));
         m_sliders_ok_cancel_layout->Add(m_slider_labels.back(), row, 0);
-        m_slider_values.push_back(style->NewTextControl(std::to_string(color_value),
-                                                        font, m_text_color, FORMAT_LEFT));
+        m_slider_values.push_back(style.NewTextControl(std::to_string(color_value), font, m_text_color, FORMAT_LEFT));
         m_sliders_ok_cancel_layout->Add(m_slider_values.back(), row, 1);
-        m_sliders.push_back(style->NewIntSlider(color_min, color_max, Orientation::HORIZONTAL, m_color, 10));
+        m_sliders.push_back(style.NewIntSlider(color_min, color_max, Orientation::HORIZONTAL, m_color, 10));
         m_sliders.back()->SlideTo(color_value);
         m_sliders_ok_cancel_layout->Add(m_sliders.back(), row, 2);
 
         ++row;
     }
 
-    m_ok = style->NewButton(style->Translate("Ok"), font, m_color, m_text_color);
+    m_ok = style.NewButton(style.Translate("Ok"), font, m_color, m_text_color);
     m_sliders_ok_cancel_layout->Add(m_ok, 7, 0, 1, 3);
-    m_cancel = style->NewButton(style->Translate("Cancel"), font, m_color, m_text_color);
+    m_cancel = style.NewButton(style.Translate("Cancel"), font, m_color, m_text_color);
     m_sliders_ok_cancel_layout->Add(m_cancel, 8, 0, 1, 3);
 }
 
@@ -509,7 +505,7 @@ void ColorDlg::Render()
     }
 }
 
-void ColorDlg::KeyPress(Key key, std::uint32_t key_code_point, Flags<ModKey> mod_keys)
+void ColorDlg::KeyPress(Key key, uint32_t key_code_point, Flags<ModKey> mod_keys)
 {
     if (key == Key::GGK_RETURN || key == Key::GGK_KP_ENTER)
         OkClicked();
@@ -628,19 +624,19 @@ void ColorDlg::AlphaSliderChanged(int value, int low, int high)
 
 void ColorDlg::HueSliderChanged(int value, int low, int high)
 {
-    m_current_color.h = value / static_cast<double>(high - low);
+    m_current_color.h = static_cast<double>(value) / static_cast<double>(high - low);
     ColorChanged(m_current_color);
 }
 
 void ColorDlg::SaturationSliderChanged(int value, int low, int high)
 {
-    m_current_color.s = value / static_cast<double>(high - low);
+    m_current_color.s = static_cast<double>(value) / static_cast<double>(high - low);
     ColorChanged(m_current_color);
 }
 
 void ColorDlg::ValueSliderChanged(int value, int low, int high)
 {
-    m_current_color.v = value / static_cast<double>(high - low);
+    m_current_color.v = static_cast<double>(value) / static_cast<double>(high - low);
     ColorChanged(m_current_color);
 }
 

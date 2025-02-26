@@ -33,15 +33,21 @@ static_assert(trimmed_result == "INVALID = -1");
 
 constexpr auto split_apply_result = GG::EnumMap<TestEnum>::SplitApply(
     test_enum_text, GG::EnumMap<TestEnum>::Trim, ',');
+static_assert(split_apply_result.first == 5);
+static_assert(split_apply_result.second[0] == "INVALID = -1");
+static_assert(split_apply_result.second[1] == "VALID = 0");
+static_assert(split_apply_result.second[2] == "MAX = 1");
+static_assert(split_apply_result.second[3] == "OUT_OF_RANGE");
+static_assert(split_apply_result.second[4] == "END");
 
 constexpr GG::EnumMap<TestEnum> cmap(test_enum_text);
 static_assert(cmap["MAX"] == TestEnum::MAX);
 static_assert(cmap["OUT_OF_RANGE"] == TestEnum::OUT_OF_RANGE);
 
 
-static constexpr auto em = GG::CGetEnumMap<GG::WndRegion>();
-static constexpr auto qq = em[GG::WndRegion::WR_TOPLEFT];
-static constexpr auto rr = GG::to_string(GG::WndRegion::WR_TOPLEFT);
+constexpr auto em = GG::CGetEnumMap<GG::WndRegion>();
+constexpr auto qq = em[GG::WndRegion::WR_TOPLEFT];
+constexpr auto rr = GG::to_string(GG::WndRegion::WR_TOPLEFT);
 static_assert(rr == "WR_TOPLEFT");
 static_assert(rr == qq);
 
@@ -258,8 +264,8 @@ std::shared_ptr<Layout> Wnd::GetLayout() const noexcept
 Layout* Wnd::ContainingLayout() const noexcept
 { return LockAndResetIfExpired(m_containing_layout).get(); }
 
-const std::shared_ptr<StyleFactory>& Wnd::GetStyleFactory() const
-{ return m_style_factory ? m_style_factory : GUI::GetGUI()->GetStyleFactory(); }
+const StyleFactory& Wnd::GetStyleFactory() const noexcept
+{ return m_style_factory ? std::as_const(*m_style_factory) : GUI::GetGUI()->GetStyleFactory(); }
 
 WndRegion Wnd::WindowRegion(Pt pt) const
 {
@@ -296,8 +302,8 @@ void Wnd::ClampRectWithMinAndMaxSize(Pt& ul, Pt& lr) const
 {
     Pt min_sz = MinSize();
     Pt max_sz = MaxSize();
-    auto&& layout = GetLayout();
-    if (layout) {
+
+    if (auto layout = GetLayout()) {
         Pt layout_min_sz = layout->MinSize() + (Size() - ClientSize());
         min_sz.x = std::max(min_sz.x, layout_min_sz.x);
         min_sz.y = std::max(min_sz.y, layout_min_sz.y);
@@ -361,17 +367,17 @@ void Wnd::OffsetMove(Pt pt)
 
 void Wnd::SizeMove(Pt ul_, Pt lr_)
 {
-    Pt ul = ul_, lr = lr_;
-    Pt original_sz = Size();
-    bool resized = (original_sz != (lr - ul));
+    auto ul = ul_, lr = lr_;
+    const auto original_sz = Size();
+    const bool resized = (original_sz != (lr - ul));
     if (resized)
         ClampRectWithMinAndMaxSize(ul, lr);
 
     m_upperleft = ul;
     m_lowerright = lr;
     if (resized) {
-        bool size_changed = Size() != original_sz;
-        auto&& layout = GetLayout();
+        const bool size_changed = Size() != original_sz;
+        auto layout = GetLayout();
         if (layout && size_changed)
             layout->Resize(ClientSize());
         if (size_changed && !dynamic_cast<Layout*>(this))
@@ -385,12 +391,12 @@ void Wnd::Resize(Pt sz)
 
 void Wnd::SetMinSize(Pt sz)
 {
-    bool min_size_changed = m_min_size != sz;
+    const bool min_size_changed = m_min_size != sz;
     m_min_size = sz;
-    if (Width() < m_min_size.x || Height() < m_min_size.y)
+    if (Width() < m_min_size.x || Height() < m_min_size.y) {
         Resize(Pt(std::max(Width(), m_min_size.x), std::max(Height(), m_min_size.y)));
     // The previous Resize() will call ChildSizeOrMinSizeChanged() itself if needed
-    else if (min_size_changed && !dynamic_cast<Layout*>(this)) {
+    } else if (min_size_changed && !dynamic_cast<Layout*>(this)) {
         if (auto&& containing_layout = LockAndResetIfExpired(m_containing_layout))
             containing_layout->ChildSizeOrMinSizeChanged();
     }
@@ -514,7 +520,7 @@ void Wnd::InstallEventFilter(std::shared_ptr<Wnd> wnd)
         return;
     RemoveEventFilter(wnd);
 
-    m_filters.emplace_back(std::move(wnd));
+    m_filters.push_back(wnd);
     wnd->m_filtering.insert(shared_from_this());
 }
 
@@ -538,7 +544,7 @@ void Wnd::HorizontalLayout()
     Pt client_sz = ClientSize();
     for (auto& child : m_children) {
         Pt wnd_ul = child->RelativeUpperLeft(), wnd_lr = child->RelativeLowerRight();
-        if (wnd_ul.x < 0 || wnd_ul.y < 0 || client_sz.x < wnd_lr.x || client_sz.y < wnd_lr.y)
+        if (wnd_ul.x < X0 || wnd_ul.y < Y0 || client_sz.x < wnd_lr.x || client_sz.y < wnd_lr.y)
             continue;
         wnds.push_back(child);
     }
@@ -564,7 +570,7 @@ void Wnd::VerticalLayout()
     Pt client_sz = ClientSize();
     for (auto& child : m_children) {
         Pt wnd_ul = child->RelativeUpperLeft(), wnd_lr = child->RelativeLowerRight();
-        if (wnd_ul.x < 0 || wnd_ul.y < 0 || client_sz.x < wnd_lr.x || client_sz.y < wnd_lr.y)
+        if (wnd_ul.x < X0 || wnd_ul.y < Y0 || client_sz.x < wnd_lr.x || client_sz.y < wnd_lr.y)
             continue;
         wnds.push_back(child);
     }
@@ -593,7 +599,7 @@ void Wnd::GridLayout()
     for (auto it = m_children.begin(); it != m_children.end(); ++it) {
         auto& wnd = *it;
         Pt wnd_ul = wnd->RelativeUpperLeft(), wnd_lr = wnd->RelativeLowerRight();
-        if (wnd_ul.x < 0 || wnd_ul.y < 0 || client_sz.x < wnd_lr.x || client_sz.y < wnd_lr.y)
+        if (wnd_ul.x < X0 || wnd_ul.y < Y0 || client_sz.x < wnd_lr.x || client_sz.y < wnd_lr.y)
             continue;
 
         auto it2 = it;
@@ -613,7 +619,7 @@ void Wnd::GridLayout()
          it != grid_layout.get<LayoutLeft>().end(); ++it)
     {
         Pt ul = it->ul;
-        for (X x = ul.x - 1; x >= 0; --x) {
+        for (X x = ul.x - 1; x >= X0; --x) {
             if (grid_layout.get<LayoutRight>().count(x + 1, IsRight())) {
                 break;
             } else if (grid_layout.get<LayoutLeft>().count(x, IsLeft())) {
@@ -643,7 +649,7 @@ void Wnd::GridLayout()
     // align tops of windows
     for (TopIter it = grid_layout.get<LayoutTop>().begin(); it != grid_layout.get<LayoutTop>().end(); ++it) {
         Pt ul = it->ul;
-        for (Y y = ul.y - 1; y >= 0; --y) {
+        for (Y y = ul.y - Y1; y >= Y0; --y) {
             if (grid_layout.get<LayoutBottom>().count(y + 1, IsBottom())) {
                 break;
             } else if (grid_layout.get<LayoutTop>().count(y, IsTop())) {
@@ -690,13 +696,17 @@ void Wnd::GridLayout()
     // populate this new layout with the child windows, based on their placements in the pixel-grid layout
     for (const GridLayoutWnd& layout_wnd : grid_layout.get<Pointer>()) {
         auto& wnd = layout_wnd.wnd;
-        Pt ul = layout_wnd.ul;
-        Pt lr = layout_wnd.lr;
-        int left = std::distance(unique_lefts.begin(), unique_lefts.find(ul.x));
-        int top = std::distance(unique_tops.begin(), unique_tops.find(ul.y));
-        int right = std::distance(unique_lefts.begin(), unique_lefts.lower_bound(lr.x));
-        int bottom = std::distance(unique_tops.begin(), unique_tops.lower_bound(lr.y));
-        layout->Add(wnd, top, left, bottom - top, right - left);
+        const auto ul = layout_wnd.ul;
+        const auto lr = layout_wnd.lr;
+        const auto left = std::distance(unique_lefts.begin(), unique_lefts.find(ul.x));
+        const auto top = std::distance(unique_tops.begin(), unique_tops.find(ul.y));
+        const auto right = std::distance(unique_lefts.begin(), unique_lefts.lower_bound(lr.x));
+        const auto bottom = std::distance(unique_tops.begin(), unique_tops.lower_bound(lr.y));
+        const auto height_sz = static_cast<size_t>((bottom >= top) ? (bottom - top) : 0u);
+        const auto width_sz = static_cast<size_t>((right >= left) ? (right - left) : 0u);
+        const auto top_sz = top > 0 ? static_cast<size_t>(top) : 0u;
+        const auto left_sz = left > 0 ? static_cast<size_t>(left) : 0u;
+        layout->Add(wnd, top_sz, left_sz, height_sz, width_sz);
     }
 }
 
@@ -706,12 +716,12 @@ void Wnd::SetLayout(const std::shared_ptr<Layout>& layout)
     if (layout == mm_layout || layout == LockAndResetIfExpired(m_containing_layout))
         throw BadLayout("Wnd::SetLayout() : Attempted to set a Wnd's layout to be its current layout or the layout that contains the Wnd");
     RemoveLayout();
-    auto children = m_children;
+    const auto children{m_children};
     DetachChildren();
     Pt client_sz = ClientSize();
     for (auto& wnd : children) {
         Pt wnd_ul = wnd->RelativeUpperLeft(), wnd_lr = wnd->RelativeLowerRight();
-        if (wnd_ul.x < 0 || wnd_ul.y < 0 || client_sz.x < wnd_lr.x || client_sz.y < wnd_lr.y)
+        if (wnd_ul.x < X0 || wnd_ul.y < Y0 || client_sz.x < wnd_lr.x || client_sz.y < wnd_lr.y)
             AttachChild(wnd);
     }
     AttachChild(layout);
@@ -721,16 +731,16 @@ void Wnd::SetLayout(const std::shared_ptr<Layout>& layout)
 
 void Wnd::SetLayout(std::shared_ptr<Layout>&& layout)
 {
-    auto&& mm_layout = GetLayout();
+    auto mm_layout = GetLayout();
     if (layout == mm_layout || layout == LockAndResetIfExpired(m_containing_layout))
         throw BadLayout("Wnd::SetLayout() : Attempted to set a Wnd's layout to be its current layout or the layout that contains the Wnd");
     RemoveLayout();
-    auto children = m_children;
+    const auto children{m_children};
     DetachChildren();
-    Pt client_sz = ClientSize();
+    const Pt client_sz = ClientSize();
     for (auto& wnd : children) {
         Pt wnd_ul = wnd->RelativeUpperLeft(), wnd_lr = wnd->RelativeLowerRight();
-        if (wnd_ul.x < 0 || wnd_ul.y < 0 || client_sz.x < wnd_lr.x || client_sz.y < wnd_lr.y)
+        if (wnd_ul.x < X0 || wnd_ul.y < Y0 || client_sz.x < wnd_lr.x || client_sz.y < wnd_lr.y)
             AttachChild(wnd);
     }
     AttachChild(layout);
@@ -919,10 +929,10 @@ void Wnd::CheckDrops(Pt pt, std::map<const Wnd*, bool>& drop_wnds_acceptable,
 void Wnd::DragDropLeave()
 { if (!Interactive()) ForwardEventToParent(); }
 
-void Wnd::KeyPress(Key key, std::uint32_t key_code_point, Flags<ModKey> mod_keys)
+void Wnd::KeyPress(Key key, uint32_t key_code_point, Flags<ModKey> mod_keys)
 { if (!Interactive()) ForwardEventToParent(); }
 
-void Wnd::KeyRelease(Key key, std::uint32_t key_code_point, Flags<ModKey> mod_keys)
+void Wnd::KeyRelease(Key key, uint32_t key_code_point, Flags<ModKey> mod_keys)
 { if (!Interactive()) ForwardEventToParent(); }
 
 void Wnd::TextInput(const std::string&)
@@ -1084,6 +1094,8 @@ void Wnd::BeginClippingImpl(ChildClippingMode mode)
     case ChildClippingMode::ClipToWindow:
         BeginScissorClipping(UpperLeft(), LowerRight());
         break;
+    case Wnd::ChildClippingMode::ClipToAncestorClient:
+        break;
     }
 }
 
@@ -1097,6 +1109,8 @@ void Wnd::EndClippingImpl(ChildClippingMode mode)
     case ChildClippingMode::ClipToWindow:
     case ChildClippingMode::ClipToClientAndWindowSeparately:
         EndScissorClipping();
+        break;
+    case Wnd::ChildClippingMode::ClipToAncestorClient:
         break;
     }
 }

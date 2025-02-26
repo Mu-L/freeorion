@@ -113,6 +113,12 @@ namespace parse { namespace detail {
                 _val = construct_movable_(new_<Effect::SetPlanetSize>(deconstruct_movable_(_1, _pass))) ]
             ;
 
+        set_focus
+            =    tok.SetFocus_
+            >    label(tok.name_) > string_grammar [
+                _val = construct_movable_(new_<Effect::SetFocus>(deconstruct_movable_(_1, _pass))) ]
+            ;
+
         set_species
             =    tok.SetSpecies_
             >    label(tok.name_) > string_grammar [
@@ -126,22 +132,27 @@ namespace parse { namespace detail {
             ;
 
         set_species_opinion
-            =    tok.SetSpeciesOpinion_
+            = (
+                (tok.SetSpeciesOpinion_ [ _d = false ]) |
+                (tok.SetSpeciesTargetOpinion_ [ _d = true ])
+              )
             >    label(tok.species_) >   string_grammar [ _a = _1 ]
             > (
                 (   label(tok.empire_) >  int_rules.expr [ _c = _1 ]
-                    >  label(tok.opinion_) > double_rules.expr
+                 >  label(tok.opinion_) > double_rules.expr
                     [ _val = construct_movable_(new_<Effect::SetSpeciesEmpireOpinion>(
                             deconstruct_movable_(_a, _pass),
                             deconstruct_movable_(_c, _pass),
-                            deconstruct_movable_(_1, _pass))) ])
+                            deconstruct_movable_(_1, _pass),
+                            _d)) ])
                 |
                 (   label(tok.species_) > string_grammar [ _b = _1 ]
-                    >   label(tok.opinion_) > double_rules.expr
+                 >  label(tok.opinion_) > double_rules.expr
                     [ _val = construct_movable_(new_<Effect::SetSpeciesSpeciesOpinion>(
                             deconstruct_movable_(_a, _pass),
                             deconstruct_movable_(_b, _pass),
-                            deconstruct_movable_(_1, _pass))) ])
+                            deconstruct_movable_(_1, _pass),
+                            _d)) ])
             )
             ;
 
@@ -183,6 +194,7 @@ namespace parse { namespace detail {
             |   set_planet_type
             |   set_original_type
             |   set_planet_size
+            |   set_focus
             |   set_species
             |   set_species_opinion
             |   set_owner
@@ -196,6 +208,7 @@ namespace parse { namespace detail {
         set_planet_type.name("SetPlanetType");
         set_original_type.name("SetOriginalType");
         set_planet_size.name("SetPlanetSize");
+        set_focus.name("SetFocus");
         set_species.name("SetSpecies");
         set_species_opinion.name("SetSpeciesOpinion");
         set_owner.name("SetOwner");
@@ -210,6 +223,7 @@ namespace parse { namespace detail {
         debug(set_planet_type);
         debug(set_original_type);
         debug(set_planet_size);
+        debug(set_focus);
         debug(set_species);
         debug(set_species_opinion);
         debug(set_owner);

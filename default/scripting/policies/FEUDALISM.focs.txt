@@ -22,13 +22,12 @@ Policy
     effectsgroups = [
         [[SPECIES_LIKES_OR_DISLIKES_POLICY_STABILITY_EFFECTS]]
 
-        // industry-focused planets tht are in systems with unowned populated planets that have the same species, get an industry boost
+        // industry-focused planets that are in systems with unowned populated planets that have the same species, get an industry boost
         EffectsGroup
             scope = And [
                 Planet
                 OwnedBy empire = Source.Owner
                 Focus type = "FOCUS_INDUSTRY"
-                Species name = Source.Species
                 ContainedBy And [
                     Object id = RootCandidate.SystemID
                     Contains And [
@@ -40,6 +39,7 @@ Policy
                     ]
                 ]
             ]
+            priority = [[TARGET_AFTER_SCALING_PRIORITY]]
             effects = SetTargetIndustry value = Value +
                 (NamedReal name = "PLC_FEUDALISM_DESC_INDUSTRY_SCALING" value = 3.0) *
                 (Statistic Sum value = LocalCandidate.Population condition = And [
@@ -52,11 +52,11 @@ Policy
                     Planet
                     OwnedBy empire = Source.Owner
                     Species name = Target.Species
-                    Focus type = "FOCUS_IDNUSTRY"
+                    Focus type = "FOCUS_INDUSTRY"
                     InSystem id = Target.SystemID
                 ]))
     ]
     graphic = "icons/policies/economic_feudalism.png"
 
 #include "/scripting/policies/policies.macros"
-#include "/scripting/common/priorities.macros"
+#include "/scripting/macros/priorities.macros"

@@ -10,6 +10,7 @@ have their future focus decided.
 from __future__ import annotations
 
 import freeOrionAIInterface as fo
+from collections.abc import Sequence
 from functools import total_ordering
 from itertools import chain
 from logging import debug, info, warning
@@ -68,6 +69,28 @@ class Output(NamedTuple):
     rating: float  # sum of all production values weighed by priorities for overall comparisons
 
 
+class FocusRating(NamedTuple):
+    rating: float
+    focus: str
+
+
+class PlanetFocusRating:
+    """
+    Best and second after the best focuses for the planet.
+    """
+
+    def __init__(self, focuses: Sequence[tuple[float, str]]):
+        """
+        Initialize object wih best and second best focuses.
+
+        There is a number of focuses equal length of the `supported_foci`
+        """
+        assert len(focuses) == len(supported_foci)
+        focuses = sorted((FocusRating(rating, focus) for rating, focus in focuses), reverse=True)
+        self.best = focuses[0]
+        self.second = focuses[1]
+
+
 @total_ordering
 class PlanetFocusInfo:
     """The current, possible and future foci and output of one planet."""
@@ -85,7 +108,7 @@ class PlanetFocusInfo:
         )
         self.possible_output = {}
         self.future_focus = self.current_focus
-        self.rated_foci = []  # list of Tuple[rating:float, focus:string], with best rated foci first
+        self.rated_foci: PlanetFocusRating = None  # initialized after the object creation
         self.options = {focus for focus in planet.availableFoci if focus in supported_foci}
 
     def __repr__(self):
@@ -102,20 +125,32 @@ class PlanetFocusInfo:
         """
         return self.planet.id < other.planet.id
 
+    def set_rated_foci(self):
+        self.rated_foci = PlanetFocusRating([(self.possible_output[focus].rating, focus) for focus in supported_foci])
+
     def rating_below_best(self, focus: str) -> float:
-        return self.possible_output[focus].rating - self.rated_foci[0][0]
+        return self.possible_output[focus].rating - self.rated_foci.best.rating
 
     def best_over_second(self) -> float:
-        return self.rated_foci[0][0] - self.rated_foci[1][0]
+        return self.rated_foci.best.rating - self.rated_foci.second.rating
+
+    def difference(self, focus1: str, focus2: str) -> float:
+        """How much is the output of focus1 better or worse than output of focus2."""
+        return self.possible_output[focus1].rating - self.possible_output[focus2].rating
 
     def evaluate(self, focus: str) -> float:
         """
         Compare focus with best alternative.
         If focus produces best, return a positive rating, giving how much its output is better than second best.
         If another focus produces better, returns a negative rating, giving how much it is worse than best.
+        Result is divided by sqrt(population) to prefer switching smaller planets.
         """
-        sqrt_population = min(1.0, self.planet.currentMeterValue(fo.meterType.population)) ** 0.5
-        if focus == self.rated_foci[0][1]:
+        sqrt_population = max(1.0, self.planet.currentMeterValue(fo.meterType.population)) ** 0.5
+        if sqrt_population == 0:
+            sqrt_population = 0.0001  # prevent Zero division
+
+        if focus == self.rated_foci.best.focus:
+            # TBD replace division by using immediate_lost...
             return self.best_over_second() / sqrt_population
         else:
             return self.rating_below_best(focus) / sqrt_population
@@ -131,7 +166,9 @@ class PlanetFocusManager:
         self.planet_ids = [planet.id for planet in PlanetUtilsAI.get_empire_populated_planets()]
 
         resource_timer.start("Targets")
-        self.planet_info = {pid: PlanetFocusInfo(universe.getPlanet(pid)) for pid in self.planet_ids}
+        self.planet_info: dict[PlanetId, PlanetFocusInfo] = {
+            pid: PlanetFocusInfo(universe.getPlanet(pid)) for pid in self.planet_ids
+        }
         self.baked_planet_info = {}
         aistate = get_aistate()
         self.priority_industry = aistate.get_priority(PriorityType.RESOURCE_PRODUCTION)
@@ -184,7 +221,7 @@ class PlanetFocusManager:
         if bureaucracy not in fo.getEmpire().adoptedPolicies or focus == pinfo.current_focus:
             return False  # No bureaucracy or no change
         last_turn = fo.currentTurn() - 1
-        if pinfo.planet.LastTurnColonized == last_turn or pinfo.planet.LastTurnConquered == last_turn:
+        if pinfo.planet.lastTurnColonized == last_turn or pinfo.planet.lastTurnConquered == last_turn:
             return False  # no penalty for newly settled/conquered planets
         if pinfo.current_output.influence + 0.5 < pinfo.possible_output[pinfo.current_focus].influence:
             # avoid repeated focus changes: When influence production already is below target, do not
@@ -277,9 +314,7 @@ class PlanetFocusManager:
         universe.updateMeterEstimates(self.planet_ids)
 
         for pinfo in self.planet_info.values():
-            pinfo.rated_foci = sorted(
-                [(pinfo.possible_output[focus].rating, focus) for focus in supported_foci], reverse=True
-            )
+            pinfo.set_rated_foci()
         self.print_pinfo_table()
 
     def print_pinfo_table(self):
@@ -303,7 +338,7 @@ class PlanetFocusManager:
         for pinfo in self.planet_info.values():
             pinfo_table.add_row(
                 pinfo.planet,
-                _focus_name(pinfo.rated_foci[0][1]),
+                _focus_name(pinfo.rated_foci.best.focus),
                 output_table_format(pinfo.possible_output[INDUSTRY]),
                 output_table_format(pinfo.possible_output[RESEARCH]),
                 output_table_format(pinfo.possible_output[INFLUENCE]),
@@ -362,9 +397,7 @@ class PlanetFocusManager:
                     continue
 
                 _print_evaluation(
-                    "considered (pop {:.1f}, growth gain {:.1f}, current focus {})".format(
-                        pop, pop_gain, pinfo.current_focus
-                    )
+                    f"considered (pop {pop:.1f}, growth gain {pop_gain:.1f}, current focus {pinfo.current_focus})"
                 )
 
                 # add a bias to discourage switching out growth focus to avoid focus change penalties
@@ -415,7 +448,7 @@ class PlanetFocusManager:
 
     def evaluate_computronium(self, pid: PlanetId, loss: float) -> bool:
         """
-        Determine whether switching the given planet with a computronium to research focus is worse the loss.
+        Determine whether switching the given planet with a computronium to research focus is worth the loss.
         """
         researchers = 0.0  # amount of people that would profit from the special
         min_stability = get_named_real("COMPUTRONIUM_MIN_STABILITY")
@@ -446,6 +479,7 @@ class PlanetFocusManager:
         target_ip_production = sum(
             pi.possible_output[pi.current_focus].influence
             for pi in chain(self.planet_info.values(), self.baked_planet_info.values())
+            if pi.current_focus in pi.possible_output
         )
         ratio = (current_ip + 10 * target_ip_production) / max(1.5, self.priority_influence)  # in turn 1 prio is 0
         debug(
@@ -493,55 +527,172 @@ class PlanetFocusManager:
                         self.bake_future_focus(capital.id, INDUSTRY)
                     # else: don't do anything special, standard handling will likely switch to RESEARCH
 
+    def immediate_loss_on_switch_to(self, pinfo: PlanetFocusInfo, focus: str) -> float:
+        """
+        When switching to focus, how much would the current production go down?
+        E.g. when switching from research to production, how much does research go down?
+        Since it may take several turns until we reach the new targets, this can be used as an indicator how
+        'expensive' the switch would be.
+        """
+        # This is not totally correct, since it won't go down to the minimum immediately. but it should be a good
+        # enough estimate to compare how expensive a different switches would be.
+        low_rating = self.rate_output(
+            pp=min(pinfo.current_output.industry, pinfo.possible_output[focus].industry),
+            rp=min(pinfo.current_output.research, pinfo.possible_output[focus].research),
+            ip=min(pinfo.current_output.influence, pinfo.possible_output[focus].influence),
+            stability=min(pinfo.current_output.stability, pinfo.possible_output[focus].stability),
+            focus=focus,
+        )
+        current_rating = self.rate_output(
+            pp=pinfo.current_output.industry,
+            rp=pinfo.current_output.research,
+            ip=pinfo.current_output.influence,
+            stability=pinfo.current_output.stability,
+            focus=pinfo.current_focus,
+        )
+
+        # note that this may be zero, e.g. for a newly conquered planet or one that currently has negative stability
+        return current_rating - low_rating
+
+    def change_candidate(
+        self, best_so_far: PlanetFocusInfo | None, candidate: PlanetFocusInfo, from_focus: str, to_focus: str
+    ) -> PlanetFocusInfo:
+        """
+        Returns either candidate or best_so_far (if not None), depending on which one should rather do the
+        given focus switch.
+        """
+        if best_so_far is None:
+            return candidate
+        best_val = best_so_far.possible_output[to_focus].rating - best_so_far.possible_output[from_focus].rating
+        cand_val = candidate.possible_output[to_focus].rating - candidate.possible_output[from_focus].rating
+        if best_val > 0:
+            # to_focus would be an improvement for best_so_far, chose candidate if it gains even more
+            return candidate if cand_val > best_val else best_so_far
+        elif cand_val > 0:
+            # to_focus would be an improvement for candidate
+            return candidate
+        else:
+            # Neither would be better, prefer planets with a smaller immediate and long term loss
+            # Small offsets, since both values may be zero
+            best_val = (best_val - 0.1) * (self.immediate_loss_on_switch_to(best_so_far, to_focus) ** 0.5 + 0.1)
+            cand_val = (cand_val - 0.1) * (self.immediate_loss_on_switch_to(candidate, to_focus) ** 0.5 + 0.1)
+            return candidate if cand_val > best_val else best_so_far
+
+    def get_planned_pp_rp_per_prio(self) -> (float, float, float, float):
+        """
+        Calculate ratios of planned PP and RP and both values divided by their priority.
+        It uses future_focus of all planets, setting this value without baking it can be used to check alternatives.
+        """
+        planned_pp_target = sum(
+            pi.possible_output[pi.future_focus].industry
+            for pi in chain(self.baked_planet_info.values(), self.planet_info.values())
+            if pi.future_focus in pi.possible_output
+        )
+        planned_rp_target = sum(
+            pi.possible_output[pi.future_focus].research
+            for pi in chain(self.baked_planet_info.values(), self.planet_info.values())
+            if pi.future_focus in pi.possible_output
+        )
+        pp_per_priority = planned_pp_target / self.priority_industry
+        # When the AI finished all research, research prio becomes 0
+        rp_per_priority = planned_rp_target / self.priority_research if self.priority_research else 0.0
+        debug(
+            f"pp: {planned_pp_target}/{self.priority_industry}={pp_per_priority}, "
+            f"rp: {planned_rp_target}/{self.priority_research}={rp_per_priority}"
+        )
+        return planned_pp_target, planned_rp_target, pp_per_priority, rp_per_priority
+
     def set_other_foci(self):
         """
         Set remaining planet's foci.
-        If best focus is protection, it is set.
-        Others are set to industry or research, aiming for a production ratio like the ratio of the priorities.
+        If best focus is protection, set it, else if only one of industry and research is possible, set it.
+        All others are set to industry or research, aiming for a production ratio like the ratio of the priorities.
+        If we have one or more candidates currently set to neither industry nor research, we assign these, otherwise
+        we may switch one planet from industry to research or vice versa, or let two planets swap their foci.
         """
         debug("set_other_foci...")
-        industry_or_research = []
+        may_switch_to_research = None
+        may_switch_to_industry = None
+        set_to_neither = []
+        num_industry = num_research = 0
         for pid, pinfo in dict(self.planet_info).items():
             # Note that if focus hasn't been baked as INFLUENCE yet, it shouldn't be.
-            if pinfo.rated_foci[0][1] in (INDUSTRY, RESEARCH, INFLUENCE) and {INDUSTRY, RESEARCH} <= pinfo.options:
-                # sort planets:
-                # - negative values, if research is better
-                # - ratio of delta research / delta industry or vice versa as absolute value
-                # So, best research planets are at the beginning, and best industry planets are at the end.
-                # Note that first criteria is better rating, so e.g. a planet that is happier and gets flat bonuses
-                # with research, but not with industry, should be set to research before any with a better rating
-                # for industry.
-                industry_rating = pinfo.possible_output[INDUSTRY].rating
-                research_rating = pinfo.possible_output[RESEARCH].rating
-                # adding 0.001 to make sure we never divide by zero, shouldn't affect normal values much
-                pp_delta = pinfo.possible_output[INDUSTRY].industry - pinfo.possible_output[RESEARCH].industry + 0.001
-                rp_delta = pinfo.possible_output[RESEARCH].research - pinfo.possible_output[INDUSTRY].research + 0.001
-                sort_value = -rp_delta / pp_delta if research_rating > industry_rating else pp_delta / rp_delta
-                industry_or_research.append((sort_value, pinfo))
+            if pinfo.rated_foci.best.focus in (INDUSTRY, RESEARCH, INFLUENCE) and {INDUSTRY, RESEARCH} <= pinfo.options:
+                if pinfo.current_focus == INDUSTRY:
+                    num_industry = num_industry + 1
+                    may_switch_to_research = self.change_candidate(may_switch_to_research, pinfo, INDUSTRY, RESEARCH)
+                elif pinfo.current_focus == RESEARCH:
+                    num_research = num_research + 1
+                    may_switch_to_industry = self.change_candidate(may_switch_to_industry, pinfo, RESEARCH, INDUSTRY)
+                else:
+                    set_to_neither.append(pinfo)
             else:
                 # Either protection due to stability, or planet does not support both foci
-                self.bake_future_focus(pid, pinfo.rated_foci[0][1])
-        industry_or_research.sort()
-        debug(f"Assigning ind/res, candidates: {industry_or_research}")
-        current_pp_target = sum(pi.possible_output[pi.current_focus].industry for pi in self.baked_planet_info.values())
-        current_rp_target = sum(pi.possible_output[pi.current_focus].research for pi in self.baked_planet_info.values())
-        while industry_or_research:
-            # Mini offset to avoid comparing 0 vs 0, so higher priority wins if we have not baked anything yet.
-            pp_per_priority = (current_pp_target + 0.1) / self.priority_industry
-            ip_per_priority = (current_rp_target + 0.1) / self.priority_research
-            debug(
-                f"pp: {current_pp_target}/{self.priority_industry}={pp_per_priority}, "
-                f"rp: {current_rp_target}/{self.priority_research}={ip_per_priority}"
-            )
-            if pp_per_priority > ip_per_priority:
-                # set one to research, best research (or worst industry) planets are at the beginning
-                _, pinfo = industry_or_research.pop(0)
-                self.bake_future_focus(pinfo.planet.id, RESEARCH)
+                self.bake_future_focus(pid, pinfo.rated_foci.best.focus)
+        if set_to_neither:
+            self.chose_industry_or_research(set_to_neither)
+        else:
+            # Never switch all planets to the lower priority focus, especially not the capital while it is the only one
+            if self.priority_industry > self.priority_research and num_industry < 2:
+                may_switch_to_research = None
+            if self.priority_research > self.priority_industry and num_research < 2:
+                may_switch_to_industry = None
+            self.chose_switches(may_switch_to_research, may_switch_to_industry)
+
+    def chose_industry_or_research(self, set_to_neither: list[PlanetFocusInfo]) -> None:
+        """Assign planets in set_to_neither to industry or research focus."""
+        set_to_neither.sort()
+        debug(f"chose_industry_or_research set_to_neither={set_to_neither}")
+        while set_to_neither:
+            # TBD: can we also use balanced_output_value here? Most likely its only one planet anyway...
+            _, _, pp_per_priority, rp_per_priority = self.get_planned_pp_rp_per_prio()
+            # sorting is best research to best industry
+            if pp_per_priority > rp_per_priority:
+                self.bake_future_focus(set_to_neither[0].planet.id, RESEARCH)
+                set_to_neither.pop(0)
             else:
-                _, pinfo = industry_or_research.pop(-1)
-                self.bake_future_focus(pinfo.planet.id, INDUSTRY)
-            current_pp_target += pinfo.possible_output[pinfo.future_focus].industry
-            current_rp_target += pinfo.possible_output[pinfo.future_focus].research
+                self.bake_future_focus(set_to_neither[-1].planet.id, INDUSTRY)
+                set_to_neither.pop()
+
+    def chose_switches(self, to_research: PlanetFocusInfo | None, to_industry: PlanetFocusInfo | None) -> None:
+        """
+        Decide which of the two candidates should switch between industry and research, if any.
+        """
+        debug(f"chose_switches, candidates: research={to_research or '-'}, industry={to_industry or '-'}")
+        tr_gain = to_research.difference(RESEARCH, INDUSTRY) if to_research else USELESS_RATING
+        ti_gain = to_industry.difference(INDUSTRY, RESEARCH) if to_industry else USELESS_RATING
+        if tr_gain > 0 and ti_gain > 0:
+            debug("both are better with the new focus")
+            self.bake_future_focus(to_research.planet.id, RESEARCH)
+            self.bake_future_focus(to_industry.planet.id, INDUSTRY)
+        else:
+            pp, rp, pp_per_priority, rp_per_priority = self.get_planned_pp_rp_per_prio()
+            current_best = self.balanced_output_value(self.priority_industry, pp, self.priority_research, rp)
+            debug(f"current: {current_best:.2f}")
+            if to_research:
+                current_best = self.check_switch_for_ratio(to_research, RESEARCH, current_best)
+            # TBD: can we skip the second call, if the first was an improvement?
+            if to_industry:
+                self.check_switch_for_ratio(to_industry, INDUSTRY, current_best)
+
+    def check_switch_for_ratio(self, candidate: PlanetFocusInfo, new_focus: str, old_best: float) -> float:
+        """
+        Check whether a switch would improve the balanced output.
+        If so, do the switch and return the new best value, else return old_best.
+        """
+        candidate.future_focus = new_focus
+        pp, rp, _, _ = self.get_planned_pp_rp_per_prio()
+        new_value = self.balanced_output_value(self.priority_industry, pp, self.priority_research, rp)
+        debug(f"With switch to {new_focus}: {new_value:.2f}")
+        if new_value < old_best:
+            candidate.future_focus = candidate.current_focus
+        self.bake_future_focus(candidate.planet.id, candidate.future_focus)
+        return max(old_best, new_value)
+
+    @staticmethod
+    def balanced_output_value(prio1: float, production1: float, prio2: float, production2: float) -> float:
+        """Evaluate possible production values with a preference for a production ratio equal to the priority ratio."""
+        return prio1 * production1 + prio2 * production2 + min(prio1 * production2, prio2 * production1)
 
 
 class Reporter:
@@ -594,13 +745,15 @@ class Reporter:
             if pinfo.current_focus != pinfo.future_focus:
                 total_changed += 1
 
-            old_pp, old_rp, *_ = pinfo.possible_output[pinfo.current_focus]
-            current_industry_target += old_pp
-            current_research_target += old_rp
+            if pinfo.current_focus in pinfo.possible_output:
+                old_pp, old_rp, *_ = pinfo.possible_output[pinfo.current_focus]
+                current_industry_target += old_pp
+                current_research_target += old_rp
 
-            future_pp, future_rp, *_ = pinfo.possible_output[pinfo.future_focus]
-            new_industry_target += future_pp
-            new_research_target += future_rp
+            if pinfo.future_focus in pinfo.possible_output:
+                future_pp, future_rp, *_ = pinfo.possible_output[pinfo.future_focus]
+                new_industry_target += future_pp
+                new_research_target += future_rp
 
             industry_pp, industry_rp, *_ = (
                 pinfo.possible_output[INDUSTRY] if INDUSTRY in pinfo.possible_output else (future_pp, future_rp, 0, 0)

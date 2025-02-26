@@ -44,7 +44,7 @@ namespace {
     struct grammar : public parse::detail::grammar<start_rule_signature> {
         grammar(const parse::lexer& tok,
                 const std::string& filename,
-                const parse::text_iterator& first, const parse::text_iterator& last) :
+                const parse::text_iterator first, const parse::text_iterator last) :
             grammar::base_type(start),
             condition_parser(tok, label),
             string_grammar(tok, label, condition_parser),
@@ -125,7 +125,7 @@ namespace {
 namespace parse {
     start_rule_payload monster_fleet_plans(const boost::filesystem::path& path) {
         start_rule_payload monster_fleet_plans_;
-        detail::parse_file<grammar, start_rule_payload>(lexer::tok, path, monster_fleet_plans_);
+        detail::parse_file<grammar, start_rule_payload>(GetLexer(), path, monster_fleet_plans_);
         return monster_fleet_plans_;
     }
 }

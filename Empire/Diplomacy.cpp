@@ -2,14 +2,17 @@
 
 #include "../universe/ConstantsFwd.h"
 #include "../util/GameRules.h"
+#include "../util/GameRuleRanks.h"
 #include "../util/i18n.h"
 
 namespace {
     void AddRules(GameRules& rules) {
         // determine if diplomacy allowed
         rules.Add<std::string>(UserStringNop("RULE_DIPLOMACY"), UserStringNop("RULE_DIPLOMACY_DESC"),
-                               UserStringNop("MULTIPLAYER"), UserStringNop("RULE_DIPLOMACY_ALLOWED_FOR_ALL"),
+                               GameRuleCategories::GameRuleCategory::MULTIPLAYER,
+                               UserStringNop("RULE_DIPLOMACY_ALLOWED_FOR_ALL"),
                                true,
+                               GameRuleRanks::RULE_DIPLOMACY_RANK,
                                DiscreteValidator<std::string>(std::array{
                                    "RULE_DIPLOMACY_ALLOWED_FOR_ALL",
                                    "RULE_DIPLOMACY_FORBIDDEN_FOR_ALL"
@@ -17,27 +20,6 @@ namespace {
     }
     bool temp_bool = RegisterGameRules(&AddRules);
 }
-
-DiplomaticMessage::DiplomaticMessage() :
-    m_sender_empire(ALL_EMPIRES),
-    m_recipient_empire(ALL_EMPIRES),
-    m_type(Type::INVALID)
-{}
-
-DiplomaticMessage::DiplomaticMessage(int sender_empire_id, int recipient_empire_id, Type type) :
-    m_sender_empire(sender_empire_id),
-    m_recipient_empire(recipient_empire_id),
-    m_type(type)
-{}
-
-bool operator==(const DiplomaticMessage& lhs, const DiplomaticMessage& rhs) {
-    return lhs.RecipientEmpireID() == rhs.RecipientEmpireID() &&
-           lhs.SenderEmpireID() == rhs.SenderEmpireID() &&
-           lhs.GetType() == rhs.GetType();
-}
-
-bool operator!=(const DiplomaticMessage& lhs, const DiplomaticMessage& rhs)
-{ return !(lhs == rhs); }
 
 std::string DiplomaticMessage::Dump() const {
     std::string retval;
@@ -62,19 +44,6 @@ bool DiplomaticMessage::IsAllowed() const {
     return GetGameRules().Get<std::string>("RULE_DIPLOMACY") !=
         UserStringNop("RULE_DIPLOMACY_FORBIDDEN_FOR_ALL");
 }
-
-
-DiplomaticStatusUpdateInfo::DiplomaticStatusUpdateInfo() :
-    empire1_id(ALL_EMPIRES),
-    empire2_id(ALL_EMPIRES),
-    diplo_status(DiplomaticStatus::INVALID_DIPLOMATIC_STATUS)
-{}
-
-DiplomaticStatusUpdateInfo::DiplomaticStatusUpdateInfo(int empire1_id_, int empire2_id_, DiplomaticStatus status) :
-    empire1_id(empire1_id_),
-    empire2_id(empire2_id_),
-    diplo_status(status)
-{}
 
 
 DiplomaticMessage WarDeclarationDiplomaticMessage(int sender_empire_id, int recipient_empire_id)

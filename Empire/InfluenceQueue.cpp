@@ -2,70 +2,26 @@
 
 #include "Empire.h"
 #include "Government.h"
+#include "../universe/Planet.h"
+#include "../universe/Species.h"
 #include "../universe/ValueRef.h"
 #include "../util/AppInterface.h"
 #include "../util/GameRules.h"
 #include "../util/ScopedTimer.h"
 
-#include <boost/range/numeric.hpp>
-#include <boost/range/adaptor/map.hpp>
-
+#include <utility>
+#if !defined(__cpp_lib_integer_comparison_functions)
+namespace std {
+    inline auto cmp_less(auto&& lhs, auto&& rhs) { return lhs < rhs; }
+}
+#endif
 
 namespace {
-    //constexpr float EPSILON = 0.01f;
-
-    //void AddRules(GameRules& rules)
-    //{}
-    //bool temp_bool = RegisterGameRules(&AddRules);
-
-    //float CalculateNewInfluenceStockpile(int empire_id, float starting_stockpile, float project_transfer_to_stockpile,
-    //                                     float available_IP, float allocated_IP, float allocated_stockpile_IP)
-    //{
-    //    TraceLogger() << "CalculateNewInfluenceStockpile for empire " << empire_id;
-    //    const Empire* empire = GetEmpire(empire_id); // TODO: get from input context?
-    //    if (!empire) {
-    //        ErrorLogger() << "CalculateNewInfluenceStockpile() passed null empire.  doing nothing.";
-    //        return 0.0f;
-    //    }
-    //    TraceLogger() << " ... stockpile used: " << allocated_stockpile_IP;
-    //    float new_contributions = available_IP - allocated_IP;
-    //    return starting_stockpile + new_contributions + project_transfer_to_stockpile - allocated_stockpile_IP;
-    //}
-
+#if defined(__cpp_lib_constexpr_string) && ((!defined(__GNUC__) || (__GNUC__ > 12) || (__GNUC__ == 12 && __GNUC_MINOR__ >= 2))) && ((!defined(_MSC_VER) || (_MSC_VER >= 1934))) && ((!defined(__clang_major__) || (__clang_major__ >= 17)))
+    constexpr const InfluenceQueue::Element EMPTY_ELEMENT;
+#else
     const InfluenceQueue::Element EMPTY_ELEMENT;
-
-    /** Sets the allocated_IP value for each Element in the passed
-      * InfluenceQueue \a queue. Elements are allocated IP based on their need,
-      * the limits they can be given per turn, and the amount available to the
-      * empire. Also checks if elements will be completed this turn. */
-    //void SetInfluenceQueueElementSpending(
-    //    float available_IP, float available_stockpile,
-    //    InfluenceQueue::QueueType& queue,
-    //    float& allocated_IP, float& allocated_stockpile_IP,
-    //    int& projects_in_progress, bool simulating)
-    //{
-    //    projects_in_progress = 0;
-    //    allocated_IP = 0.0f;
-    //    allocated_stockpile_IP = 0.0f;
-
-    //    float dummy_IP_source = 0.0f;
-    //    float stockpile_transfer = 0.0f;
-
-    //    //DebugLogger() << "queue size: " << queue.size();
-    //    int i = 0;
-    //    for (auto& queue_element : queue) {
-    //        queue_element.allocated_ip = 0.0f;  // default, to be updated below...
-    //        if (queue_element.paused) {
-    //            TraceLogger() << "allocation: " << queue_element.allocated_ip
-    //                          << "  to: " << queue_element.name
-    //                          << "  due to it being paused";
-    //            ++i;
-    //            continue;
-    //        }
-
-    //        ++i;
-    //    }
-    //}
+#endif
 }
 
 
@@ -106,7 +62,10 @@ const InfluenceQueue::Element& InfluenceQueue::operator[](std::size_t i) const {
 const InfluenceQueue::Element& InfluenceQueue::operator[](int i) const
 { return operator[](static_cast<std::size_t>(i)); }
 
-void InfluenceQueue::Update(const ScriptingContext& context) {
+void InfluenceQueue::Update(const ScriptingContext& context,
+                            const std::vector<std::pair<int, double>>& annex_costs,
+                            const std::vector<std::pair<std::string_view, double>>& policy_costs)
+{
     auto empire = context.GetEmpire(m_empire_id);
     if (!empire) {
         ErrorLogger() << "InfluenceQueue::Update passed null empire.  doing nothing.";
@@ -119,38 +78,55 @@ void InfluenceQueue::Update(const ScriptingContext& context) {
     const float available_IP = empire->ResourceOutput(ResourceType::RE_INFLUENCE);
     const float stockpiled_IP = empire->ResourceStockpile(ResourceType::RE_INFLUENCE);
 
-    float spending_on_policy_adoption_ip = 0.0f;
-    for (const auto& [policy_name, adoption_turn] : empire->TurnsPoliciesAdopted()) {
-        if (adoption_turn != context.current_turn)
-            continue;
-        const auto policy = GetPolicy(policy_name);
-        if (!policy) {
-            ErrorLogger() << "InfluenceQueue::Update couldn't get policy supposedly adopted this turn: " << policy_name;
-            continue;
+    const float spending_on_policy_adoption_IP = [&empire, &context, &policy_costs]() {
+        float spending_on_policy_adoption_IP = 0.0f;
+        for (const auto& [policy_name, adoption_turn] : empire->TurnsPoliciesAdopted()) {
+            if (adoption_turn != context.current_turn)
+                continue;
+            const auto ct_it = std::find_if(policy_costs.begin(), policy_costs.end(),
+                                            [pn{policy_name}](const auto& ct) { return ct.first == pn; });
+            if (ct_it == policy_costs.end()) {
+                ErrorLogger() << "Missing policy " << policy_name << " cost time in InfluenceQueue::Update!";
+                continue;
+            }
+            spending_on_policy_adoption_IP += static_cast<float>(ct_it->second);
         }
-        spending_on_policy_adoption_ip += policy->AdoptionCost(m_empire_id, context);
-    }
+        return spending_on_policy_adoption_IP;
+    }();
 
-    m_total_IPs_spent = spending_on_policy_adoption_ip;
 
+    const auto annexed_by_this_empire = [this, curturn{context.current_turn}](const Planet& planet) {
+        return planet.OrderedAnnexedByEmpire() == m_empire_id ||
+            (planet.LastAnnexedByEmpire() == m_empire_id && planet.TurnsSinceLastAnnexed(curturn) == 0);
+    };
+    const auto annexed_planets = context.ContextObjects().findIDs<Planet>(annexed_by_this_empire);
+
+    const float spending_on_annexation_IP = [&annexed_planets, &annex_costs]() {
+        float spending_on_annexation_IP = 0.0f;
+        for (const auto planet_id : annexed_planets) {
+            const auto p_it = std::find_if(annex_costs.begin(), annex_costs.end(),
+                                           [planet_id](const auto& pac) { return pac.first == planet_id; });
+            if (p_it == annex_costs.end()) {
+                ErrorLogger() << "Missing annexation cost for plaent " << planet_id << " in InfluenceQueue::Update!";
+                continue;
+            }
+            spending_on_annexation_IP += static_cast<float>(p_it->second);
+        }
+        return spending_on_annexation_IP;
+    }();
+
+
+    m_total_IPs_spent = spending_on_policy_adoption_IP + spending_on_annexation_IP;
     m_expected_new_stockpile_amount = stockpiled_IP + available_IP - m_total_IPs_spent;
 
     DebugLogger() << "InfluenceQueue::Update : available IP: " << available_IP << "  stockpiled: "
                   << stockpiled_IP << "  new expected: " << m_expected_new_stockpile_amount << "\n";
 
-    //// cache Influence item costs and times
-    //// initialize Influence queue item completion status to 'never'
-    //boost::posix_time::ptime sim_time_start;
-    //boost::posix_time::ptime sim_time_end;
-
-    //DebugLogger() << "InfluenceQueue::Update: Projections took "
-    //              << ((sim_time_end - sim_time_start).total_microseconds()) << " microseconds with "
-    //              << empire->ResourceOutput(ResourceType::RE_INFLUENCE) << " influence output";
     InfluenceQueueChangedSignal();
 }
 
 void InfluenceQueue::erase(int i) {
-    if (i > 0 && i < static_cast<int>(m_queue.size()))
+    if (i > 0 && std::cmp_less(i, m_queue.size()))
         m_queue.erase(begin() + i);
 }
 
@@ -158,7 +134,7 @@ InfluenceQueue::iterator InfluenceQueue::find(const std::string& item_name)
 { return std::find_if(begin(), end(), [&](const auto& e) { return e.name == item_name; }); }
 
 InfluenceQueue::Element& InfluenceQueue::operator[](int i) {
-    assert(0 <= i && i < static_cast<int>(m_queue.size()));
+    assert(0 <= i && std::cmp_less(i, m_queue.size()));
     return m_queue[i];
 }
 

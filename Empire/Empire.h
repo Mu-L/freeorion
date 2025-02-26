@@ -3,6 +3,7 @@
 
 
 #include <array>
+#include <compare>
 #include <string>
 #include <unordered_set>
 #include <boost/container/flat_set.hpp>
@@ -48,7 +49,7 @@ FO_ENUM(
   * server, Empires are managed by a subclass of EmpireManager, and can be
   * accessed from other modules by using the EmpireManager::Lookup() method to
   * obtain a pointer. */
-class FO_COMMON_API Empire {
+class FO_COMMON_API Empire final {
 public:
     // EmpireManagers must be friends so that they can have access to the constructor and keep it hidden from others
     friend class EmpireManager;
@@ -92,8 +93,9 @@ public:
     [[nodiscard]] bool        PolicyAvailable(std::string_view name) const;
     [[nodiscard]] bool        PolicyPrereqsAndExclusionsOK(std::string_view name, int current_turn) const;
     [[nodiscard]] bool        PolicyAffordable(std::string_view name, const ScriptingContext& context) const;
-    [[nodiscard]] std::map<std::string_view, int, std::less<>> TotalPolicySlots() const; // how many total slots does this empire have in each category
-    [[nodiscard]] std::map<std::string_view, int, std::less<>> EmptyPolicySlots() const; // how many empty slots does this empire have in each category
+    [[nodiscard]] double      ThisTurnAdoptedPoliciesCost(const ScriptingContext& context) const;
+    [[nodiscard]] std::vector<std::pair<std::string_view, int>> TotalPolicySlots() const; // how many total slots does this empire have in each category
+    [[nodiscard]] std::vector<std::pair<std::string_view, int>> EmptyPolicySlots() const; // how many empty slots does this empire have in each category
 
     /** Returns the set of Tech names available to this empire and the turns on
       * which they were researched. */
@@ -165,7 +167,7 @@ public:
     [[nodiscard]] bool        Won() const noexcept { return !m_victories.empty(); }       ///< whether this empire has won the game
     [[nodiscard]] bool        Ready() const noexcept { return m_ready; }                  ///< readiness status of empire
 
-    [[nodiscard]] int         NumSitRepEntries(int turn = INVALID_GAME_TURN) const;       ///< number of entries in the SitRep.
+    [[nodiscard]] int         NumSitRepEntries(int turn = INVALID_GAME_TURN) const noexcept; ///< number of entries in the SitRep.
 
     /** Returns distance in jumps away from each system that this empire can
       * propagate supply. */
@@ -180,15 +182,30 @@ public:
     /** Returns true if the specified lane travel is preserved against being blockaded (i.e., the empire
      * has in the start system at least one fleet that meets the requirements to preserve the lane (which
      * is determined in Empire::UpdateSupplyUnobstructedSystems(). */
-    [[nodiscard]] bool                         PreservedLaneTravel(int start_system_id, int dest_system_id) const;
+    [[nodiscard]] bool        PreservedLaneTravel(int start_system_id, int dest_system_id) const;
 
-    [[nodiscard]] std::set<int>                ExploredSystems() const;     ///< returns set of ids of systems that this empire has explored
-    [[nodiscard]] int                          TurnSystemExplored(int system_id) const;
-    [[nodiscard]] std::map<int, std::set<int>> KnownStarlanes(const Universe& universe) const;     ///< returns map from system id (start) to set of system ids (endpoints) of all starlanes known to this empire
-    [[nodiscard]] std::map<int, std::set<int>> VisibleStarlanes(const Universe& universe) const;   ///< returns map from system id (start) to set of system ids (endpoints) of all starlanes visible to this empire this turn
+    struct LaneEndpoints {
+        int start = INVALID_OBJECT_ID;
+        int end = INVALID_OBJECT_ID;
+        constexpr auto operator<=>(const LaneEndpoints&) const noexcept = default;
+#if (defined(__clang_major__) && (__clang_major__ < 16))
+        LaneEndpoints() = default;
+        LaneEndpoints(int s, int e) noexcept : start(s), end(e) {};
+        LaneEndpoints(LaneEndpoints&&) noexcept = default;
+        LaneEndpoints(const LaneEndpoints&) noexcept = default;
+        LaneEndpoints& operator=(LaneEndpoints&&) noexcept = default;
+        LaneEndpoints& operator=(const LaneEndpoints&) noexcept = default;
+#endif
+    };
+    using LaneSet = boost::container::flat_set<LaneEndpoints>;
 
+    using IntSet = boost::container::flat_set<int>;
+
+    [[nodiscard]] IntSet      ExploredSystems() const;     ///< ids of systems that this empire has explored
+    [[nodiscard]] int         TurnSystemExplored(int system_id) const;
+    [[nodiscard]] LaneSet     KnownStarlanes(const Universe& universe) const;     ///< map from system id (start) to set of system ids (endpoints) of all starlanes known to this empire
+    [[nodiscard]] LaneSet     VisibleStarlanes(const Universe& universe) const;   ///< map from system id (start) to set of system ids (endpoints) of all starlanes visible to this empire this turn
     [[nodiscard]] const auto& SitReps() const noexcept { return m_sitrep_entries; }
-
     [[nodiscard]] float       ProductionPoints() const;    ///< Returns the empire's current production point output (this is available industry not including stockpile)
 
     /** Returns ResourcePool for \a resource_type or 0 if no such ResourcePool exists. */
@@ -204,6 +221,8 @@ public:
     [[nodiscard]] const auto& GetPopulationPool() const noexcept { return m_population_pool; }
     [[nodiscard]] float       Population() const;                                 ///< returns total Population of empire
 
+    [[nodiscard]] std::size_t SizeInMemory() const;
+
     /** If the object with id \a id is a planet owned by this empire, sets that
       * planet to be this empire's capital, and otherwise does nothing. */
     void SetCapitalID(int id, const ObjectMap& objects);
@@ -211,7 +230,8 @@ public:
     /** Adopts the specified policy, assuming its conditions are met. Revokes
       * the policy if \a adopt is false; */
     void AdoptPolicy(const std::string& name, const std::string& category,
-                     const ScriptingContext& context, bool adopt = true, int slot = -1);
+                     const ScriptingContext& context, int slot = -1);
+    void DeAdoptPolicy(const std::string& name);
 
     /** Reverts adopted policies to the initial state for the current turn.
       * Does not verify if the initial adopted policies were in a valid
@@ -225,7 +245,7 @@ public:
 
     /** Returns the meter with the indicated \a name if it exists, or nullptr. */
     [[nodiscard]] Meter* GetMeter(std::string_view name);
-    void BackPropagateMeters();
+    void BackPropagateMeters() noexcept;
 
     /** Adds \a tech to the research queue, placing it before position \a pos.
       * If \a tech is already in the queue, it is moved to \a pos, then removed
@@ -248,16 +268,17 @@ public:
       * position \a pos.  If \a pos < 0 or queue.size() <= pos, the build is
       * placed at the end of the queue. */
     void PlaceProductionOnQueue(const ProductionQueue::ProductionItem& item,
-                                boost::uuids::uuid uuid, int number,
-                                int blocksize, int location, int pos = -1);
+                                boost::uuids::uuid uuid,
+                                const ScriptingContext& context,
+                                int number, int blocksize, int location, int pos = -1);
 
     /** Adds a copy of the production item at position \a index below it in
       * the queue, with one less quantity. Sets the quantity of the production
       * item at position \a index to 1, retaining its incomplete progress. */
-    void SplitIncompleteProductionItem(int index, boost::uuids::uuid uuid);
+    void SplitIncompleteProductionItem(int index, boost::uuids::uuid uuid, const ScriptingContext& context);
     /** Adds a copy of the production item at position \a index below it in
       * the queue, with no progress. */
-    void DuplicateProductionItem(int index, boost::uuids::uuid uuid);
+    void DuplicateProductionItem(int index, boost::uuids::uuid uuid, const ScriptingContext& context);
 
     void SetProductionQuantity(int index, int quantity);     ///< Changes the remaining number to produce for queue item \a index to \a quantity
     void SetProductionQuantityAndBlocksize(int index, int quantity, int blocksize);   ///< Changes the remaining number and blocksize to produce for queue item \a index to \a quantity and \a blocksize
@@ -323,13 +344,13 @@ public:
     /** Calculates ranges that systems can send fleet and resource supplies,
       * using the specified st of \a known_objects as the source for supply-
       * producing objects and systems through which it can be propagated. */
-    void UpdateSystemSupplyRanges(const std::set<int>& known_objects, const ObjectMap& objects);
+    void UpdateSystemSupplyRanges(const std::span<const int> known_objects, const ObjectMap& objects);
     /** Calculates ranges that systems can send fleet and resource supplies. */
     void UpdateSystemSupplyRanges(const Universe& universe);
     /** Calculates systems that can propagate supply (fleet or resource) using
       * the specified set of \a known_systems */
     void UpdateSupplyUnobstructedSystems(const ScriptingContext& context,
-                                         const std::set<int>& known_systems,
+                                         const std::span<const int> known_systems,
                                          bool precombat = false);
     /** Calculates systems that can propagate supply using this empire's own /
       * internal list of explored systems. */
@@ -337,7 +358,7 @@ public:
     /** Updates fleet ArrivalStarlane to flag fleets of this empire that are not
       * blockaded post-combat must be done after *all* noneliminated empires
       * have updated their unobstructed systems */
-    void UpdateUnobstructedFleets(ObjectMap& objects, const std::unordered_set<int>& known_destroyed_objects);
+    void UpdateUnobstructedFleets(ObjectMap& objects, const std::unordered_set<int>& known_destroyed_objects) const;
     /** Records, in a list of pending updates, the start_system exit lane to the
       * specified destination as accessible to this empire*/
     void RecordPendingLaneUpdate(int start_system_id, int dest_system_id, const ObjectMap& objects);
@@ -351,11 +372,13 @@ public:
       * the production queue (which determines how much PP each project receives
       * but does not actually spend them).  This function spends the PP, removes
       * complete items from the queue and creates the results in the universe. */
-    void CheckProductionProgress(ScriptingContext& context);
+    void CheckProductionProgress(
+        ScriptingContext& context, const std::vector<std::tuple<std::string_view, int, float, int>>& costs_times);
 
     /** Checks for tech projects that have been completed, and returns a vector
       * of the techs that should be added to the known techs list. */
-    std::vector<std::string> CheckResearchProgress(const ScriptingContext& context);
+    std::vector<std::string> CheckResearchProgress(
+        const ScriptingContext& context, const std::vector<std::tuple<std::string_view, double, int>>& costs_times);
 
     /** Eventually : Will check for social projects that have been completed and
       * / or process ongoing social projects, and update the empire's influence
@@ -375,29 +398,43 @@ public:
 
     /** Resets production of resources and calculates allocated resources (on
       * each item in queues and overall) for each resource by calling
-      * UpdateResearchQueue, UpdateProductionQueue, UpdateInfluenceSpending.  Does
-      * not actually "spend" resources, but just determines how much and on what
-      * to spend.  Actual consumption of resources, removal of items from queue,
-      * processing of finished items and population growth happens in various
-      * Check(Whatever)Progress functions. */
-    void UpdateResourcePools(const ScriptingContext& context);
+      * UpdateResearchQueue, UpdateProductionQueue, UpdateInfluenceSpending.
+      * Does not actually "spend" resources, but just determines how much and
+      * on what to spend.  Actual consumption of resources, removal of items
+      * from queue, processing of finished items and population growth happens
+      * in various Check(Whatever)Progress functions. */
+    void UpdateResourcePools(const ScriptingContext& context,
+                             const std::vector<std::tuple<std::string_view, double, int>>& research_costs,
+                             const std::vector<std::pair<int, double>>& annex_costs,
+                             const std::vector<std::pair<std::string_view, double>>& policy_costs,
+                             const std::vector<std::tuple<std::string_view, int, float, int>>& prod_costs);
     /** Calls Update() on empire's research queue, which recalculates the RPs
       * spent on and number of turns left for each tech in the queue. */
-    void UpdateResearchQueue(const ScriptingContext& context);
+    void UpdateResearchQueue(const ScriptingContext& context,
+                             const std::vector<std::tuple<std::string_view, double, int>>& costs_times);
+    std::vector<std::tuple<std::string_view, double, int>> TechCostsTimes(const ScriptingContext& context) const;
+
     /** Calls Update() on empire's production queue, which recalculates the PPs
       * spent on and number of turns left for each project in the queue. */
-    void UpdateProductionQueue(const ScriptingContext& context);
+    void UpdateProductionQueue(const ScriptingContext& context,
+                               const std::vector<std::tuple<std::string_view, int, float, int>>& prod_costs);
+    std::vector<std::tuple<std::string_view, int, float, int>>
+        ProductionCostsTimes(const ScriptingContext& contest) const;
+
     /** Eventually: Calls appropriate subsystem Update to calculate influence
       * spent on social projects and maintenance of buildings.  Later call to
       * CheckInfluenceProgress() will then have the correct allocations of
       * influence. */
-    void UpdateInfluenceSpending(const ScriptingContext& context);
-    /** Has m_population_pool recalculate all PopCenters' and empire's total
-      * expected population growth */
+    void UpdateInfluenceSpending(const ScriptingContext& context,
+                                 const std::vector<std::pair<int, double>>& annex_costs,
+                                 const std::vector<std::pair<std::string_view, double>>& policy_costs);
+    std::vector<std::pair<int, double>> PlanetAnnexationCosts(const ScriptingContext& context) const;
+    std::vector<std::pair<std::string_view, double>> PolicyAdoptionCosts(const ScriptingContext& context) const;
+
     void UpdatePopulationGrowth(const ObjectMap& objects);
 
     /** Resets empire meters. */
-    void ResetMeters();
+    void ResetMeters() noexcept;
 
     void UpdateOwnedObjectCounters(const Universe& universe);
 
@@ -466,7 +503,7 @@ private:
 
     struct PolicyAdoptionInfo {
         PolicyAdoptionInfo() = default;
-        PolicyAdoptionInfo(int turn, std::string cat, int slot) :
+        PolicyAdoptionInfo(int turn, std::string cat, int slot) noexcept :
             adoption_turn(turn),
             slot_in_category(slot),
             category(std::move(cat))
@@ -476,14 +513,10 @@ private:
         int slot_in_category = INVALID_SLOT_INDEX;
         std::string category;
 
-        bool operator==(const PolicyAdoptionInfo& rhs) const {
-            return adoption_turn == rhs.adoption_turn &&
-                   slot_in_category == rhs.slot_in_category &&
-                   category != rhs.category;
-        }
+        [[nodiscard]] bool operator==(const PolicyAdoptionInfo&) const noexcept = default;
 
         friend class boost::serialization::access;
-        template <class Archive>
+        template <typename Archive>
         void serialize(Archive& ar, const unsigned int version);
     };
     std::map<std::string, PolicyAdoptionInfo, std::less<>> m_adopted_policies;                 ///< map from policy name to turn, category, and slot in/on which it was adopted
@@ -491,6 +524,24 @@ private:
     std::map<std::string, int>                             m_policy_adoption_total_duration;   ///< how many turns each policy has been adopted over the course of the game by this empire
     std::map<std::string, int>                             m_policy_adoption_current_duration; ///< how many turns each currently-adopted policy has been adopted since it was last adopted. somewhat redundant with adoption_turn in AdoptionInfo, but seems necessary to avoid off-by-one issues between client and server
     std::set<std::string, std::less<>>                     m_available_policies;               ///< names of unlocked policies
+
+public:
+    // prepare policy info to serialize for various recipient empires
+    void PrepPolicyInfoForSerialization(const ScriptingContext& context);
+
+private:
+    std::map<int, decltype(m_adopted_policies)>                 m_adopted_policies_to_serialize_for_empires;
+    std::map<int, decltype(m_initial_adopted_policies)>         m_initial_adopted_policies_to_serialize_for_empires;
+    std::map<int, decltype(m_policy_adoption_total_duration)>   m_policy_adoption_total_duration_to_serialize_for_empires;
+    std::map<int, decltype(m_policy_adoption_current_duration)> m_policy_adoption_current_duration_to_serialize_for_empires;
+    std::map<int, decltype(m_available_policies)>               m_available_policies_to_serialize_for_empires;
+
+    const decltype(m_adopted_policies)& GetAdoptedPoliciesToSerialize(int encoding_empire) const;
+    const decltype(m_initial_adopted_policies)& GetInitialPoliciesToSerialize(int encoding_empire) const;
+    const decltype(m_policy_adoption_total_duration)& GetAdoptionTotalDurationsToSerialize(int encoding_empire) const;
+    const decltype(m_policy_adoption_current_duration)& GetAdoptionCurrentDurationsToSerialize(int encoding_empire) const;
+    const decltype(m_available_policies)& GetAvailablePoliciesToSerialize(int encoding_empire) const;
+
 
     using StringFlatSet = boost::container::flat_set<std::string, std::less<>>;
     using StringIntMap = boost::container::flat_map<std::string, int, std::less<>>;
@@ -502,7 +553,7 @@ private:
     MeterMap                        m_meters;                   ///< empire meters
 
     ResearchQueue                   m_research_queue;           ///< the queue of techs being or waiting to be researched
-    std::map<std::string, float>    m_research_progress;        ///< progress of partially-researched techs; fully researched techs are removed
+    std::map<std::string, float>    m_research_progress;        ///< fractional progress (0 to 1) of partially-researched techs; fully researched techs are removed
 
     ProductionQueue                 m_production_queue;         ///< the queue of items being or waiting to be built
     InfluenceQueue                  m_influence_queue;
@@ -562,18 +613,42 @@ private:
     int                             m_auto_turn_count = 0;          ///< auto-turn counter value
     int                             m_last_turn_received = INVALID_GAME_TURN; ///< last turn empire completedly received game state
 
+public:
+    // prepare tech, queue, and availability info for serialization for various empires
+    void PrepQueueAvailabilityInfoForSerialization(const ScriptingContext& context);
+
+private:
+    std::map<int, decltype(m_techs)>                    m_techs_to_serialize_for_empires;
+    std::map<int, decltype(m_research_queue)>           m_research_queue_to_serialize_for_empires;
+    std::map<int, decltype(m_research_progress)>        m_research_progress_to_serialize_for_empires;
+    std::map<int, decltype(m_production_queue)>         m_production_queue_to_serialize_for_empires;
+    std::map<int, decltype(m_influence_queue)>          m_influence_queue_to_serialize_for_empires;
+    std::map<int, decltype(m_available_building_types)> m_available_building_types_to_serialize_for_empires;
+    std::map<int, decltype(m_available_ship_parts)>     m_available_ship_parts_to_serialize_for_empires;
+    std::map<int, decltype(m_available_ship_hulls)>     m_available_ship_hulls_to_serialize_for_empires;
+
+    const decltype(Empire::m_techs)& GetTechsToSerialize(int encoding_empire);
+    const decltype(Empire::m_research_queue)& GetResearchQueueToSerialize(int encoding_empire);
+    const decltype(Empire::m_research_progress)& GetResearchProgressToSerialize(int encoding_empire);
+    const decltype(Empire::m_production_queue)& GetProductionQueueToSerialize(int encoding_empire);
+    const decltype(Empire::m_influence_queue)& GetInfluenceQueueToSerialize(int encoding_empire);
+    const decltype(Empire::m_available_building_types)& GetAvailableBuildingsToSerialize(int encoding_empire);
+    const decltype(Empire::m_available_ship_parts)& GetAvailablePartsToSerialize(int encoding_empire);
+    const decltype(Empire::m_available_ship_hulls)& GetAvailableHullsToSerialize(int encoding_empire);
+
+
     /** The source id is the id of any object owned by the empire.  It is
         mutable so that Source() can be const and still cache its result. */
-    mutable int                     m_source_id = INVALID_OBJECT_ID;
+    mutable int m_source_id = INVALID_OBJECT_ID;
 
-    int                             m_outposts_owned = 0;       ///< how many uncolonized outposts does this empire currently own?
+    int         m_outposts_owned = 0;       ///< how many uncolonized outposts does this empire currently own?
 
-    bool                            m_ready = false;            ///< readiness status of empire
-    bool                            m_authenticated = false;    ///< Empire's Player's authentication flag. Set if only player with empire's player's name should play this empire.
-    bool                            m_eliminated = false;       ///< Whether the empire has lost
+    bool        m_ready = false;            ///< readiness status of empire
+    bool        m_authenticated = false;    ///< Empire's Player's authentication flag. Set if only player with empire's player's name should play this empire.
+    bool        m_eliminated = false;       ///< Whether the empire has lost
 
     friend class boost::serialization::access;
-    Empire();
+    Empire() { Init(); }
     template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };

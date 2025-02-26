@@ -41,14 +41,17 @@ class ShaderProgram;
  * location of these start ane endpoints is used for rendering the starlane and for
  * positioning fleet buttons that are moving along the starlane. */
 struct LaneEndpoints {
-    LaneEndpoints();
-    LaneEndpoints(float x1, float y1, float x2, float y2) :
+    constexpr LaneEndpoints() noexcept = default;
+    constexpr LaneEndpoints(float x1, float y1, float x2, float y2) noexcept :
         X1(x1),
         Y1(y1),
         X2(x2),
         Y2(y2)
     {}
-    float X1, Y1, X2, Y2;
+    float X1 = UniverseObject::INVALID_POSITION;
+    float Y1 = UniverseObject::INVALID_POSITION;
+    float X2 = UniverseObject::INVALID_POSITION;
+    float Y2 = UniverseObject::INVALID_POSITION;
 };
 
 
@@ -118,8 +121,8 @@ public:
     void LClick(GG::Pt pt, GG::Flags<GG::ModKey> mod_keys) override;
     void RClick(GG::Pt pt, GG::Flags<GG::ModKey> mod_keys) override;
     void MouseWheel(GG::Pt pt, int move, GG::Flags<GG::ModKey> mod_keys) override;
-    void KeyPress(GG::Key key, std::uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys) override;
-    void KeyRelease(GG::Key key, std::uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys) override;
+    void KeyPress(GG::Key key, uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys) override;
+    void KeyRelease(GG::Key key, uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys) override;
     void TimerFiring(unsigned int ticks, GG::Timer* timer) override;
 
     void DoLayout();
@@ -143,32 +146,31 @@ public:
 
     void CenterOnMapCoord(double x, double y);                   //!< centers the map on map position (x, y)
     void CenterOnObject(int id);                                 //!< centers the map on object with id \a id
+    void CenterOnObject(const auto& obj)
+    { if (obj) CenterOnMapCoord(obj->X(), obj->Y()); }
 
-    /** Centers the map on object \a id. */
-    void CenterOnObject(std::shared_ptr<const UniverseObject> obj);
-
-    void ShowPlanet(int planet_id);                              //!< brings up encyclopedia panel and displays info about the planet
-    void ShowCombatLog(int log_id);                              //!< brings up encyclopedia panel and displays info about the combat
-    void ShowTech(const std::string& tech_name);                 //!< brings up the research screen and centers the tech tree on \a tech_name
-    void ShowPolicy(const std::string& policy_name);             //!< brings up ??? and displays info about the policy with name \a policy_name
-    void ShowBuildingType(const std::string& building_type_name);//!< brings up the production screen and displays info about the buildtype \a type_name
+    void ShowPlanet(int planet_id);                       //!< brings up encyclopedia panel and displays info about the planet
+    void ShowCombatLog(int log_id);                       //!< brings up encyclopedia panel and displays info about the combat
+    void ShowTech(std::string tech_name);                 //!< brings up the research screen and centers the tech tree on \a tech_name
+    void ShowPolicy(std::string policy_name);             //!< brings up ??? and displays info about the policy with name \a policy_name
+    void ShowBuildingType(std::string building_type_name);//!< brings up the production screen and displays info about the buildtype \a type_name
 
     //! Brings up the production screen and displays info about
     //! the ShipPart @a ship_part_name.
-    void ShowShipPart(const std::string& ship_part_name);
+    void ShowShipPart(std::string ship_part_name);
 
     //! Brings up the production screen and displays info about the ShipHull
     //! @p ship_hull_name
-    void ShowShipHull(const std::string& ship_hull_name);
+    void ShowShipHull(std::string ship_hull_name);
 
-    void ShowShipDesign(int design_id);                          //!< brings up the production screen and displays info about the buildtype \a type_name
-    void ShowSpecial(const std::string& special_name);           //!< brings up encyclopedia panel and displays info about the special with name \a special_name
-    void ShowSpecies(const std::string& species_name);           //!< brings up encyclopedia panel and displays info about the species with name \a species_name
-    void ShowFieldType(const std::string& field_type_name);      //!< brings up encyclopedia panel and displays info about the field type with name \a field_type_name
-    void ShowEmpire(int empire_id);                              //!< brings up encyclopedia panel and displays info about the empire with id \a empire_id
-    void ShowMeterTypeArticle(const std::string& meter_string);  //!< brings up encyclopedia panel and displays info about the MeterType @a meter_type
-    void ShowMeterTypeArticle(MeterType meter_type);             //!< brings up encyclopedia panel and displays info about the MeterType @a meter_type
-    void ShowEncyclopediaEntry(const std::string& str);          //!< brings up encyclopedia panel and displays info about the specified string \a str
+    void ShowShipDesign(int design_id);                  //!< brings up the production screen and displays info about the buildtype \a type_name
+    void ShowSpecial(std::string special_name);          //!< brings up encyclopedia panel and displays info about the special with name \a special_name
+    void ShowSpecies(std::string species_name);          //!< brings up encyclopedia panel and displays info about the species with name \a species_name
+    void ShowFieldType(std::string field_type_name);     //!< brings up encyclopedia panel and displays info about the field type with name \a field_type_name
+    void ShowEmpire(int empire_id);                      //!< brings up encyclopedia panel and displays info about the empire with id \a empire_id
+    void ShowMeterTypeArticle(std::string meter_string); //!< brings up encyclopedia panel and displays info about the MeterType @a meter_type
+    void ShowMeterTypeArticle(MeterType meter_type);     //!< brings up encyclopedia panel and displays info about the MeterType @a meter_type
+    void ShowEncyclopediaEntry(std::string str);         //!< brings up encyclopedia panel and displays info about the specified string \a str
 
     void SelectSystem(int systemID); //!< programatically selects systems on map, sidepanel, and production screen.  catches signals from these when the user changes the selected system
     void ReselectLastSystem();       //!< re-selects the most recently selected system, if a valid one exists
@@ -205,8 +207,8 @@ public:
     void ResetTimeoutClock(int timeout);         //!< start count down \a timeout seconds
 
     void SetFleetExploring(const int fleet_id);
-    void StopFleetExploring(const int fleet_id);
-    bool IsFleetExploring(const int fleet_id);
+    void StopFleetExploring(const int fleet_id, ObjectMap& objects);
+    bool IsFleetExploring(const int fleet_id) const;
     void DispatchFleetsExploring();              //!< called at each turn begin and when a fleet start/stop exploring to redispatch everyone.
 
 
@@ -214,29 +216,39 @@ private:
     void RefreshTurnButtonTooltip();
 
     void RefreshInfluenceResourceIndicator();
-    void RefreshFleetResourceIndicator();
+    void RefreshFleetResourceIndicator(const ScriptingContext& context, int empire_id);
     void RefreshResearchResourceIndicator();
     void RefreshIndustryResourceIndicator();
     void RefreshPopulationIndicator();
     void RefreshDetectionIndicator();
 
-    /** recalculates production and predicted changes of player's empire's
-      * resource and population pools */
-    void UpdateEmpireResourcePools();
+    /** recalculates production and predicted changes the specied empire's resource and population pools */
+    void UpdateEmpireResourcePools(ScriptingContext& context, int empire_id);
 
     /** contains information necessary to render a single fleet movement line
       * on the main map. also contains cached infromation */
     struct MovementLineData {
-        struct Vertex;  // apparent universe positions of move line points, derived from actual universe positions contained in MovePathNodes
-        MovementLineData();
+        // apparent universe positions of move line points, derived from actual universe positions contained in MovePathNodes
+        struct Vertex {
+            constexpr Vertex(double x_, double y_, uint8_t eta_, bool show_eta_,
+                             bool flag_blockade_ = false, bool flag_supply_block_ = false) noexcept :
+                x(x_), y(y_), eta(eta_), show_eta(show_eta_),
+                flag_blockade(flag_blockade_), flag_supply_block(flag_supply_block_)
+            {}
+            double  x, y;       // apparent in-universe position of a point on move line.  not actual universe positions, but rather where the move line vertices are drawn
+            uint8_t eta;        // turns taken to reach point by object travelling along move line
+            bool    show_eta;   // should an ETA indicator / number be shown over this vertex?
+            bool    flag_blockade;
+            bool    flag_supply_block;
+        };
+        MovementLineData() = default;
         MovementLineData(const std::vector<MovePathNode>& path_,
                          const std::map<std::pair<int, int>, LaneEndpoints>& lane_end_points_map,
                          GG::Clr colour_ = GG::CLR_WHITE, int empireID = ALL_EMPIRES);
-        ~MovementLineData();
 
-        std::vector<MovePathNode> path;       // raw path data from which line rendering is determined
-        GG::Clr                   colour;     // colour of line
-        std::vector<Vertex>       vertices;   // cached apparent universe positions of starts and ends of line segments drawn to represent move path
+        std::vector<MovePathNode> path;                  // raw path data from which line rendering is determined
+        std::vector<Vertex>       vertices;              // cached apparent universe positions of starts and ends of line segments drawn to represent move path
+        GG::Clr                   colour = GG::CLR_ZERO; // colour of line
     };
 
     void BufferAddMoveLineVertices(GG::GL2DVertexBuffer& dot_verts_buf,
@@ -272,20 +284,25 @@ private:
     void CreateFleetButtonsOfType(
         FleetButtonMap& type_fleet_buttons,
         const FleetsMap& fleets_map,
-        const FleetButton::SizeType& fleet_button_size);
+        const FleetButton::SizeType& fleet_button_size,
+        const ObjectMap& objects);
 
     /** Delete all fleet buttons.*/
     void DeleteFleetButtons();
 
-    void RefreshFleetButtonSelectionIndicators();    //!< marks (only) selected fleets' buttons as selected
+    void RefreshFleetButtonSelectionIndicators();        //!< marks (only) selected fleets' buttons as selected
 
-    void DoFleetButtonsLayout();                     //!< does layout of fleet buttons
+    void DoFleetButtonsLayout(const ObjectMap& objects); //!< does layout of fleet buttons
 
     /** Return fleets ids of all fleet buttons containing or overlapping the
         fleet button for \p fleet_id. */
-    std::vector<int> FleetIDsOfFleetButtonsOverlapping(int fleet_id) const;
+    std::vector<int> FleetIDsOfFleetButtonsOverlapping(int fleet_id,
+                                                       const ScriptingContext& context,
+                                                       int empire_id) const;
     /** Return fleets ids of all fleet buttons containing or overlapping \p fleet_btn. */
-    std::vector<int> FleetIDsOfFleetButtonsOverlapping(const FleetButton& fleet_btn) const;
+    std::vector<int> FleetIDsOfFleetButtonsOverlapping(const FleetButton& fleet_btn,
+                                                       const ScriptingContext& context,
+                                                       int empire_id) const;
 
     /** Returns position on map where a moving fleet should be displayed.  This
         is different from the fleet's actual universe position due to the
@@ -294,8 +311,8 @@ private:
         fleet has no valid screen position. */
     boost::optional<std::pair<double, double>> MovingFleetMapPositionOnLane(std::shared_ptr<const Fleet> fleet) const;
 
-    void DoSystemIconsLayout();          //!< does layout of system icons
-    void DoFieldIconsLayout();           //!< does layout of field icons
+    void DoSystemIconsLayout(const ObjectMap& objects); //!< does layout of system icons
+    void DoFieldIconsLayout(const ObjectMap& objects);  //!< does layout of field icons
 
     void RefreshSliders();               //!< shows or hides sliders on map
 
@@ -308,7 +325,7 @@ private:
     void ClearFieldRenderingBuffers();
     void InitVisibilityRadiiRenderingBuffers();
     void ClearVisibilityRadiiRenderingBuffers();
-    void InitScaleCircleRenderingBuffer();
+    void InitScaleCircleRenderingBuffer(const ObjectMap& objects);
     void ClearScaleCircleRenderingBuffer();
     void ClearStarfieldRenderingBuffers();
 
@@ -451,7 +468,7 @@ private:
     double                                      m_zoom_steps_in = 1.0;      //!< number of zoom steps in.  each 1.0 step increases display scaling by the same zoom step factor
     std::shared_ptr<SidePanel>                  m_side_panel;               //!< planet view panel on the side of the main map
     std::unordered_map<int, std::shared_ptr<SystemIcon>> m_system_icons;    //!< system icons in the main map, indexed by system id
-    std::map<int, std::shared_ptr<FieldIcon>>   m_field_icons;              //!< field icons in the main map, indexed by field id
+    std::vector<std::shared_ptr<FieldIcon>>     m_field_icons;              //!< field icons in the main map, sorted by field size
     std::shared_ptr<SitRepPanel>                m_sitrep_panel;             //!< sitrep panel
     std::shared_ptr<ResearchWnd>                m_research_wnd;             //!< research screen
     std::shared_ptr<ProductionWnd>              m_production_wnd;           //!< production screen
@@ -529,11 +546,8 @@ private:
     GG::GL2DVertexBuffer    m_system_circle_vertices;
     GG::GLRGBAColorBuffer   m_system_circle_colours;
 
-    /** First buffer is visible fields, second buffer is not visible (scanlined)
-        fields for each texture. */
-    std::map<std::shared_ptr<GG::Texture>,
-             std::pair<GG::GL2DVertexBuffer, GG::GL2DVertexBuffer>>
-                                    m_field_vertices;
+    std::vector<std::pair<std::shared_ptr<GG::Texture>, GG::GL2DVertexBuffer>> m_field_vertices_visible;
+    std::vector<std::pair<std::shared_ptr<GG::Texture>, GG::GL2DVertexBuffer>> m_field_vertices_not_visible;
 
     GG::GL2DVertexBuffer            m_field_scanline_circles;
     GG::GLTexCoordBuffer            m_field_texture_coords;

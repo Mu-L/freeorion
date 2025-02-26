@@ -5,17 +5,24 @@
 #include "Logger.h"
 #include "OptionValidators.h"
 #include "XMLDoc.h"
+#include "ranges.h"
 
 #include <iostream>
 #include <iomanip>
 #include <stdexcept>
 #include <string>
+#include <utility>
+#if !defined(__cpp_lib_integer_comparison_functions)
+namespace std {
+    inline auto cmp_greater_equal(auto&& lhs, auto&& rhs) { return lhs < rhs; }
+}
+#endif
 
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/erase.hpp>
 #include <boost/algorithm/string/predicate.hpp>
-#include <boost/filesystem/fstream.hpp>
-#include <boost/filesystem/operations.hpp>
+#include <boost/container/flat_map.hpp>
+#include <boost/filesystem.hpp>
 #include <boost/range/algorithm_ext/erase.hpp>
 #include <boost/tokenizer.hpp>
 
@@ -42,7 +49,7 @@ namespace {
     }
 
     ///< the master list of abbreviated option names, and their corresponding long-form names
-    std::map<char, std::string> short_names;
+    boost::container::flat_map<char, std::string> short_names;
 
     OptionsDB options_db;
 }
@@ -73,14 +80,15 @@ OptionsDB::Option::Option(char short_name_, std::string name_, boost::any value_
                           std::unique_ptr<ValidatorBase>&& validator_, bool storable_,
                           bool flag_, bool recognized_, std::string section) :
     name(std::move(name_)),
-    short_name(short_name_),
-    storable(storable_),
-    flag(flag_),
-    recognized(recognized_),
     value(std::move(value_)),
     default_value(std::move(default_value_)),
     description(std::move(description_)),
-    validator(std::move(validator_))
+    validator(std::move(validator_)),
+    option_changed_sig(std::make_unique<OptionChangedSignalType>()),
+    short_name(short_name_),
+    storable(storable_),
+    flag(flag_),
+    recognized(recognized_)
 {
     if (!validator)
         DebugLogger() << "Option " << name << " created with null validator...";
@@ -123,7 +131,7 @@ bool OptionsDB::Option::SetFromString(std::string_view str) {
 
     if (changed) {
         value = std::move(value_);
-        option_changed_sig();
+        (*option_changed_sig)();
     }
     return changed;
 }
@@ -132,7 +140,7 @@ bool OptionsDB::Option::SetToDefault() {
     bool changed = !ValueIsDefault();
     if (changed) {
         value = default_value;
-        option_changed_sig();
+        (*option_changed_sig)();
     }
     return changed;
 }
@@ -211,44 +219,44 @@ bool OptionsDB::CommitPersistent() {
 }
 
 void OptionsDB::Validate(std::string_view name, std::string_view value) const {
-    auto it = m_options.find(name);
+    auto it = find_option(name);
     if (!OptionExists(it))
         throw std::runtime_error(std::string{"Attempted to validate unknown option \""}.append(name).append("\"."));
 
-    if (it->second.flag)
+    if (it->flag)
         boost::lexical_cast<bool>(value);
-    else if (it->second.validator)
-        it->second.validator->Validate(value);
+    else if (it->validator)
+        it->validator->Validate(value);
     else
         throw std::runtime_error("Attempted to validate option with no validator set");
 }
 
 std::string OptionsDB::GetValueString(std::string_view option_name) const {
-    auto it = m_options.find(option_name);
+    auto it = find_option(option_name);
     if (!OptionExists(it))
         throw std::runtime_error(std::string{"OptionsDB::GetValueString(): No option called \""}.append(option_name).append("\" could be found."));
-    return it->second.ValueToString();
+    return it->ValueToString();
 }
 
 std::string OptionsDB::GetDefaultValueString(std::string_view option_name) const {
-    auto it = m_options.find(option_name);
+    auto it = find_option(option_name);
     if (!OptionExists(it))
         throw std::runtime_error(std::string{"OptionsDB::GetDefaultValueString(): No option called \""}.append(option_name).append("\" could be found."));
-    return it->second.DefaultValueToString();
+    return it->DefaultValueToString();
 }
 
 const std::string& OptionsDB::GetDescription(std::string_view option_name) const {
-    auto it = m_options.find(option_name);
+    auto it = find_option(option_name);
     if (!OptionExists(it))
         throw std::runtime_error(std::string{"OptionsDB::GetDescription(): No option called \""}.append(option_name).append("\" could be found."));
-    return it->second.description;
+    return it->description;
 }
 
 const ValidatorBase* OptionsDB::GetValidator(std::string_view option_name) const {
-    auto it = m_options.find(option_name);
+    auto it = find_option(option_name);
     if (!OptionExists(it))
         throw std::runtime_error(std::string{"OptionsDB::GetValidator(): No option called \""}.append(option_name).append("\" could be found."));
-    return it->second.validator.get();
+    return it->validator.get();
 }
 
 namespace {
@@ -263,10 +271,10 @@ namespace {
      * @returns string Formatted results of @p text
      */
     std::string SplitText(const std::string& text, std::pair<std::size_t, std::size_t> indents = { 0, 0 },
-                          std::pair<std::size_t, std::size_t> widths = { TERMINAL_LINE_WIDTH, TERMINAL_LINE_WIDTH })
+                          std::pair<std::size_t, std::size_t> widths = {TERMINAL_LINE_WIDTH, TERMINAL_LINE_WIDTH})
     {
-        boost::char_separator<char> separator { " \t", "\n" };
-        boost::tokenizer<boost::char_separator<char>> tokens { text, separator };
+        const boost::char_separator<char> separator { " \t", "\n" };
+        const boost::tokenizer<boost::char_separator<char>> tokens{text, separator};
 
         std::vector<std::string> lines{""};
         for (const auto& token : tokens) {
@@ -278,10 +286,9 @@ namespace {
                 lines.back().append(token + " ");
         }
 
-        std::string indent(indents.second, ' ');
         std::stringstream retval;
-        auto first_line = std::move(lines.front());
-        retval << std::string(indents.first, ' ') << first_line << "\n";
+        retval << std::string(indents.first, ' ') << lines.front() << "\n";
+        std::string indent(indents.second, ' ');
         for (const auto& line : lines)
             if (!line.empty())
                 retval << indent << line << "\n";
@@ -299,24 +306,26 @@ namespace {
 
 std::unordered_map<std::string_view, std::set<std::string_view>> OptionsDB::OptionsBySection(bool allow_unrecognized) const {
     // Determine sections after all predicate calls from known options
-    std::unordered_map<std::string_view, std::unordered_set<std::string_view>> sections_by_option;
-    for (const auto& [option_name, option] : m_options) {
-        if (!allow_unrecognized && !option.recognized)
-            continue;
+    boost::container::flat_map<std::string_view, std::vector<std::string_view>> sections_by_option;
+    sections_by_option.reserve(m_options.size());
 
-        for (const auto& section : option.sections)
-            sections_by_option[option_name].emplace(section);
+    const auto is_recog_ok = [allow_unrecognized](const auto& o) { return allow_unrecognized || o.recognized; };
 
-        for (auto& section : m_sections)
-            if (section.second.option_predicate && section.second.option_predicate(option_name))
-                sections_by_option[option_name].insert(section.first);
+    for (const auto& option : m_options | range_filter(is_recog_ok)) {
+        auto& sbo = sections_by_option.emplace(std::piecewise_construct,
+                                               std::forward_as_tuple(option.name),
+                                               std::forward_as_tuple(option.sections.begin(),
+                                                                     option.sections.end())).first->second;
+
+        for (const auto& section : m_sections)
+            if (section.option_predicate && section.option_predicate(option.name))
+                sbo.push_back(section.name);
     }
 
     // tally the total number of options under each section
     std::unordered_map<std::string_view, std::size_t> total_options_per_section;
-    for (const auto& [option_name, sections_set] : sections_by_option) {
-        (void)sections_set; // quiet warning
-        auto dot_it = option_name.find_first_of(".");
+    for (const auto option_name : sections_by_option | range_keys) {
+        auto dot_it = option_name.find_first_of("."); // TODO: move into range as transform
         // increment count of each containing parent section
         while (dot_it != std::string::npos) {
             total_options_per_section[option_name.substr(0, dot_it)]++;
@@ -325,14 +334,17 @@ std::unordered_map<std::string_view, std::set<std::string_view>> OptionsDB::Opti
         }
     }
 
+    const auto find_section = [this](const auto section_name) {
+        const auto has_section_name = [section_name](const auto& s) { return s.name == section_name; };
+        return std::find_if(m_sections.begin(), m_sections.end(), has_section_name);
+    };
+
     // sort options into common sections
     std::unordered_map<std::string_view, std::set<std::string_view>> options_by_section;
     for (const auto& [option_name, sections_set] : sections_by_option) {
         for (std::string_view section_name : sections_set) {
-            auto defined_section_it = m_sections.find(section_name);
-            bool has_descr = defined_section_it != m_sections.end() ?
-                             !defined_section_it->second.description.empty() :
-                             false;
+            auto defined_section_it = find_section(section_name);
+            bool has_descr = (defined_section_it != m_sections.end()) && !defined_section_it->description.empty();
 
             // move options from sparse sections to more common parent
             auto section_count = total_options_per_section[section_name];
@@ -347,9 +359,9 @@ std::unordered_map<std::string_view, std::set<std::string_view>> OptionsDB::Opti
                 section_end_it = section_name.find_last_of(".");
                 section_count = total_options_per_section[section_name];
 
-                defined_section_it = m_sections.find(section_name);
+                defined_section_it = find_section(section_name);
                 if (defined_section_it != m_sections.end())
-                    has_descr = !defined_section_it->second.description.empty();
+                    has_descr = !defined_section_it->description.empty();
             }
 
             options_by_section[section_name].emplace(option_name);
@@ -357,28 +369,28 @@ std::unordered_map<std::string_view, std::set<std::string_view>> OptionsDB::Opti
     }
 
     // define which section are top level sections ("root"), move top level candidates with single option to misc
-    for (auto& [section_name, option_count] : total_options_per_section) {
-        (void)option_count; // quiet warning
-        auto root_name = section_name.substr(0, section_name.find_first_of("."));
+    for (const auto section_name : total_options_per_section | range_keys) {
+        const auto root_name = section_name.substr(0, section_name.find_first_of("."));
         // root_name with no dot element allowed to pass if an option is known, potentially moving to misc section
-        auto total_it = total_options_per_section.find(root_name);
+        const auto total_it = total_options_per_section.find(root_name);
         if (total_it == total_options_per_section.end())
             continue;
-        auto count = total_it->second;
-
+        const auto count = total_it->second;
         if (count > 1)
             options_by_section["root"].insert(std::move(root_name));
 
-        else if (section_name != "misc" && section_name != "root" && !m_sections.contains(section_name)) {
-            // no section found with specified name, so move options in section to misc section
-            auto section_options_it = options_by_section.find(section_name);
-            if (section_options_it == options_by_section.end())
-                continue;
-            auto& section_options = section_options_it->second;
+        else if (section_name != "misc" && section_name != "root") {
+            if (find_section(section_name) == m_sections.end()) {
+                // no section found with specified name, so move options in section to misc section
+                auto section_options_it = options_by_section.find(section_name);
+                if (section_options_it == options_by_section.end())
+                    continue;
+                auto& section_options = section_options_it->second;
 
-            for (auto& option : section_options)
-                options_by_section["misc"].insert(option);
-            options_by_section.erase(section_name);
+                for (auto& option : section_options)
+                    options_by_section["misc"].insert(option);
+                options_by_section.erase(section_name);
+            }
         }
     }
 
@@ -403,15 +415,20 @@ void OptionsDB::GetUsage(std::ostream& os, std::string_view command_line, bool a
             os << "\nFreeOrion is a 4X Space Strategy game.\n\n";
     }
 
+    const auto find_section = [this](const auto section_name) {
+        const auto has_section_name = [section_name](const auto& s) { return s.name == section_name; };
+        return std::find_if(m_sections.begin(), m_sections.end(), has_section_name);
+    };
+
     // print description of command_line arg as section
     if (command_line == "all") {
         os << UserString("OPTIONS_DB_SECTION_ALL") << " ";
     } else if (command_line == "raw") {
         os << UserString("OPTIONS_DB_SECTION_RAW") << " ";
     } else {
-        auto command_section_it = m_sections.find(command_line);
-        if (command_section_it != m_sections.end() && !command_section_it->second.description.empty())
-            os << UserString(command_section_it->second.description) << " ";
+        auto command_section_it = find_section(command_line);
+        if (command_section_it != m_sections.end() && !command_section_it->description.empty())
+            os << UserString(command_section_it->description) << " ";
     }
 
     bool print_misc_section = command_line.empty();
@@ -428,8 +445,7 @@ void OptionsDB::GetUsage(std::ostream& os, std::string_view command_line, bool a
                             name_col_width = section.size();
             }
         } else {
-            for (const auto& [sec, opts] : options_by_section) {
-                (void)opts; // ignored
+            for (const auto& sec : options_by_section | range_keys) {
                 if (OptionNameHasParentSection(sec, command_line))
                     if (section_list.emplace(sec).second && name_col_width < sec.size())
                         name_col_width = sec.size();
@@ -447,8 +463,8 @@ void OptionsDB::GetUsage(std::ostream& os, std::string_view command_line, bool a
                 print_misc_section = true;
                 continue;
             }
-            const auto section_it = m_sections.find(section);
-            std::string descr = (section_it == m_sections.end()) ? "" : UserString(section_it->second.description);
+            const auto section_it = find_section(section);
+            std::string descr = (section_it == m_sections.end()) ? "" : UserString(section_it->description);
 
             os << std::setw(2) << "" // indent
                << std::setw(name_col_width) << std::left << section // section name
@@ -471,11 +487,8 @@ void OptionsDB::GetUsage(std::ostream& os, std::string_view command_line, bool a
     if (!command_line.empty()) {
         std::vector<std::string_view> option_list;
         if (command_line == "all" || command_line == "raw") {
-            for (const auto& [sec, opts] : options_by_section) {
-                (void)sec; // ignored
-                for (const auto& option : opts)
-                    option_list.push_back(option);
-            }
+            for (const auto& opts : options_by_section | range_values)
+                option_list.insert(option_list.end(), opts.begin(), opts.end());
         } else {
             auto option_section_it = options_by_section.find(command_line);
             if (option_section_it != options_by_section.end())
@@ -486,37 +499,38 @@ void OptionsDB::GetUsage(std::ostream& os, std::string_view command_line, bool a
         }
 
         // insert command_line as option, if it exists
-        if (command_line != "all" && command_line != "raw" && m_options.count(command_line))
+        if (command_line != "all" && command_line != "raw" && find_option(command_line) != m_options.end())
             option_list.push_back(command_line);
 
         if (!option_list.empty())
             os << UserString("COMMAND_LINE_OPTIONS") << ":\n";
 
         for (std::string_view option_name : option_list) {
-            const auto option_it = m_options.find(option_name);
-            if (option_it == m_options.end() || (!allow_unrecognized && !option_it->second.recognized))
+            const auto option_it = find_option(option_name);
+            if (option_it == m_options.end() || (!allow_unrecognized && !option_it->recognized))
                 continue;
+            const auto& option = *option_it;
 
             if (command_line == "raw") {
-                os << option_name << ", " << option_it->second.description << ",\n";
-                if (option_it->second.short_name)
-                    os << option_it->second.short_name << ", " << option_it->second.description << ",\n";
+                os << option_name << ", " << option.description << ",\n";
+                if (option.short_name)
+                    os << option.short_name << ", " << option.description << ",\n";
             } else {
                 // option name(s)
-                if (option_it->second.short_name)
-                    os << "-" << option_it->second.short_name << " | --" << option_name;
+                if (option.short_name)
+                    os << "-" << option.short_name << " | --" << option_name;
                 else
                     os << "--" << option_name;
 
                 // option description
-                if (!option_it->second.description.empty())
-                    os << "\n" << SplitText(UserString(option_it->second.description), {5, 7});
+                if (!option.description.empty())
+                    os << "\n" << SplitText(UserString(option.description), {5, 7});
                 else
                     os << "\n";
 
                 // option default value
-                if (option_it->second.validator) {
-                    const auto validator_str = UserString("COMMAND_LINE_DEFAULT") + ": " + option_it->second.DefaultValueToString();
+                if (option.validator) {
+                    const auto validator_str = UserString("COMMAND_LINE_DEFAULT") + ": " + option.DefaultValueToString();
                     os << SplitText(validator_str, {5, 7}, {TERMINAL_LINE_WIDTH - validator_str.size(), 77});
                 }
                 os << "\n";
@@ -540,18 +554,15 @@ void OptionsDB::GetXML(XMLDoc& doc, bool non_default_only, bool include_version)
     elem_stack.push_back(&doc.root_node);
 
     for (const auto& option : m_options) {
-        if (!option.second.storable)
+        if (!option.storable || !option.recognized)
             continue;
 
-        if (!option.second.recognized)
-            continue;
-
-        std::string::size_type last_dot = option.first.find_last_of('.');
-        std::string section_name = last_dot == std::string::npos ? "" : option.first.substr(0, last_dot);
-        std::string name = option.first.substr(last_dot == std::string::npos ? 0 : last_dot + 1);
+        std::string::size_type last_dot = option.name.find_last_of('.');
+        std::string section_name = last_dot == std::string::npos ? "" : option.name.substr(0, last_dot);
+        std::string name = option.name.substr(last_dot == std::string::npos ? 0 : last_dot + 1);
 
         // "version.gl.check.done" is automatically set to true after other logic is performed
-        if (option.first == "version.gl.check.done")
+        if (option.name == "version.gl.check.done")
             continue;
 
         // Skip unwanted config options
@@ -562,19 +573,19 @@ void OptionsDB::GetXML(XMLDoc& doc, bool non_default_only, bool include_version)
             continue;
 
         // Storing "version.string" in persistent config would render all config options invalid after a new build
-        if (!include_version && option.first == "version.string")
+        if (!include_version && option.name == "version.string")
             continue;
 
         // do want to store version string if requested, regardless of whether
         // it is default. for other strings, if storing non-default only,
         // check if option is default and if it is, skip it.
-        if (non_default_only && option.first != "version.string") {
-            bool is_default_nonflag = !option.second.flag && IsDefaultValue(m_options.find(option.first));
+        if (non_default_only && option.name != "version.string") {
+            bool is_default_nonflag = !option.flag && IsDefaultValue(find_option(option.name));
             if (is_default_nonflag)
                 continue;
 
             // Default value of flag options will throw bad_any_cast, fortunately they always default to false
-            if (option.second.flag && !boost::any_cast<bool>(option.second.value))
+            if (option.flag && !boost::any_cast<bool>(option.value))
                 continue;
         }
 
@@ -595,82 +606,77 @@ void OptionsDB::GetXML(XMLDoc& doc, bool non_default_only, bool include_version)
             std::string::size_type pos = 0;
             while ((pos = section_name.find('.', last_pos)) != std::string::npos) {
                 XMLElement temp(section_name.substr(last_pos, pos - last_pos));
-                elem_stack.back()->children.push_back(temp);
+                elem_stack.back()->AddChild(temp);
                 elem_stack.push_back(&elem_stack.back()->Child(temp.Tag()));
                 last_pos = pos + 1;
             }
             XMLElement temp(section_name.substr(last_pos));
-            elem_stack.back()->children.push_back(temp);
+            elem_stack.back()->AddChild(temp);
             elem_stack.push_back(&elem_stack.back()->Child(temp.Tag()));
         }
 
         XMLElement temp(name);
-        if (option.second.validator) {
-            temp.SetText(option.second.ValueToString());
-        } else if (option.second.flag) {
-            if (!boost::any_cast<bool>(option.second.value))
+        if (option.validator) {
+            temp.SetText(option.ValueToString());
+        } else if (option.flag) {
+            if (!boost::any_cast<bool>(option.value))
                 continue;
         }
-        elem_stack.back()->children.push_back(temp);
+        elem_stack.back()->AddChild(temp);
         elem_stack.push_back(&elem_stack.back()->Child(temp.Tag()));
     }
 }
 
 OptionsDB::OptionChangedSignalType& OptionsDB::OptionChangedSignal(std::string_view option) {
     //DebugLogger() << "getting option changed signal for string" << option;
-    auto it = m_options.find(option);
+    auto it = find_option(option);
     if (it == m_options.end())
         throw std::runtime_error(std::string{"OptionsDB::OptionChangedSignal() : Attempted to get signal for nonexistent option \""}
                                  .append(option).append("\"."));
-    return it->second.option_changed_sig;
+    return *it->option_changed_sig;
 }
 
 void OptionsDB::Remove(std::string_view name) {
-    auto it = m_options.find(name);
-    if (it != m_options.end()) {
-        short_names.erase(it->second.short_name);
-        m_options.erase(it);
-        m_dirty = true;
-    }
+    const auto it = find_option(name);
+    if (it == m_options.end())
+        return;
+    short_names.erase(it->short_name);
+    m_options.erase(it);
+    m_dirty = true;
 }
 
 void OptionsDB::RemoveUnrecognized(std::string_view prefix) {
-    auto it = m_options.begin();
-    while (it != m_options.end()) {
-        if (!it->second.recognized && it->first.find(prefix) == 0)
-            Remove((it++)->first); // note postfix operator++
-        else
-            ++it;
-    }
-}
-
-void OptionsDB::FindOptions(std::set<std::string>& ret, std::string_view prefix, bool allow_unrecognized) const {
-    ret.clear();
-    for (auto& [option_name, option] : m_options)
-        if ((option.recognized || allow_unrecognized) && option_name.find(prefix) == 0)
-            ret.insert(option_name);
+    // const auto prefixed_not_recognized = [prefix](const Option& o) { return !o.recognized && o.name.starts_with(prefix); };
+    const auto recognized_or_not_prefixed = [prefix](const Option& o) { return o.recognized || !o.name.starts_with(prefix); };
+    // put not-to-be-removed stuff first
+    const auto it = std::stable_partition(m_options.begin(), m_options.end(), recognized_or_not_prefixed);
+    const auto remove_count = std::distance(it, m_options.end());
+    if (remove_count < 1)
+        return;
+    for (auto short_it = it; short_it != m_options.end(); ++short_it)
+        short_names.erase(short_it->short_name);
+    m_options.erase(it, m_options.end());
+    m_dirty = true;
 }
 
 std::vector<std::string_view> OptionsDB::FindOptions(std::string_view prefix, bool allow_unrecognized) const {
     std::vector<std::string_view> ret;
     ret.reserve(m_options.size());
-    for (auto& [option_name, option] : m_options)
-        if ((option.recognized || allow_unrecognized) && option_name.find(prefix) == 0)
-            ret.push_back(option_name);
+    for (const auto& option : m_options)
+        if ((option.recognized || allow_unrecognized) && option.name.find(prefix) == 0)
+            ret.push_back(option.name);
     return ret;
 }
 
 void OptionsDB::SetToDefault(std::string_view name) {
-    auto it = m_options.find(name);
+    auto it = find_option(name);
     if (!OptionExists(it))
         throw std::runtime_error("Attempted to reset value of nonexistent option \"" + std::string{name});
-    it->second.value = it->second.default_value;
+    it->value = it->default_value;
 }
 
 void OptionsDB::SetFromCommandLine(const std::vector<std::string>& args) {
-    //bool option_changed = false;
-
-    for (unsigned int i = 1; i < args.size(); ++i) {
+    for (std::size_t i = 1u; i < args.size(); ++i) {
         std::string_view current_token{args[i]};
 
         if (current_token.find("--") == 0) {
@@ -679,26 +685,24 @@ void OptionsDB::SetFromCommandLine(const std::vector<std::string>& args) {
             if (option_name.empty())
                 throw std::runtime_error("A \'--\' was given with no option name.");
 
-            auto it = m_options.find(option_name); 
+            auto it = find_option(option_name);
 
-            if (it == m_options.end() || !it->second.recognized) {
+            if (it == m_options.end() || !it->recognized) {
                 // unrecognized option: may be registered later on so we'll store it for now
                 // Check for more parameters (if this is the last one, assume that it is a flag).
                 std::string_view value_str{"-"};
-                if (i + 1 < static_cast<unsigned int>(args.size()))
-                    value_str = StripQuotation(args[i + 1]);
+                if ((i + 1) < static_cast<unsigned int>(args.size()))
+                    value_str = StripQuotation(args[i + 1u]);
 
                 if (value_str.front() == '-') {
                     // this is either the last parameter or the next parameter is another option, assume this one is a flag
-                    m_options.emplace(option_name,
-                                      Option{static_cast<char>(0), option_name, true, false, "",
-                                             std::make_unique<Validator<bool>>(), false, true, false});
+                    m_options.emplace_back(static_cast<char>(0), option_name, true, false, "",
+                                           std::make_unique<Validator<bool>>(), false, true, false);
                 } else {
                     // the next parameter is the value, store it as a string to be parsed later, but
                     // don't attempt to store options that have only been specified on the command line
-                    m_options.emplace(option_name,
-                                      Option{static_cast<char>(0), option_name, value_str, value_str, "",
-                                             std::make_unique<Validator<std::string>>(), false, false, false});
+                    m_options.emplace_back(static_cast<char>(0), option_name, value_str, value_str, "",
+                                           std::make_unique<Validator<std::string>>(), false, false, false);
                 }
 
                 WarnLogger() << "Option \"" << option_name << "\", was specified on the command line but was not recognized."
@@ -707,14 +711,14 @@ void OptionsDB::SetFromCommandLine(const std::vector<std::string>& args) {
 
             } else {
                 // recognized option
-                Option& option = it->second;
+                Option& option = *it;
                 if (option.value.empty())
                     throw std::runtime_error("The value member of option \"--" + option.name + "\" is undefined.");
 
                 if (!option.flag) { // non-flag
                     try {
                         // check if parameter exists...
-                        if (i + 1 >= static_cast<unsigned int>(args.size())) {
+                        if (std::cmp_greater_equal(i + 1, args.size())) {
                             m_dirty |= option.SetFromString("");
                             continue;
                         }
@@ -736,7 +740,6 @@ void OptionsDB::SetFromCommandLine(const std::vector<std::string>& args) {
                 }
             }
 
-            //option_changed = true;
         } else if (current_token.find('-') == 0
 #ifdef FREEORION_MACOSX
                 && current_token.find("-psn") != 0 // Mac OS X passes a process serial number to all applications using Carbon or Cocoa, it should be ignored here
@@ -754,12 +757,12 @@ void OptionsDB::SetFromCommandLine(const std::vector<std::string>& args) {
                 if (short_name_it == short_names.end())
                     throw std::runtime_error(std::string("Unknown option \"-") + single_char_options[j] + "\" was given.");
 
-                auto name_it = m_options.find(short_name_it->second);
+                auto name_it = find_option(short_name_it->second);
 
                 if (name_it == m_options.end())
                     throw std::runtime_error("Option \"--" + short_name_it->second + "\", abbreviated as \"-" + short_name_it->first + "\", could not be found.");
 
-                Option& option = name_it->second;
+                Option& option = *name_it;
                 if (option.value.empty())
                     throw std::runtime_error("The value member of option \"--" + option.name + "\" is undefined.");
 
@@ -767,7 +770,7 @@ void OptionsDB::SetFromCommandLine(const std::vector<std::string>& args) {
                     if (j < single_char_options.size() - 1) {
                         throw std::runtime_error(std::string("Option \"-") + single_char_options[j] + "\" was given with no parameter.");
                     } else {
-                        if (i + 1 >= static_cast<unsigned int>(args.size()))
+                        if (std::cmp_greater_equal(i + 1, args.size()))
                             m_dirty |= option.SetFromString("");
                         else
                             m_dirty |= option.SetFromString(args[++i]);
@@ -798,8 +801,8 @@ void OptionsDB::SetFromFile(const boost::filesystem::path& file_path, std::strin
 }
 
 void OptionsDB::SetFromXML(const XMLDoc& doc) {
-    for (const XMLElement& child : doc.root_node.children)
-    { SetFromXMLRecursive(child, ""); }
+    for (const XMLElement& child : doc.root_node.Children())
+        SetFromXMLRecursive(child, "");
 }
 
 void OptionsDB::SetFromXMLRecursive(const XMLElement& elem, std::string_view section_name) {
@@ -807,14 +810,14 @@ void OptionsDB::SetFromXMLRecursive(const XMLElement& elem, std::string_view sec
     if (option_name == "version.string")
         return;
 
-    if (!elem.children.empty()) {
-        for (const XMLElement& child : elem.children)
+    if (!elem.Children().empty()) {
+        for (const XMLElement& child : elem.Children())
             SetFromXMLRecursive(child, option_name);
     }
 
-    auto it = m_options.find(option_name);
+    auto it = find_option(option_name);
 
-    if (it == m_options.end() || !it->second.recognized) {
+    if (it == m_options.end() || !it->recognized) {
 
         TraceLogger() << "Option \"" << option_name << "\", was in config.xml but was not recognized."
                       << " It may not be registered yet or you may need to delete your config.xml if it is out of date.";
@@ -824,17 +827,16 @@ void OptionsDB::SetFromXMLRecursive(const XMLElement& elem, std::string_view sec
             return;
         } else {
             // Store unrecognized option to be parsed later if this options is added.
-            Option option{static_cast<char>(0), option_name, elem.Text(), elem.Text(), "",
-                          std::make_unique<Validator<std::string>>(), true, false, false,
-                          std::string{section_name}};
-            m_options.emplace(std::move(option_name), std::move(option));
+            m_options.emplace_back(static_cast<char>(0), option_name, elem.Text(), elem.Text(), "",
+                                   std::make_unique<Validator<std::string>>(), true, false, false,
+                                   std::string{section_name});
         }
 
         m_dirty = true;
         return;
     }
 
-    Option& option = it->second;
+    Option& option = *it;
     //if (!option.flag && option.value.empty()) {
     //    ErrorLogger() << "The value member of option \"" << option.name << "\" in config.xml is undefined.";
     //    return;
@@ -855,28 +857,33 @@ void OptionsDB::SetFromXMLRecursive(const XMLElement& elem, std::string_view sec
 void OptionsDB::AddSection(const char* name, std::string description,
                            std::function<bool (const std::string&)> option_predicate)
 {
-    auto insert_result = m_sections.emplace(name, OptionSection{name, description, option_predicate});
-    // if previously existing section, update description/predicate if empty/null
-    if (!insert_result.second) {
-        if (!description.empty() && insert_result.first->second.description.empty())
-            insert_result.first->second.description = std::move(description);
-        if (option_predicate != nullptr && insert_result.first->second.option_predicate == nullptr)
-            insert_result.first->second.option_predicate = std::move(option_predicate);
+    auto it = std::find_if(m_sections.begin(), m_sections.end(),
+                           [sec_name{std::string_view{name}}](const auto& sec) { return sec.name == sec_name; });
+    if (it != m_sections.end()) {
+        // if previously existing section, update description/predicate if empty/null
+        if (!description.empty() && it->description.empty())
+            it->description = std::move(description);
+        if (option_predicate && !it->option_predicate)
+            it->option_predicate = std::move(option_predicate);
+        return;
     }
+
+    // add new section
+    m_sections.emplace_back(name, std::move(description), std::move(option_predicate));
 }
 
 template <>
 std::vector<std::string> OptionsDB::Get<std::vector<std::string>>(std::string_view name) const
 {
-    auto it = m_options.find(name);
+    auto it = find_option(name);
     if (!OptionExists(it))
         throw std::runtime_error(std::string{"OptionsDB::Get<std::vector<std::string>>() : Attempted to get nonexistent option: "}.append(name));
     try {
-        return boost::any_cast<std::vector<std::string>>(it->second.value);
+        return boost::any_cast<std::vector<std::string>>(it->value);
     } catch (const boost::bad_any_cast&) {
         ErrorLogger() << "bad any cast converting value option named: " << name << ". Returning default value instead";
         try {
-            return boost::any_cast<std::vector<std::string>>(it->second.default_value);
+            return boost::any_cast<std::vector<std::string>>(it->default_value);
         } catch (const boost::bad_any_cast&) {
             ErrorLogger() << "bad any cast converting default value of std::vector<std::string> option named: " << name << ". Returning empty vector instead";
             return std::vector<std::string>();

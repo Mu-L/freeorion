@@ -28,6 +28,7 @@
 #include <boost/python/stl_iterator.hpp>
 #include <boost/operators.hpp>
 #include <memory>
+#include <string>
 
 namespace py = boost::python;
 
@@ -77,6 +78,7 @@ PythonParser::PythonParser(PythonCommon& _python, const boost::filesystem::path&
         type_float = py::import("builtins").attr("float");
         type_bool = py::import("builtins").attr("bool");
         type_str = py::import("builtins").attr("str");
+        py::import("builtins").attr("parser_context") = true;
 
         py::register_exception_translator<import_error>(&translate);
 
@@ -98,6 +100,7 @@ PythonParser::PythonParser(PythonCommon& _python, const boost::filesystem::path&
         py::class_<value_ref_wrapper<int>>("ValueRefInt", py::no_init)
             .def(int() * py::self_ns::self)
             .def(double() * py::self_ns::self)
+            .def(py::self_ns::self / int())
             .def(py::self_ns::self - int())
             .def(int() - py::self_ns::self)
             .def(py::self_ns::self + py::self_ns::self)
@@ -105,13 +108,16 @@ PythonParser::PythonParser(PythonCommon& _python, const boost::filesystem::path&
             .def(double() + py::self_ns::self)
             .def(py::self_ns::self < py::self_ns::self)
             .def(py::self_ns::self < int())
+            .def(py::self_ns::self <= int())
             .def(py::self_ns::self > int())
+            .def(py::self_ns::self >= int())
             .def(py::self_ns::self >= py::self_ns::self)
             .def(py::self_ns::self == py::self_ns::self)
             .def(double() - py::self_ns::self)
             .def(py::self_ns::self == int())
             .def(py::self_ns::self != int())
-            .def(py::self_ns::self | py::self_ns::self);
+            .def(py::self_ns::self | py::self_ns::self)
+            .def(py::self_ns::pow(py::self_ns::self, double()));
         py::class_<value_ref_wrapper<double>>("ValueRefDouble", py::no_init)
             .def("__call__", &value_ref_wrapper<double>::call)
             .def(int() * py::self_ns::self)
@@ -127,8 +133,10 @@ PythonParser::PythonParser(PythonCommon& _python, const boost::filesystem::path&
             .def(py::self_ns::self + double())
             .def(py::self_ns::self + py::self_ns::self)
             .def(py::self_ns::self + py::other<value_ref_wrapper<int>>())
+            .def(py::other<value_ref_wrapper<int>>() + py::self_ns::self)
             .def(py::self_ns::self - double())
             .def(py::self_ns::self - py::self_ns::self)
+            .def(py::self_ns::self - py::other<value_ref_wrapper<int>>())
             .def(int() + py::self_ns::self)
             .def(int() - py::self_ns::self)
             .def(py::self_ns::self - int())
@@ -145,14 +153,17 @@ PythonParser::PythonParser(PythonCommon& _python, const boost::filesystem::path&
             .def(py::self_ns::pow(py::self_ns::self, double()))
             .def(py::self_ns::pow(double(), py::self_ns::self))
             .def(py::self_ns::pow(py::self_ns::self, py::self_ns::self))
-            .def(py::self_ns::self & py::self_ns::self);
+            .def(py::self_ns::self & py::self_ns::self)
+            .def(-py::self_ns::self);
         py::class_<value_ref_wrapper<std::string>>("ValueRefString", py::no_init)
             .def(py::self_ns::self + std::string())
             .def(std::string() + py::self_ns::self);
+        py::class_<value_ref_wrapper<Visibility>>("ValueRefVisibility", py::no_init);
         py::class_<condition_wrapper>("Condition", py::no_init)
             .def(py::self_ns::self & py::self_ns::self)
             .def(py::self_ns::self & py::other<value_ref_wrapper<double>>())
             .def(py::self_ns::self & py::other<value_ref_wrapper<int>>())
+            .def(py::other<value_ref_wrapper<int>>() & py::self_ns::self)
             .def(py::self_ns::self | py::self_ns::self)
             .def(py::self_ns::self | py::other<value_ref_wrapper<int>>())
             .def(~py::self_ns::self);
@@ -160,6 +171,7 @@ PythonParser::PythonParser(PythonCommon& _python, const boost::filesystem::path&
         py::class_<effect_group_wrapper>("EffectsGroup", py::no_init);
         py::class_<enum_wrapper<UnlockableItemType>>("__UnlockableItemType", py::no_init);
         py::class_<enum_wrapper<EmpireAffiliationType>>("__EmpireAffiliationType", py::no_init);
+        py::class_<enum_wrapper<MeterType>>("__MeterType", py::no_init);
         py::class_<enum_wrapper<ResourceType>>("__ResourceType", py::no_init);
         py::class_<enum_wrapper< ::PlanetEnvironment>>("__PlanetEnvironment", py::no_init);
         py::class_<enum_wrapper<PlanetSize>>("__PlanetSize", py::no_init);
@@ -172,116 +184,124 @@ PythonParser::PythonParser(PythonCommon& _python, const boost::filesystem::path&
         py::class_<enum_wrapper<ValueRef::StatisticType>>("__StatisticType", py::no_init);
         py::class_<enum_wrapper<Condition::ContentType>>("__LocationContentType", py::no_init);
         py::class_<enum_wrapper<BuildType>>("__BuildType", py::no_init);
+        py::class_<enum_wrapper<Visibility>>("__Visibility", py::no_init);
+        py::class_<enum_wrapper<CaptureResult>>("__CaptureResult", py::no_init);
         py::class_<unlockable_item_wrapper>("UnlockableItem", py::no_init);
         py::class_<FocusType>("__FocusType", py::no_init);
         auto py_variable_wrapper = py::class_<variable_wrapper>("__Variable", py::no_init);
 
-        for (const char* property : {"Owner",
-                                     "SupplyingEmpire",
-                                     "ID",
-                                     "CreationTurn",
-                                     "Age",
-                                     "ProducedByEmpireID",
-                                     "ArrivedOnTurn",
-                                     "DesignID",
-                                     "FleetID",
-                                     "PlanetID",
-                                     "SystemID",
-                                     "ContainerID",
-                                     "FinalDestinationID",
-                                     "NextSystemID",
-                                     "NearestSystemID",
-                                     "PreviousSystemID",
-                                     "PreviousToFinalDestinationID",
-                                     "NumShips",
-                                     "NumStarlanes",
-                                     "LastTurnActiveInBattle",
-                                     "LastTurnAttackedByShip",
-                                     "LastTurnBattleHere",
-                                     "LastTurnColonized",
-                                     "LastTurnConquered",
-                                     "LastTurnMoveOrdered",
-                                     "LastTurnResupplied",
-                                     "Orbit",
-                                     "TurnsSinceColonization",
-                                     "TurnsSinceFocusChange",
-                                     "TurnsSinceLastConquered",
-                                     "ETA",
-                                     "LaunchedFrom",
-                                     "OrderedColonizePlanetID"})
+        for (std::string_view property : {"Owner",
+                                          "OwnerBeforeLastConquered",
+                                          "SupplyingEmpire",
+                                          "ID",
+                                          "CreationTurn",
+                                          "Age",
+                                          "ProducedByEmpireID",
+                                          "ArrivedOnTurn",
+                                          "DesignID",
+                                          "FleetID",
+                                          "PlanetID",
+                                          "SystemID",
+                                          "ContainerID",
+                                          "FinalDestinationID",
+                                          "NextSystemID",
+                                          "NearestSystemID",
+                                          "PreviousSystemID",
+                                          "PreviousToFinalDestinationID",
+                                          "NumShips",
+                                          "NumStarlanes",
+                                          "LastTurnActiveInBattle",
+                                          "LastTurnAnnexed",
+                                          "LastTurnAttackedByShip",
+                                          "LastTurnBattleHere",
+                                          "LastTurnColonized",
+                                          "LastTurnConquered",
+                                          "LastTurnMoveOrdered",
+                                          "LastTurnResupplied",
+                                          "Orbit",
+                                          "TurnsSinceAnnexation",
+                                          "TurnsSinceColonization",
+                                          "TurnsSinceFocusChange",
+                                          "TurnsSinceLastConquered",
+                                          "ETA",
+                                          "LaunchedFrom",
+                                          "OrderedColonizePlanetID",
+                                          "OwnerBeforeLastConquered",
+                                          "LastInvadedByEmpire",
+                                          "LastColonizedByEmpire"})
         {
-            py_variable_wrapper.add_property(property, py::make_function(
-                [property] (const variable_wrapper& w) { return w.get_int_property(property); },
+            py_variable_wrapper.add_property(property.data(), py::make_function(
+                [property] (const variable_wrapper& w) { return w.get_int_property(std::string{property}); },
                 py::default_call_policies(),
                 boost::mpl::vector<value_ref_wrapper<int>, const variable_wrapper&>()));
         }
 
-        for (const char* property : {"Industry",
-                                     "TargetIndustry",
-                                     "Research",
-                                     "TargetResearch",
-                                     "Influence",
-                                     "TargetInfluence",
-                                     "Construction",
-                                     "TargetConstruction",
-                                     "Population",
-                                     "TargetPopulation",
-                                     "TargetHappiness",
-                                     "Happiness",
-                                     "MaxFuel",
-                                     "Fuel",
-                                     "MaxShield",
-                                     "Shield",
-                                     "MaxDefense",
-                                     "Defense",
-                                     "MaxTroops",
-                                     "Troops",
-                                     "RebelTroops",
-                                     "MaxStructure",
-                                     "Structure",
-                                     "MaxSupply",
-                                     "Supply",
-                                     "MaxStockpile",
-                                     "Stockpile",
-                                     "Stealth",
-                                     "Detection",
-                                     "Speed",
-                                     "X",
-                                     "Y",
-                                     "SizeAsDouble",
-                                     "HabitableSize",
-                                     "Size",
-                                     "DistanceFromOriginalType",
-                                     "DestroyFightersPerBattleMax",
-                                     "DamageStructurePerBattleMax",
-                                     "PropagatedSupplyRange"})
+        for (std::string_view property : {"Industry",
+                                          "TargetIndustry",
+                                          "Research",
+                                          "TargetResearch",
+                                          "Influence",
+                                          "TargetInfluence",
+                                          "Construction",
+                                          "TargetConstruction",
+                                          "Population",
+                                          "TargetPopulation",
+                                          "TargetHappiness",
+                                          "Happiness",
+                                          "MaxFuel",
+                                          "Fuel",
+                                          "MaxShield",
+                                          "Shield",
+                                          "MaxDefense",
+                                          "Defense",
+                                          "MaxTroops",
+                                          "Troops",
+                                          "RebelTroops",
+                                          "MaxStructure",
+                                          "Structure",
+                                          "MaxSupply",
+                                          "Supply",
+                                          "MaxStockpile",
+                                          "Stockpile",
+                                          "Stealth",
+                                          "Detection",
+                                          "Speed",
+                                          "X",
+                                          "Y",
+                                          "SizeAsDouble",
+                                          "HabitableSize",
+                                          "Size",
+                                          "DistanceFromOriginalType",
+                                          "DestroyFightersPerBattleMax",
+                                          "DamageStructurePerBattleMax",
+                                          "PropagatedSupplyRange"})
         {
-            py_variable_wrapper.add_property(property, py::make_function(
-                [property] (const variable_wrapper& w) { return w.get_double_property(property); },
+            py_variable_wrapper.add_property(property.data(), py::make_function(
+                [property](const variable_wrapper& w) { return w.get_double_property(std::string{property}); },
                 py::default_call_policies(),
                 boost::mpl::vector<value_ref_wrapper<double>, const variable_wrapper&>()));
         }
 
-        for (const char* property : {"Name",
-                                     "Species",
-                                     "BuildingType",
-                                     "FieldType",
-                                     "Focus",
-                                     "DefaultFocus",
-                                     "Hull"})
+        for (std::string_view property : {"Name",
+                                          "Species",
+                                          "BuildingType",
+                                          "FieldType",
+                                          "Focus",
+                                          "DefaultFocus",
+                                          "Hull"})
         {
-            py_variable_wrapper.add_property(property, py::make_function(
-                [property] (const variable_wrapper& w) { return w.get_string_property(property); },
+            py_variable_wrapper.add_property(property.data(), py::make_function(
+                [property](const variable_wrapper& w) { return w.get_string_property(std::string{property}); },
                 py::default_call_policies(),
                 boost::mpl::vector<value_ref_wrapper<std::string>, const variable_wrapper&>()));
         }
 
-        for (const char* property : {"Planet",
-                                     "System",
-                                     "Fleet"})
+        for (std::string_view container : {"Planet",
+                                           "System",
+                                           "Fleet"})
         {
-             py_variable_wrapper.add_property(property, py::make_function(
-                [property] (const variable_wrapper& w) { return w.get_variable_property(property); },
+             py_variable_wrapper.add_property(container.data(), py::make_function(
+                [container](const variable_wrapper& w) { return w.get_variable_property(container); },
                 py::default_call_policies(),
                 boost::mpl::vector<variable_wrapper, const variable_wrapper&>()));
         }
@@ -289,23 +309,23 @@ PythonParser::PythonParser(PythonCommon& _python, const boost::filesystem::path&
         py::implicitly_convertible<value_ref_wrapper<double>, condition_wrapper>();
         py::implicitly_convertible<value_ref_wrapper<int>, condition_wrapper>();
 
-        m_meta_path = py::extract<py::list>(py::import("sys").attr("meta_path"));
-        const int meta_path_len = py::len(m_meta_path);
-        for (int i = 0; i < meta_path_len; ++ i) {
-            m_meta_path.pop();
-        }
-        m_meta_path.append(boost::cref(*this));
+        m_meta_path = py::extract<py::list>(py::import("sys").attr("meta_path"))();
+        const auto meta_path_len = py::len(*m_meta_path);
+        for (std::decay_t<decltype(meta_path_len)> i = 0; i < meta_path_len; ++i)
+            m_meta_path->pop();
+
+        m_meta_path->append(boost::cref(*this));
+        m_meta_path_len = static_cast<int>(py::len(*m_meta_path));
 
         py::import("sys").attr("modules") = py::dict();
     } catch (const boost::python::error_already_set&) {
         m_python.HandleErrorAlreadySet();
         if (!m_python.IsPythonRunning()) {
             ErrorLogger() << "Python interpreter is no longer running.  Attempting to restart.";
-            if (m_python.Initialize()) {
+            if (m_python.Initialize())
                 ErrorLogger() << "Python interpreter successfully restarted.";
-            } else {
+            else
                 ErrorLogger() << "Python interpreter failed to restart.  Exiting.";
-            }
         }
         throw std::runtime_error("Python parser failed to initialize");
     }
@@ -313,12 +333,12 @@ PythonParser::PythonParser(PythonCommon& _python, const boost::filesystem::path&
 
 PythonParser::~PythonParser() {
     try {
-        m_meta_path.pop(py::len(m_meta_path) - 1);
+        m_meta_path->pop(m_meta_path_len - 1);
         type_int = py::object();
         type_float = py::object();
         type_bool = py::object();
         type_str = py::object();
-        m_meta_path = py::list();
+        m_meta_path = boost::none;
     } catch (const py::error_already_set&) {
         ErrorLogger() << "Python parser destructor throw exception";
         m_python.HandleErrorAlreadySet();
@@ -384,7 +404,7 @@ py::object PythonParser::find_spec(const std::string& fullname, const py::object
             return py::object(module_spec(fullname, parent, *this));
         else {
             ErrorLogger() << "Couldn't find file for module spec " << fullname;
-            return py::object();
+            throw import_error("Couldn't find file for module spec " + fullname);
         }
     }
 }
@@ -411,7 +431,7 @@ py::object PythonParser::exec_module(py::object& module) {
             bool read_success = ReadFile(module_path, file_contents);
             if (!read_success) {
                 ErrorLogger() << "Unable to open data file " << module_path.string();
-                throw import_error("Unreadable module");
+                throw import_error("Unreadable module " + fullname);
             }
 
             // store globals content in module namespace

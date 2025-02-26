@@ -31,11 +31,8 @@ void AccordionPanel::CompleteConstruction() {
     InitBuffer();
 }
 
-AccordionPanel::~AccordionPanel()
-{ m_border_buffer.clear(); }
-
 void AccordionPanel::InitBuffer() {
-    GG::Pt sz = Size();
+    const auto sz = Size();
     m_border_buffer.clear();
     m_border_buffer.store(0.0f,        0.0f);
     m_border_buffer.store(Value(sz.x), 0.0f);
@@ -58,7 +55,7 @@ void AccordionPanel::SetBorderMargin(int margin)
 { m_border_margin = std::max<int>(0, margin); }
 
 void AccordionPanel::Render() {
-    if (Height() < 1 || Width() < 1)
+    if (Height() < GG::Y1 || Width() < GG::X1)
         return;
 
     GG::Pt ul = UpperLeft();

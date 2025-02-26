@@ -9,7 +9,6 @@
 #include "ValueRef.h"
 #include "Special.h"
 #include "System.h"
-#include "UniverseObjectVisitor.h"
 #include "Universe.h"
 #include "../Empire/EmpireManager.h"
 #include "../Empire/Empire.h"
@@ -52,36 +51,27 @@ void UniverseObject::Copy(const UniverseObject& copied_object,
     if (&copied_object == this)
         return;
 
+    static constexpr Meter DEFAULT_METER;
+
     auto censored_meters = copied_object.CensoredMeters(vis);
-    for (auto& [type, copied_meter] : copied_object.m_meters) {
-        (void)copied_meter;
-
-        // get existing meter in this object, or create a default one
-        auto m_meter_it = m_meters.find(type);
-        bool meter_already_known = (m_meter_it != m_meters.end());
-        if (!meter_already_known)
-            m_meters[type]; // default initialize to (0, 0).  Alternative: = Meter(Meter::INVALID_VALUE, Meter::INVALID_VALUE);
-        Meter& this_meter = m_meters[type];
-
+    for (const auto type : copied_object.m_meters | range_keys) {
         // if there is an update to meter from censored meters, update this object's copy
         auto censored_it = censored_meters.find(type);
-        if (censored_it != censored_meters.end()) {
-            const Meter& copied_object_meter = censored_it->second;
+        const bool have_censored_meter = censored_it != censored_meters.end();
+        const Meter& copied_object_meter = have_censored_meter ? censored_it->second : DEFAULT_METER;
 
-            if (!meter_already_known) {
-                // have no previous info, so just use whatever is given
-                this_meter = copied_object_meter;
+        // get existing meter in this object, or insert a copy
+        auto [this_meter_it, inserted_new] = m_meters.try_emplace(type, copied_object_meter);
+        if (!have_censored_meter || inserted_new)
+            continue;
 
-            } else {
-                // don't want to override legit meter history with sentinel values used for insufficiently visible objects
-                if (copied_object_meter.Initial() != Meter::LARGE_VALUE ||
-                    copied_object_meter.Current() != Meter::LARGE_VALUE)
-                {
-                    // some new info available, so can overwrite only meter info
-                    this_meter = copied_object_meter;
-                }
-            }
-        }
+        // don't overwrite previously-known meter value history with sentinel values used for insufficiently visible objects
+        if (copied_object_meter == Meter{Meter::LARGE_VALUE, Meter::LARGE_VALUE})
+            continue;
+
+        // some new info available, so can overwrite only meter info
+        Meter& this_meter = this_meter_it->second;
+        this_meter = copied_object_meter;
     }
 
 
@@ -109,10 +99,7 @@ void UniverseObject::Copy(const UniverseObject& copied_object,
     }
 }
 
-void UniverseObject::Init()
-{ AddMeter(MeterType::METER_STEALTH); }
-
-int UniverseObject::AgeInTurns(int current_turn) const {
+int UniverseObject::AgeInTurns(int current_turn) const noexcept {
     if (m_created_on_turn == BEFORE_FIRST_TURN)
         return SINCE_BEFORE_TIME_AGE;
     if ((m_created_on_turn == INVALID_GAME_TURN) || (current_turn == INVALID_GAME_TURN))
@@ -128,21 +115,17 @@ bool UniverseObject::HasSpecial(std::string_view name) const {
 int UniverseObject::SpecialAddedOnTurn(std::string_view name) const {
     auto it = std::find_if(m_specials.begin(), m_specials.end(),
                            [name](const auto& s) { return name == s.first; });
-    if (it == m_specials.end())
-        return INVALID_GAME_TURN;
-    return it->second.first;
+    return (it == m_specials.end()) ? INVALID_GAME_TURN : it->second.first;
 }
 
 float UniverseObject::SpecialCapacity(std::string_view name) const {
     auto it = std::find_if(m_specials.begin(), m_specials.end(),
                            [name](const auto& s) { return name == s.first; });
-    if (it == m_specials.end())
-        return 0.0f;
-    return it->second.second;
+    return (it == m_specials.end()) ? 0.0f : it->second.second;
 }
 
 std::string UniverseObject::Dump(uint8_t ntabs) const {
-    const ScriptingContext context;
+    const ScriptingContext& context = IApp::GetApp()->GetContext();
     const auto& universe = context.ContextUniverse();
     const auto& objects = context.ContextObjects();
     auto system = objects.get<System>(this->SystemID());
@@ -161,7 +144,7 @@ std::string UniverseObject::Dump(uint8_t ntabs) const {
     } else {
         retval.append("  at: (").append(std::to_string(this->X())).append(", ")
               .append(std::to_string(this->Y())).append(")");
-        int near_id = universe.GetPathfinder()->NearestSystemTo(this->X(), this->Y(), objects);
+        int near_id = universe.GetPathfinder().NearestSystemTo(this->X(), this->Y(), objects);
         auto near_system = objects.get<System>(near_id);
         if (near_system) {
             auto& sys_name = near_system->Name();
@@ -189,16 +172,14 @@ std::string UniverseObject::Dump(uint8_t ntabs) const {
     return retval;
 }
 
-UniverseObject::IDSet UniverseObject::VisibleContainedObjectIDs(
-    int empire_id, const EmpireObjectVisMap& vis) const
-{
+UniverseObject::IDSet UniverseObject::VisibleContainedObjectIDs(int empire_id, const EmpireObjectVisMap& vis) const {
     auto object_id_visible = [empire_id, &vis](int object_id) -> bool {
         auto empire_it = vis.find(empire_id);
         if (empire_it == vis.end())
             return false;
         auto obj_it = empire_it->second.find(object_id);
-        return obj_it != empire_it->second.end()
-            && obj_it->second >= Visibility::VIS_BASIC_VISIBILITY;
+        return obj_it != empire_it->second.end() &&
+            obj_it->second >= Visibility::VIS_BASIC_VISIBILITY;
     };
 
     IDSet retval;
@@ -224,28 +205,16 @@ const Meter* UniverseObject::GetMeter(MeterType type) const noexcept {
     return nullptr;
 }
 
-void UniverseObject::AddMeter(MeterType meter_type) {
-    if (MeterType::INVALID_METER_TYPE == meter_type)
-        ErrorLogger() << "UniverseObject::AddMeter asked to add invalid meter type!";
-    else
-        m_meters[meter_type];
-}
-
 Visibility UniverseObject::GetVisibility(int empire_id, const EmpireIDtoObjectIDtoVisMap& v) const {
     auto empire_it = v.find(empire_id);
     if (empire_it == v.end())
         return Visibility::VIS_NO_VISIBILITY;
     auto obj_it = empire_it->second.find(m_id);
-    if (obj_it == empire_it->second.end())
-        return Visibility::VIS_NO_VISIBILITY;
-    return obj_it->second;
+    return (obj_it == empire_it->second.end()) ? Visibility::VIS_NO_VISIBILITY : obj_it->second;
 }
 
 Visibility UniverseObject::GetVisibility(int empire_id, const Universe& u) const
 { return GetVisibility(empire_id, u.GetEmpireObjectVisibility()); }
-
-std::shared_ptr<UniverseObject> UniverseObject::Accept(const UniverseObjectVisitor& visitor) const
-{ return visitor.Visit(std::const_pointer_cast<UniverseObject>(shared_from_this())); }
 
 void UniverseObject::SetID(int id) {
     m_id = id;
@@ -308,7 +277,7 @@ Meter* UniverseObject::GetMeter(MeterType type) noexcept {
     return nullptr;
 }
 
-void UniverseObject::BackPropagateMeters() {
+void UniverseObject::BackPropagateMeters() noexcept {
     for (auto& m : m_meters)
         m.second.BackPropagate();
 }
@@ -344,16 +313,25 @@ void UniverseObject::SetSpecialCapacity(std::string name, float capacity, int tu
                            std::forward_as_tuple(turn, capacity));
 }
 
+std::size_t UniverseObject::SizeInMemory() const {
+    std::size_t retval = 0;
+    retval += sizeof(UniverseObject);
+    retval += sizeof(MeterMap::value_type)*m_meters.capacity();
+    retval += sizeof(SpecialMap::value_type)*m_specials.capacity();
+    for (const auto& name : m_specials | range_keys)
+        retval += sizeof(std::decay_t<decltype(name)>::value_type)*name.capacity();
+    return retval;
+}
+
 void UniverseObject::RemoveSpecial(const std::string& name)
 { m_specials.erase(name); }
 
 UniverseObject::MeterMap UniverseObject::CensoredMeters(Visibility vis) const {
-    MeterMap retval;
-    if (vis >= Visibility::VIS_PARTIAL_VISIBILITY) {
-        retval = m_meters;
-    } else if (vis == Visibility::VIS_BASIC_VISIBILITY && m_meters.contains(MeterType::METER_STEALTH))
-        retval.emplace(MeterType::METER_STEALTH, Meter{Meter::LARGE_VALUE, Meter::LARGE_VALUE});
-    return retval;
+    if (vis >= Visibility::VIS_PARTIAL_VISIBILITY)
+        return m_meters;
+    else if (vis == Visibility::VIS_BASIC_VISIBILITY && m_meters.contains(MeterType::METER_STEALTH))
+        return MeterMap{{MeterType::METER_STEALTH, Meter{Meter::LARGE_VALUE, Meter::LARGE_VALUE}}};
+    return {};
 }
 
 void UniverseObject::ResetTargetMaxUnpairedMeters() {

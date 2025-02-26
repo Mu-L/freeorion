@@ -37,7 +37,6 @@ class CombatLogManager;
 
 
 namespace {
-
     /** AddTraitBypassOption creates a set of options for debugging of
         the form:
         ai.trait.\<trait name\>.force.enabled  -- If true use the following options to bypass the trait
@@ -46,9 +45,8 @@ namespace {
         ...
         ai.trait.\<trait name\>.ai_40          -- Use for AI_40
      */
-    template <typename T>
     void AddTraitBypassOption(OptionsDB& db, std::string const & root, std::string ROOT,
-                              T def, const ValidatorBase& validator)
+                              auto def, const ValidatorBase& validator)
     {
         const std::string option_root = "ai.trait." + root + ".";
         const std::string user_string_root = "OPTIONS_DB_AI_CONFIG_TRAIT_" + ROOT;
@@ -92,7 +90,7 @@ AIClientApp::AIClientApp(const std::vector<std::string>& args) {
     // Force the log file if requested.
     if (GetOptionsDB().Get<std::string>("log-file").empty()) {
         std::string ai_log_dir = GetOptionsDB().Get<std::string>("ai-log-dir");
-        const std::string AICLIENT_LOG_FILENAME(((ai_log_dir.empty() ? GetUserDataDir() : FilenameToPath(ai_log_dir)) / (m_player_name + ".log")).string());
+        std::string AICLIENT_LOG_FILENAME(PathToString((ai_log_dir.empty() ? GetUserDataDir() : FilenameToPath(ai_log_dir)) / (m_player_name + ".log")));
         GetOptionsDB().Set("log-file", AICLIENT_LOG_FILENAME);
     }
     // Force the log threshold if requested.
@@ -258,11 +256,12 @@ void AIClientApp::HandleMessage(const Message& msg) {
                                     m_player_info,           m_orders,               loaded_game_data,
                                     ui_data_available,       ui_data,                state_string_available,
                                     save_state_string,       m_galaxy_setup_data);
+        m_context.current_turn = m_current_turn;
 
         DebugLogger() << "Extracted GameStart message for turn: " << m_current_turn << " with empire: " << m_empire_id;
 
         m_universe.InitializeSystemGraph(m_empires, m_universe.Objects());
-        m_universe.UpdateEmpireVisibilityFilteredSystemGraphsWithMainObjectMap(m_empires);
+        m_universe.UpdateCommonFilteredSystemGraphsWithMainObjectMap(m_empires);
 
         GetGameRules().SetFromStrings(m_galaxy_setup_data.GetGameRules());
 
@@ -270,9 +269,7 @@ void AIClientApp::HandleMessage(const Message& msg) {
         if (loaded_game_data) {
             TraceLogger() << "Message::GAME_START save_state_string: " << save_state_string;
             m_AI->ResumeLoadedGame(save_state_string);
-            ScriptingContext context{m_universe, m_empires, m_galaxy_setup_data,
-                                     m_species_manager, m_supply_manager};
-            Orders().ApplyOrders(context);
+            m_orders.ApplyOrders(m_context);
         } else {
             DebugLogger() << "Message::GAME_START Starting New Game!";
             m_AI->StartNewGame();
@@ -294,9 +291,10 @@ void AIClientApp::HandleMessage(const Message& msg) {
         ExtractTurnUpdateMessageData(msg,                   m_empire_id,      m_current_turn,
                                      m_empires,             m_universe,       m_species_manager,
                                      GetCombatLogManager(), m_supply_manager, m_player_info);
+        m_context.current_turn = m_current_turn;
         //DebugLogger() << "AIClientApp::HandleMessage : generating orders";
         m_universe.InitializeSystemGraph(m_empires, m_universe.Objects());
-        m_universe.UpdateEmpireVisibilityFilteredSystemGraphsWithMainObjectMap(m_empires);
+        m_universe.UpdateCommonFilteredSystemGraphsWithMainObjectMap(m_empires);
         m_AI->GenerateOrders();
         //DebugLogger() << "AIClientApp::HandleMessage : done handling turn update message";
         break;
@@ -349,9 +347,7 @@ void AIClientApp::HandleMessage(const Message& msg) {
     }
 
     case Message::MessageType::LOGGER_CONFIG: {
-         std::set<std::tuple<std::string, std::string, LogLevel>> options;
-         ExtractLoggerConfigMessageData(msg, options);
-
+         auto options = ExtractLoggerConfigMessageData(msg);
          SetLoggerThresholds(options);
          break;
     }

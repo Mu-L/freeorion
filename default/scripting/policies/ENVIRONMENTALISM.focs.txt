@@ -12,7 +12,7 @@ Policy
             scope = And [
                 Planet
                 OwnedBy empire = Source.Owner
-                Not Planet type = Asteroids
+                Species
             ]
             priority = [[TARGET_AFTER_SCALING_PRIORITY]]
             effects = [
@@ -26,9 +26,8 @@ Policy
             scope = And [
                 Planet
                 OwnedBy empire = Source.Owner
-                Not Planet type = GasGiant
-                Not Planet type = Asteroids
                 Not Planet type = LocalCandidate.OriginalType
+                Species
             ]
             priority = [[TARGET_AFTER_SCALING_PRIORITY]]
             effects = [
@@ -45,8 +44,6 @@ Policy
             scope = And [
                 Planet
                 OwnedBy empire = Source.Owner
-                Not Planet type = GasGiant
-                Not Planet type = Asteroids
                 Planet type = LocalCandidate.OriginalType
                 Not Contains Building
                 Not Focus type = "FOCUS_INDUSTRY"
@@ -69,6 +66,6 @@ Policy
     ]
     graphic = "icons/policies/economic_environmentalism.png"
 
-#include "/scripting/common/base_prod.macros"
-#include "/scripting/common/priorities.macros"
+#include "/scripting/macros/base_prod.macros"
+#include "/scripting/macros/priorities.macros"
 #include "/scripting/policies/policies.macros"

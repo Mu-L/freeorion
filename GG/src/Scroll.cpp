@@ -53,13 +53,13 @@ Scroll::Scroll(Orientation orientation, Clr color, Clr interior) :
     Control::SetColor(color);
     const auto& style = GetStyleFactory();
     if (m_orientation == Orientation::VERTICAL) {
-        m_decr = style->NewScrollUpButton(color);
-        m_incr = style->NewScrollDownButton(color);
-        m_tab = style->NewVScrollTabButton(color);
+        m_decr = style.NewScrollUpButton(color);
+        m_incr = style.NewScrollDownButton(color);
+        m_tab = style.NewVScrollTabButton(color);
     } else {
-        m_decr = style->NewScrollLeftButton(color);
-        m_incr = style->NewScrollRightButton(color);
-        m_tab = style->NewHScrollTabButton(color);
+        m_decr = style.NewScrollLeftButton(color);
+        m_incr = style.NewScrollRightButton(color);
+        m_tab = style.NewHScrollTabButton(color);
     }
 }
 
@@ -123,7 +123,7 @@ Orientation Scroll::ScrollOrientation() const
 
 void Scroll::InitBuffer()
 {
-    GG::Pt sz = Size();
+    const auto sz = Size();
     m_buffer.clear();
     m_buffer.store(0.0f,        0.0f);
     m_buffer.store(Value(sz.x), 0.0f);
@@ -145,7 +145,7 @@ void Scroll::Render()
 
     m_buffer.activate();
     glColor(Disabled() ? DisabledColor(m_int_color) : m_int_color);
-    glDrawArrays(GL_TRIANGLE_FAN,   0, m_buffer.size());
+    glDrawArrays(GL_TRIANGLE_FAN, 0, static_cast<GLsizei>(m_buffer.size()));
 
     glLineWidth(1.0f);
     glEnable(GL_TEXTURE_2D);
@@ -155,10 +155,8 @@ void Scroll::Render()
 
 void Scroll::SizeMove(Pt ul, Pt lr)
 {
-    Pt old_size = Size();
-
+    const auto old_size = Size();
     Wnd::SizeMove(ul, lr);
-
     if (old_size != Size()) {
         DoLayout();
         InitBuffer();
@@ -183,24 +181,21 @@ void Scroll::Disable(bool b)
 {
     Control::Disable(b);
     m_tab->Disable(b);
-    if(m_incr)
+    if (m_incr)
         m_incr->Disable(b);
-    if(m_decr)
+    if (m_decr)
         m_decr->Disable(b);
 }
 
-void Scroll::SetColor(Clr c)
+void Scroll::SetColor(Clr c) noexcept
 {
     Control::SetColor(c);
     m_tab->SetColor(c);
-    if(m_incr)
+    if (m_incr)
         m_incr->SetColor(c);
-    if(m_decr)
+    if (m_decr)
         m_decr->SetColor(c);
 }
-
-void Scroll::SetInteriorColor(Clr c)
-{ m_int_color = c; }
 
 void Scroll::SizeScroll(int min, int max, unsigned int line, unsigned int page)
 {
@@ -362,11 +357,11 @@ bool Scroll::EventFilter(Wnd* w, const WndEvent& event)
                 Pt new_ul = m_tab->RelativeUpperLeft() + event.DragMove();
                 if (m_orientation == Orientation::VERTICAL) {
                     new_ul.x = m_tab->RelativeUpperLeft().x;
-                    new_ul.y = std::max(0 + (m_decr ? m_decr->Height() : Y0),
+                    new_ul.y = std::max(m_decr ? m_decr->Height() : Y0,
                                         std::min(new_ul.y, ClientHeight() - (m_incr ? m_incr->Height() : Y0) - m_tab->Height()));
                     m_tab_dragged |= bool(m_tab->RelativeUpperLeft().y - new_ul.y);
                 } else {
-                    new_ul.x = std::max(0 + (m_decr ? m_decr->Width() : X0),
+                    new_ul.x = std::max(m_decr ? m_decr->Width() : X0,
                                         std::min(new_ul.x, ClientWidth() - (m_incr ? m_incr->Width() : X0) - m_tab->Width()));
                     new_ul.y = m_tab->RelativeUpperLeft().y;
                     m_tab_dragged |= bool(m_tab->RelativeUpperLeft().x - new_ul.x);

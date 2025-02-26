@@ -9,6 +9,14 @@
 #include "../universe/Fleet.h"
 #include "../universe/Universe.h"
 
+namespace {
+#if defined(__cpp_lib_constexpr_string) && ((!defined(__GNUC__) || (__GNUC__ > 12) || (__GNUC__ == 12 && __GNUC_MINOR__ >= 2))) && ((!defined(_MSC_VER) || (_MSC_VER >= 1934))) && ((!defined(__clang_major__) || (__clang_major__ >= 17)))
+    constexpr std::string EMPTY_STRING;
+#else
+    const std::string EMPTY_STRING;
+#endif
+}
+
 
 SitRepEntry::SitRepEntry() :
     m_icon("/icons/sitrep/generic.png")
@@ -30,7 +38,6 @@ SitRepEntry::SitRepEntry(std::string&& template_string, int turn,
 {}
 
 const std::string& SitRepEntry::GetDataString(const std::string& tag) const {
-    static const std::string EMPTY_STRING;
     const auto elem = m_variables.find(tag);
     if (elem == m_variables.end())
         return EMPTY_STRING;
@@ -375,6 +382,22 @@ SitRepEntry CreatePlanetDepopulatedSitRep(int planet_id, int current_turn) {
     return sitrep;
 }
 
+SitRepEntry CreatePlanetAnnexedSitRep(int planet_id, int original_owner_id, int annexer_empire_id, int current_turn) {
+    static constexpr std::string_view neutral_annex_txt = UserStringNop("SITREP_PLANET_ANNEXED");
+    static constexpr std::string_view other_empire_annex_txt = UserStringNop("SITREP_PLANET_ANNEXED_FROM_OTHER_EMPIRE");
+    static constexpr std::string_view neutral_annex_label = UserStringNop("SITREP_PLANET_ANNEXED_LABEL");
+    static constexpr std::string_view other_empire_annex_label = UserStringNop("SITREP_PLANET_ANNEXED_FROM_OTHER_EMPIRE_LABEL");
+
+    const auto msg = (original_owner_id == ALL_EMPIRES) ? neutral_annex_txt : other_empire_annex_txt;
+    const auto label = (original_owner_id == ALL_EMPIRES) ? neutral_annex_label : other_empire_annex_label;
+    SitRepEntry sitrep{msg.data(), current_turn + 1, "icons/sitrep/annexed.png", label.data(), true};
+    sitrep.AddVariable(VarText::PLANET_ID_TAG,  std::to_string(planet_id));
+    sitrep.AddVariable("annexer",               std::to_string(annexer_empire_id));
+    if (original_owner_id != ALL_EMPIRES)
+        sitrep.AddVariable("original",          std::to_string(original_owner_id));
+    return sitrep;
+}
+
 SitRepEntry CreatePlanetColonizedSitRep(int planet_id, std::string species, int current_turn) {
     SitRepEntry sitrep(
         UserStringNop("SITREP_PLANET_COLONIZED"),
@@ -595,6 +618,41 @@ SitRepEntry CreateFleetArrivedAtDestinationSitRep(int system_id, int fleet_id, i
         sitrep.AddVariable(VarText::RAW_TEXT_TAG,   std::to_string(fleet->NumShips()));
         return sitrep;
     }
+}
+
+SitRepEntry CreateFleetBlockadedSitRep(int system_id, int blockaded_fleet_id, int blockaded_empire_id,
+                                       int blockading_empire_id, const ScriptingContext& context)
+{
+    const auto template_label = (blockaded_empire_id != ALL_EMPIRES) ?
+        std::pair{UserStringNop("SITREP_FLEET_BLOCKADED"), UserStringNop("SITREP_FLEET_BLOCKADED_LABEL")} :
+        std::pair{UserStringNop("SITREP_FLEET_BLOCKADED_NEUTRAL"), UserStringNop("SITREP_FLEET_BLOCKADED_LABEL")};
+
+    SitRepEntry sitrep(
+        template_label.first,
+        context.current_turn + 1,
+        "icons/sitrep/blockade.png",
+        template_label.second,
+        true);
+    sitrep.AddVariable(VarText::SYSTEM_ID_TAG,  std::to_string(system_id));
+    sitrep.AddVariable(VarText::FLEET_ID_TAG,   std::to_string(blockaded_fleet_id));
+    sitrep.AddVariable("blockaded",             std::to_string(blockaded_empire_id));
+    //if (blockading_empire_id != ALL_EMPIRES)
+        sitrep.AddVariable("blockader",        std::to_string(blockading_empire_id));
+    return sitrep;
+}
+
+SitRepEntry CreateFleetBlockadedSitRep(int system_id, int blockaded_fleet_id,
+                                       int blockaded_empire_id, const ScriptingContext& context)
+{
+    SitRepEntry sitrep(
+        UserStringNop("SITREP_FLEET_BLOCKADED_NO_EMPIRE"),
+        context.current_turn + 1,
+        "icons/sitrep/blockade.png",
+        UserStringNop("SITREP_FLEET_BLOCKADED_NO_EMPIRE_LABEL"), true);
+    sitrep.AddVariable(VarText::SYSTEM_ID_TAG, std::to_string(system_id));
+    sitrep.AddVariable(VarText::FLEET_ID_TAG,  std::to_string(blockaded_fleet_id));
+    sitrep.AddVariable(VarText::EMPIRE_ID_TAG, std::to_string(blockaded_empire_id));
+    return sitrep;
 }
 
 SitRepEntry CreateEmpireEliminatedSitRep(int empire_id, int current_turn) {

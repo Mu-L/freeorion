@@ -4,9 +4,8 @@
 #include "i18n.h"
 
 #include <boost/algorithm/string/trim.hpp>
-#include <boost/filesystem/convenience.hpp>
-#include <boost/filesystem/operations.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/filesystem.hpp>
 
 #include <cstdlib>
 #include <mutex>
@@ -94,9 +93,9 @@ void RedirectOutputLogAndroid(int priority, const char* tag, int fd)
 void CopyInitialResourceAndroid(const std::string& rel_path)
 {
     AAsset* asset = AAssetManager_open(s_asset_manager, ("default/python/" + rel_path).c_str(), AASSET_MODE_STREAMING);
-    if (asset == nullptr) {
+    if (!asset)
         return;
-    }
+
     off64_t asset_length = AAsset_getLength64(asset);
     if (asset_length <= 0) {
         AAsset_close(asset);
@@ -266,7 +265,7 @@ void InitBinDir(std::string const& argv0)
 #if defined(FREEORION_WIN32)
     try {
         fs::path binary_file = fs::system_complete(FilenameToPath(argv0));
-        bin_dir = binary_file.branch_path();
+        bin_dir = binary_file.parent_path();
     } catch (const fs::filesystem_error &) {
         bin_dir = fs::initial_path();
     }
@@ -315,7 +314,7 @@ void InitBinDir(std::string const& argv0)
             std::string path_text(buf);
 
             fs::path binary_file = fs::system_complete(fs::path(path_text));
-            bin_dir = binary_file.branch_path();
+            bin_dir = binary_file.parent_path();
 
             // check that a "freeoriond" file (hopefully the freeorion server binary) exists in the found directory
             fs::path p(bin_dir);
@@ -346,7 +345,7 @@ void InitBinDir(std::string const& argv0)
 #endif
 }
 
-void InitDirs(std::string const& argv0)
+void InitDirs(std::string const& argv0, bool test)
 {
     if (g_initialized)
         return;
@@ -372,24 +371,33 @@ void InitDirs(std::string const& argv0)
         }
     }
 
+    std::cout << "Bundle dir " << bundle_dir;
+
     bundle_path = fs::path(bundle_dir);
 
-    // search bundle_path for a directory named "FreeOrion.app", exiting if not found, else constructing a path to application bundle contents
-    auto appiter = std::find(bundle_path.begin(), bundle_path.end(), "FreeOrion.app");
-    if (appiter == bundle_path.end()) {
-        std::cerr << "Error: Application bundle must be named 'FreeOrion.app' and executables must not be called from outside of it." << std::endl;
-        exit(-1);
-    } else {
-        for (auto piter = bundle_path.begin(); piter != appiter; ++piter) {
-            app_path /= *piter;
+    if (!test) {
+        // search bundle_path for a directory named "FreeOrion.app", exiting if not found, else constructing a path to application bundle contents
+        auto appiter = std::find(bundle_path.begin(), bundle_path.end(), "FreeOrion.app");
+        if (appiter == bundle_path.end()) {
+            std::cerr << "Error: Application bundle must be named 'FreeOrion.app' and executables must not be called from outside of it." << std::endl;
+            exit(-1);
+        } else {
+            for (auto piter = bundle_path.begin(); piter != appiter; ++piter) {
+                app_path /= *piter;
+            }
+            app_path /= "FreeOrion.app/Contents";
         }
-        app_path /= "FreeOrion.app/Contents";
+
+        s_root_data_dir =   app_path / "Resources";
+        s_bin_dir       =   app_path / "Executables";
+        s_python_home   =   app_path / "SharedSupport";
+    } else {
+        s_root_data_dir = bundle_path.parent_path().parent_path();
+        s_bin_dir = bundle_path;
+        s_python_home = bundle_path.parent_path() / "dep";
     }
 
-    s_root_data_dir =   app_path / "Resources";
     s_user_dir      =   fs::path(getenv("HOME")) / "Library" / "Application Support" / "FreeOrion";
-    s_bin_dir       =   app_path / "Executables";
-    s_python_home   =   app_path / "SharedSupport";
 
     fs::path p = s_user_dir;
     if (!exists(p))
@@ -455,7 +463,7 @@ void InitDirs(std::string const& argv0)
     InitBinDir(argv0);
 #elif defined(FREEORION_ANDROID)
     JNIEnv *env;
-    if (s_jni_env != nullptr) {
+    if (s_jni_env) {
         env = s_jni_env;
     } else {
         s_java_vm->AttachCurrentThreadAsDaemon(&env, nullptr);
@@ -492,7 +500,7 @@ void InitDirs(std::string const& argv0)
     s_jni_asset_manager = env->NewGlobalRef(asset_manager);
     s_asset_manager = AAssetManager_fromJava(env, s_jni_asset_manager);
 
-    if (s_jni_env == nullptr) {
+    if (!s_jni_env) {
         s_java_vm->DetachCurrentThread();
     }
 
@@ -638,9 +646,8 @@ std::string GetAndroidLang()
     retval = std::string(language_chars);
     env->ReleaseStringUTFChars(language, language_chars);
 
-    if (s_jni_env == nullptr) {
+    if (!s_jni_env)
         s_java_vm->DetachCurrentThread();
-    }
 
     return retval;
 }
@@ -834,7 +841,7 @@ auto ListDir(const fs::path& path, std::function<bool (const fs::path&)> predica
         jstring path_object = env->NewStringUTF(PathToString(dir).c_str());
         jobjectArray list_object = reinterpret_cast<jobjectArray>(env->CallObjectMethod(s_jni_asset_manager, list_mid, path_object));
         env->DeleteLocalRef(path_object);
-        if (list_object == nullptr) {
+        if (!list_object) {
             DebugLogger() << "ListDir: no directory " << dir.string();
             continue;
         }
@@ -844,10 +851,9 @@ auto ListDir(const fs::path& path, std::function<bool (const fs::path&)> predica
             continue;
         }
         for (int i = 0; i < length; ++i) {
-            jstring jstr = reinterpret_cast<jstring>(env->GetObjectArrayElement(list_object, i));
-            if (jstr == nullptr) {
+            auto jstr = reinterpret_cast<jstring>(env->GetObjectArrayElement(list_object, i));
+            if (!jstr)
                 continue;
-            }
             const char* filename = env->GetStringUTFChars(jstr, nullptr);
             if (filename != nullptr) {
                 fs::path file = dir / filename;
@@ -861,13 +867,13 @@ auto ListDir(const fs::path& path, std::function<bool (const fs::path&)> predica
             env->DeleteLocalRef(jstr);
         }
     }
-    if (s_jni_env == nullptr) {
+    if (!s_jni_env)
         s_java_vm->DetachCurrentThread();
-    }
+
 #else
     bool is_rel = path.is_relative();
     if (!is_rel && (fs::is_empty(path) || !fs::is_directory(path))) {
-        DebugLogger() << "ListDir: File " << PathToString(path) << " was not included as it is empty or not a directoy";
+        DebugLogger() << "ListDir: File " << PathToString(path) << " was not included as it is empty or not a directory";
     } else {
         const fs::path& default_path = is_rel ? GetResourceDir() / path : path;
 
@@ -897,12 +903,10 @@ auto IsInDir(fs::path const& dir, fs::path const& test_dir) -> bool
         return false;
 
     // Resolve any symbolic links, dots or dot-dots
-    auto canon_dir = fs::canonical(dir);
+    const auto canon_dir = fs::canonical(dir);
     // Don't resolve path if directory doesn't exist
     // TODO: Change to fs::weakly_canonical after bump boost version above 1.60
-    auto canon_path = test_dir;
-    if (fs::exists(test_dir))
-        canon_path = fs::canonical(test_dir);
+    const auto canon_path = fs::exists(test_dir) ? fs::canonical(test_dir) : test_dir;
 
     // Paths shorter than dir are not in dir
     auto dir_length = std::distance(canon_dir.begin(), canon_dir.end());
@@ -950,7 +954,7 @@ auto IsExistingFile(const fs::path& path) -> bool
 #if defined(FREEORION_ANDROID)
     DebugLogger() << "IsExistingFile: check file " << path.string();
     AAsset* asset = AAssetManager_open(s_asset_manager, PathToString(path).c_str(), AASSET_MODE_STREAMING);
-    if (asset == nullptr) {
+    if (!asset) {
         DebugLogger() << "IsExistingFile: not found asset " << path.string();
         return false;
     }
@@ -995,16 +999,15 @@ auto IsExistingDir(boost::filesystem::path const& path) -> bool
     jstring path_object = env->NewStringUTF(PathToString(path).c_str());
     jobjectArray list_object = reinterpret_cast<jobjectArray>(env->CallObjectMethod(s_jni_asset_manager, list_mid, path_object));
     env->DeleteLocalRef(path_object);
-    if (list_object == nullptr) {
-        if (s_jni_env == nullptr) {
+    if (!list_object) {
+        if (!s_jni_env)
             s_java_vm->DetachCurrentThread();
-        }
         return false;
     }
     auto length = env->GetArrayLength(list_object);
-    if (s_jni_env == nullptr) {
+    if (!s_jni_env)
         s_java_vm->DetachCurrentThread();
-    }
+
     return length > 0;
 #else
     return fs::exists(path) && fs::is_directory(path);
@@ -1016,9 +1019,8 @@ auto ReadFile(boost::filesystem::path const& path, std::string& file_contents) -
 #if defined(FREEORION_ANDROID)
     DebugLogger() << "ReadFile: check file " << path.string();
     AAsset* asset = AAssetManager_open(s_asset_manager, PathToString(path).c_str(), AASSET_MODE_BUFFER);
-    if (asset == nullptr) {
+    if (!asset)
         return false;
-    }
     off64_t asset_length = AAsset_getLength64(asset);
     if (asset_length <= 0) {
         AAsset_close(asset);

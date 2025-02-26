@@ -3,7 +3,7 @@
 
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from glob import glob
 from platform import system
 from string import Template
@@ -131,7 +131,7 @@ if system() == "Windows":
 if system() == "Darwin":
     generators.append(Generator("packaging/Info.plist.in", "packaging/Info.plist"))
 
-version = "0.5+"
+version = "0.5.1+"
 branch = ""
 build_no = INVALID_BUILD_NO
 version_file_name = version
@@ -148,7 +148,7 @@ try:
     timestamp = float(
         check_output(["git", "show", "--no-show-signature", "-s", "--format=%ct", "HEAD"], text=True).strip()
     )
-    build_no = ".".join([datetime.utcfromtimestamp(timestamp).strftime("%Y-%m-%d"), commit])
+    build_no = ".".join([datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime("%Y-%m-%d"), commit])
     if branch[:7] == "release":
         version_file_name = "v" + version
     else:

@@ -104,7 +104,7 @@ std::map<int, SaveGameEmpireData> CompileSaveGameEmpireData(const EmpireManager&
 }
 
 namespace {
-    constexpr std::size_t Pow(std::size_t base, std::size_t exp) noexcept {
+    consteval std::size_t Pow(std::size_t base, std::size_t exp) noexcept {
         std::size_t retval = 1;
         while (exp--)
             retval *= base;
@@ -202,17 +202,14 @@ int SaveGame(const std::string& filename, const ServerSaveGameData& server_save_
                     save_preview_data.save_format_marker = XML_COMPRESSED_BASE64_MARKER;
 
                     // allocate buffers for serialized gamestate
-                    DebugLogger() << "Allocating buffers for XML serialization...";
                     std::string serial_str, compressed_str;
                     try {
-                        DebugLogger() << "String Max Size: " << serial_str.max_size();
                         const std::string::size_type capacity = std::min(serial_str.max_size(), Pow(2,29)-12); // I read on StackOverflow that Qt grows string capacity to slightly less than powers of two due to some allocators perform worse at exact powers of 2
-                        DebugLogger() << "Reserving Capacity:: " << capacity;
+                        DebugLogger() << "Reserving buffers for XML serialization capacity: " << capacity;
                         serial_str.reserve(capacity);
                         compressed_str.reserve(Pow(2,26)-12);
-                    }
-                    catch (...) {
-                        DebugLogger() << "Unable to preallocate full serialization buffers. Attempting serialization with dynamic buffer allocation.";
+                    } catch (...) {
+                        DebugLogger() << "Unable to reserve full serialization buffers. Attempting serialization with dynamic buffer allocation.";
                     }
 
                     // wrap buffer string in iostream::stream to receive serialized data
@@ -275,6 +272,8 @@ int SaveGame(const std::string& filename, const ServerSaveGameData& server_save_
 
                     timer.EnterSection("");
                     save_completed_as_xml = true;
+
+                    DebugLogger() << "Final size of buffers for XML serialization: serial: " << serial_str.size() << "  compressed: " << compressed_str.size();
                 } catch (...) {
                     save_completed_as_xml = false;  // redundant, but here for clarity
                 }
@@ -339,7 +338,7 @@ int SaveGame(const std::string& filename, const ServerSaveGameData& server_save_
         ErrorLogger() << UserString("UNABLE_TO_WRITE_SAVE_FILE") << " SaveGame exception: " << ": " << e.what();
         throw e;
     }
-    DebugLogger() << "SaveGame : Successfully wrote save file";
+    DebugLogger() << "SaveGame : Successfully wrote save file bytes: " << bytes_written;
 
     return bytes_written;
 }
@@ -372,7 +371,7 @@ void LoadGame(const std::string& filename, ServerSaveGameData& server_save_game_
             throw std::runtime_error(UNABLE_TO_OPEN_FILE);
 
         std::string signature(5, '\0');
-        if (!ifs.read(&signature[0], 5))
+        if (!ifs.read(signature.data(), 5))
             throw std::runtime_error(UNABLE_TO_OPEN_FILE);
         boost::iostreams::seek(ifs, 0, std::ios_base::beg);
 
@@ -496,7 +495,7 @@ void LoadGalaxySetupData(const std::string& filename, GalaxySetupData& galaxy_se
             throw std::runtime_error(UNABLE_TO_OPEN_FILE);
 
         std::string signature(5, '\0');
-        if (!ifs.read(&signature[0], 5))
+        if (!ifs.read(signature.data(), 5))
             throw std::runtime_error(UNABLE_TO_OPEN_FILE);
         boost::iostreams::seek(ifs, 0, std::ios_base::beg);
 
@@ -539,7 +538,7 @@ void LoadPlayerSaveHeaderData(const std::string& filename, std::vector<PlayerSav
             throw std::runtime_error(UNABLE_TO_OPEN_FILE);
 
         std::string signature(5, '\0');
-        if (!ifs.read(&signature[0], 5))
+        if (!ifs.read(signature.data(), 5))
             throw std::runtime_error(UNABLE_TO_OPEN_FILE);
         boost::iostreams::seek(ifs, 0, std::ios_base::beg);
 
@@ -591,7 +590,7 @@ void LoadEmpireSaveGameData(const std::string& filename,
             throw std::runtime_error(UNABLE_TO_OPEN_FILE);
 
         std::string signature(5, '\0');
-        if (!ifs.read(&signature[0], 5))
+        if (!ifs.read(signature.data(), 5))
             throw std::runtime_error(UNABLE_TO_OPEN_FILE);
         boost::iostreams::seek(ifs, 0, std::ios_base::beg);
 

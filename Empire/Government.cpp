@@ -9,7 +9,7 @@
 #include "../util/Logger.h"
 #include "../util/GameRules.h"
 #include "../util/MultiplayerCommon.h"
-#include "../util/GameRules.h"
+#include "../util/GameRuleRanks.h"
 #include "../util/CheckSums.h"
 #include "../util/ScopedTimer.h"
 #include "../Empire/Empire.h"
@@ -23,7 +23,8 @@ namespace {
     void AddRules(GameRules& rules) {
         // makes all policies cost 1 influence to adopt
         rules.Add<bool>(UserStringNop("RULE_CHEAP_POLICIES"), UserStringNop("RULE_CHEAP_POLICIES_DESC"),
-                        "TEST", false, true);
+                        GameRuleCategories::GameRuleCategory::TEST, false, true,
+                        GameRuleRanks::RULE_CHEAP_POLICIES_RANK);
     }
     bool temp_bool = RegisterGameRules(&AddRules);
 }
@@ -145,7 +146,7 @@ float Policy::AdoptionCost(int empire_id, const ScriptingContext& context) const
             return arbitrary_large_number;
 
         // construct new context with source specified
-        const ScriptingContext source_context{source.get(), context};
+        const ScriptingContext source_context{context, ScriptingContext::Source{}, source.get()};
         return static_cast<float>(m_adoption_cost->Eval(source_context));
     }
 }
@@ -186,10 +187,8 @@ std::vector<std::string_view> PolicyManager::PolicyNames(const std::string& cate
     CheckPendingPolicies();
     std::vector<std::string_view> retval;
     retval.reserve(m_policies.size());
-    // transform_if
-    for (const auto& [policy_name, policy] : m_policies)
-        if (policy.Category() == category_name)
-            retval.emplace_back(policy_name);
+    const auto in_category = [&category_name](const auto& p) { return p.second.Category() == category_name; };
+    range_copy(m_policies | range_filter(in_category) | range_keys, std::back_inserter(retval));
     return retval;
 }
 
@@ -243,8 +242,6 @@ uint32_t PolicyManager::GetCheckSum() const {
     for (auto const& policy : m_policies)
         CheckSums::CheckSumCombine(retval, policy);
     CheckSums::CheckSumCombine(retval, m_policies.size());
-
-    DebugLogger() << "PolicyManager checksum: " << retval;
     return retval;
 }
 

@@ -312,10 +312,9 @@ namespace {
         // without finding system2
         boost::container::flat_map<int, int> accessibleSystemsMap;
         accessibleSystemsMap.reserve(system_lanes.size());
-        for (auto& [sys, lanes] : system_lanes) {
-            (void)lanes;
+        for (const auto sys : system_lanes | range_keys)
             accessibleSystemsMap.emplace_hint(accessibleSystemsMap.end(), sys, -1);
-        }
+
         static constexpr int mapped_type_max = std::numeric_limits<decltype(accessibleSystemsMap)::mapped_type>::max();
         maxLaneJumps = std::min(maxLaneJumps, mapped_type_max);
 
@@ -734,11 +733,11 @@ void SetActiveMetersToTargetMaxCurrentValues(ObjectMap& object_map) {
     // check for each pair of meter types.  if both exist, set active
     // meter current value equal to target meter current value.
     for (const auto& object : object_map.all()) {
-        for (auto& entry : AssociatedMeterTypes()) {
-            if (Meter* meter = object->GetMeter(entry.first)) {
-                if (Meter* targetmax_meter = object->GetMeter(entry.second))
-                    meter->SetCurrent(targetmax_meter->Current());
-            }
+        for (auto& [meter_type, assoc_type] : AssociatedMeterTypes()) {
+            Meter* meter = object->GetMeter(meter_type);
+            Meter* targetmax_meter = object->GetMeter(assoc_type);
+            if (meter && targetmax_meter)
+                meter->SetCurrent(targetmax_meter->Current());
         }
     }
 }

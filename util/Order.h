@@ -28,14 +28,14 @@ class ShipDesign;
   * the colonize button, she is locked in to this decision. */
 class FO_COMMON_API Order {
 public:
-    Order() = default;
+    constexpr Order() noexcept = default;
 
     /** ctor taking the ID of the Empire issuing the order. */
-    Order(int empire) :
+    constexpr Order(int empire) noexcept :
         m_empire(empire)
     {}
 
-    virtual ~Order() = default;
+    constexpr virtual ~Order() noexcept = default;
 
     [[nodiscard]] virtual std::string Dump() const { return ""; }
 
@@ -277,6 +277,43 @@ private:
 
 
 /////////////////////////////////////////////////////
+// AnnexOrder
+/////////////////////////////////////////////////////
+/** the Order subclass that represents a planet colonization action*/
+class FO_COMMON_API AnnexOrder final : public Order {
+public:
+    AnnexOrder(int empire, int planet, const ScriptingContext& context);
+
+    [[nodiscard]] std::string Dump() const override;
+
+    /** Returns ID of the planet to be colonized. */
+    [[nodiscard]] int PlanetID() const noexcept { return m_planet; }
+
+    static bool Check(int empire_id, int planet_id, const ScriptingContext& context);
+
+private:
+    AnnexOrder() = default;
+
+    /**
+    *  Preconditions:
+    *     - m_planet must be the ID of an un-owned planet.
+    *
+    *  Postconditions:
+    *      - The planet with ID will be marked to be annexed by the empire during the next turn processing.
+    */
+    void ExecuteImpl(ScriptingContext& context) const override;
+
+    bool UndoImpl(ScriptingContext& context) const override;
+
+    int m_planet = INVALID_OBJECT_ID;
+
+    friend class boost::serialization::access;
+    template <typename Archive>
+    void serialize(Archive& ar, const unsigned int version);
+};
+
+
+/////////////////////////////////////////////////////
 // ColonizeOrder
 /////////////////////////////////////////////////////
 /** the Order subclass that represents a planet colonization action*/
@@ -441,7 +478,7 @@ private:
     std::string m_focus;
 
     friend class boost::serialization::access;
-    template <class Archive>
+    template <typename Archive>
     void serialize(Archive& ar, const unsigned int version);
 };
 
@@ -451,16 +488,31 @@ private:
 /** the Order subclass that represents the adoptiong imperial polices. */
 class FO_COMMON_API PolicyOrder final : public Order {
 public:
-    PolicyOrder(int empire, std::string name, std::string category, bool adopt, int slot = -1);
-    PolicyOrder(int empire) : Order(empire), m_revert{true} {};
+    PolicyOrder(int empire, std::string name, std::string category, int slot = -1) : // adopt
+        Order(empire),
+        m_policy_name(std::move(name)),
+        m_category(std::move(category)),
+        m_slot(slot),
+        m_adopt(true)
+    {}
+
+    PolicyOrder(int empire, std::string name) : // de-adopt
+        Order(empire),
+        m_policy_name(std::move(name))
+    {}
+
+    PolicyOrder(int empire) : // revert all changes
+        Order(empire),
+        m_revert{true}
+    {}
 
     [[nodiscard]] std::string Dump() const override;
 
     /** Returns ID of fleet selected in this order. */
-    [[nodiscard]] const std::string& PolicyName() const noexcept   { return m_policy_name; }
-    [[nodiscard]] const std::string& CategoryName() const noexcept { return m_category; }
-    [[nodiscard]] bool               Adopt() const noexcept        { return m_adopt; }
-    [[nodiscard]] int                Slot() const noexcept         { return m_slot; }
+    [[nodiscard]] const auto& PolicyName() const noexcept   { return m_policy_name; }
+    [[nodiscard]] const auto& CategoryName() const noexcept { return m_category; }
+    [[nodiscard]] bool        Adopt() const noexcept        { return m_adopt; }
+    [[nodiscard]] int         Slot() const noexcept         { return m_slot; }
 
 private:
     PolicyOrder() = default;
@@ -678,7 +730,7 @@ public:
     /** Returns ID of object selected in this order. */
     [[nodiscard]] int ObjectID() const noexcept { return m_object_id; }
 
-    [[nodiscard]] static bool Check(int empire_id, int object_id, const ScriptingContext& context);
+    static bool Check(int empire_id, int object_id, const ScriptingContext& context);
 private:
     ScrapOrder() = default;
 
@@ -720,8 +772,8 @@ public:
     /** Returns aggression state to set object to. */
     [[nodiscard]] FleetAggression Aggression() const noexcept { return m_aggression; }
 
-    [[nodiscard]] static bool Check(int empire_id, int object_id, FleetAggression aggression,
-                                    const ScriptingContext& context);
+    static bool Check(int empire_id, int object_id, FleetAggression aggression,
+                      const ScriptingContext& context);
 
 private:
     AggressiveOrder() = default;

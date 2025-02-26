@@ -12,9 +12,11 @@
 #include "../util/AppInterface.h"
 #include "../util/CheckSums.h"
 #include "../util/GameRules.h"
+#include "../util/GameRuleRanks.h"
 #include "../util/Logger.h"
 #include "../util/OptionsDB.h"
 #include "../util/ScopedTimer.h"
+#include <numeric>
 
 
 namespace {
@@ -24,7 +26,8 @@ namespace {
         // makes all techs cost 1 RP and take 1 turn to research
         rules.Add<bool>(UserStringNop("RULE_CHEAP_AND_FAST_TECH_RESEARCH"),
                         UserStringNop("RULE_CHEAP_AND_FAST_TECH_RESEARCH_DESC"),
-                        "TEST", false, true);
+                        GameRuleCategories::GameRuleCategory::TEST, false, true,
+                        GameRuleRanks::RULE_CHEAP_AND_FAST_TECH_RESEARCH_RANK);
     }
     bool temp_bool = RegisterGameRules(&AddRules);
 }
@@ -32,7 +35,7 @@ namespace {
 namespace {
     // returns techs in \a techs that are not in \a researched_techs
     // and of which all prereqs are in \a researched_techs
-    auto NextTechs(const std::vector<std::string_view> researched_techs, const TechManager::TechContainer& techs) {
+    auto NextTechs(std::vector<std::string_view> researched_techs, const TechManager::TechContainer& techs) {
         const auto is_researched = [rt{std::move(researched_techs)}](const auto& tech)
         { return std::find(rt.begin(), rt.end(), tech) != rt.end(); };
 
@@ -156,10 +159,8 @@ Tech::Tech(std::string&& name, std::string&& description,
     m_researchable(researchable),
     m_tags_concatenated([&tags]() {
         // allocate storage for concatenated tags
-        // TODO: transform_reduce when available on all platforms...
-        std::size_t params_sz = 0;
-        for (const auto& t : tags)
-            params_sz += t.size();
+        std::size_t params_sz = std::transform_reduce(tags.begin(), tags.end(), 0u, std::plus{},
+                                                      [](const auto& tag) { return tag.size(); });
         std::string retval;
         retval.reserve(params_sz);
 
@@ -211,7 +212,7 @@ Tech::Tech(std::string&& name, std::string&& description,
     m_prerequisites{prerequisites.begin(), prerequisites.end()},
     m_unlocked_items([](auto& unlocked_items) {
         // ensure uniqueness
-        std::sort(unlocked_items.begin(), unlocked_items.end());
+        std::stable_sort(unlocked_items.begin(), unlocked_items.end());
         auto unique_it = std::unique(unlocked_items.begin(), unlocked_items.end());
         unlocked_items.erase(unique_it, unlocked_items.end());
         return std::move(unlocked_items);
@@ -332,7 +333,7 @@ float Tech::ResearchCost(int empire_id, const ScriptingContext& context) const {
         auto source = empire->Source(context.ContextObjects());
         if (!source)
             return ARBITRARY_LARGE_COST;
-        const ScriptingContext source_context{source.get(), context};
+        const ScriptingContext source_context{context, ScriptingContext::Source{}, source.get()};
         return m_research_cost->Eval(source_context);
     }
 }
@@ -362,7 +363,7 @@ int Tech::ResearchTime(int empire_id, const ScriptingContext& context) const {
         auto source = empire->Source(context.ContextObjects());
         if (!source)
             return ARBITRARY_LARGE_TURNS;
-        ScriptingContext source_context{source.get(), context};
+        ScriptingContext source_context{context, ScriptingContext::Source{}, source.get()};
 
         return m_research_turns->Eval(source_context);
     }
@@ -503,8 +504,7 @@ void TechManager::CheckPendingTechs() const {
     // check for empty categories
     std::vector<std::string> empty_defined_categories;
     empty_defined_categories.reserve(m_categories.size());
-    for (const auto& [cat_name, ignored] : m_categories) {
-        (void)ignored;
+    for (const auto& cat_name : m_categories | range_keys) {
         auto set_it = categories_seen_in_techs.find(cat_name);
         if (set_it == categories_seen_in_techs.end())
             empty_defined_categories.push_back(cat_name);
@@ -545,7 +545,6 @@ void TechManager::CheckPendingTechs() const {
 std::string TechManager::FindFirstDependencyCycle() const {
     CheckPendingTechs();
     assert(!m_techs.empty());
-    static const std::set<std::string> EMPTY_STRING_SET;    // used in case an invalid tech is processed
 
     std::set<const Tech*> checked_techs; // the list of techs that are not part of any cycle
     for (const auto& [tech_name, tech] : m_techs) {

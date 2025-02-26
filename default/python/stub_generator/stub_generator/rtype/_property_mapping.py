@@ -19,9 +19,9 @@ from stub_generator.stub_generator.rtype.mapper import Mapper
 from stub_generator.stub_generator.rtype.utils import get_name_for_mapping
 
 _property_map = Mapper(
+    "property",
     {
         ("shipIDs", "IntVec"): Sequence[ShipId],
-        ("allObjectIDs", "IntVec"): Sequence[ObjectId],
         ("buildingIDs", "IntVec"): Sequence[BuildingId],
         ("planetIDs", "IntVec"): Sequence[PlanetId],
         ("fleetIDs", "IntVec"): Sequence[FleetId],
@@ -45,7 +45,7 @@ _property_map = Mapper(
         ("specials", ""): SpeciesName,
         ("producedByEmpireID", "int"): EmpireId,
         ("planetID", "int"): PlanetId,
-    }
+    },
 )
 
 

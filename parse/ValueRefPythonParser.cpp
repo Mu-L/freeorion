@@ -13,6 +13,16 @@
 #include "EnumPythonParser.h"
 #include "PythonParser.h"
 
+value_ref_wrapper<double> pow(const value_ref_wrapper<int>& lhs, double rhs) {
+    return value_ref_wrapper<double>(
+        std::make_shared<ValueRef::Operation<double>>(
+            ValueRef::OpType::EXPONENTIATE,
+            std::make_unique<ValueRef::StaticCast<int, double>>(ValueRef::CloneUnique(lhs.value_ref)),
+            std::make_unique<ValueRef::Constant<double>>(rhs)
+        )
+    );
+}
+
 value_ref_wrapper<double> pow(const value_ref_wrapper<double>& lhs, double rhs) {
     return value_ref_wrapper<double>(
         std::make_shared<ValueRef::Operation<double>>(
@@ -192,6 +202,16 @@ value_ref_wrapper<double> operator+(const value_ref_wrapper<double>& lhs, const 
     );
 }
 
+value_ref_wrapper<double> operator+(const value_ref_wrapper<int>& lhs, const value_ref_wrapper<double>& rhs) {
+    return value_ref_wrapper<double>(
+        std::make_shared<ValueRef::Operation<double>>(
+            ValueRef::OpType::PLUS,
+            std::make_unique<ValueRef::StaticCast<int, double>>(ValueRef::CloneUnique(lhs.value_ref)),
+            ValueRef::CloneUnique(rhs.value_ref)
+        )
+    );
+}
+
 value_ref_wrapper<double> operator+(double lhs, const value_ref_wrapper<int>& rhs) {
     return value_ref_wrapper<double>(
         std::make_shared<ValueRef::Operation<double>>(
@@ -248,6 +268,16 @@ value_ref_wrapper<double> operator-(const value_ref_wrapper<double>& lhs, int rh
             ValueRef::OpType::MINUS,
             ValueRef::CloneUnique(lhs.value_ref),
             std::make_unique<ValueRef::Constant<double>>(static_cast<double>(rhs))
+        )
+    );
+}
+
+value_ref_wrapper<double> operator-(const value_ref_wrapper<double>& lhs, const value_ref_wrapper<int>& rhs) {
+    return value_ref_wrapper<double>(
+        std::make_shared<ValueRef::Operation<double>>(
+            ValueRef::OpType::MINUS,
+            ValueRef::CloneUnique(lhs.value_ref),
+            std::make_unique<ValueRef::StaticCast<int, double>>(ValueRef::CloneUnique(rhs.value_ref))
         )
     );
 }
@@ -342,6 +372,14 @@ value_ref_wrapper<double> operator!=(const value_ref_wrapper<double>& lhs, int r
     );
 }
 
+value_ref_wrapper<double> operator-(const value_ref_wrapper<double>& lhs) {
+    return value_ref_wrapper<double>(
+        std::make_shared<ValueRef::Operation<double>>(
+            ValueRef::OpType::NEGATE,
+            ValueRef::CloneUnique(lhs.value_ref))
+    );
+}
+
 value_ref_wrapper<int> operator*(int lhs, const value_ref_wrapper<int>& rhs) {
     return value_ref_wrapper<int>(
         std::make_shared<ValueRef::Operation<int>>(
@@ -351,6 +389,17 @@ value_ref_wrapper<int> operator*(int lhs, const value_ref_wrapper<int>& rhs) {
         )
     );
 }
+
+value_ref_wrapper<int> operator/(const value_ref_wrapper<int>& lhs, int rhs) {
+    return value_ref_wrapper<int>(
+        std::make_shared<ValueRef::Operation<int>>(
+            ValueRef::OpType::DIVIDE,
+            ValueRef::CloneUnique(lhs.value_ref),
+            std::make_unique<ValueRef::Constant<int>>(rhs)
+        )
+    );
+}
+
 
 value_ref_wrapper<int> operator-(const value_ref_wrapper<int>& lhs, int rhs) {
     return value_ref_wrapper<int>(
@@ -410,10 +459,28 @@ value_ref_wrapper<int> operator<(const value_ref_wrapper<int>& lhs, int rhs) {
     );
 }
 
+value_ref_wrapper<int> operator<=(const value_ref_wrapper<int>& lhs, int rhs) {
+    return value_ref_wrapper<int>(
+        std::make_shared<ValueRef::Operation<int>>(
+            ValueRef::OpType::COMPARE_LESS_THAN_OR_EQUAL,
+            ValueRef::CloneUnique(lhs.value_ref),
+            std::make_unique<ValueRef::Constant<int>>(rhs))
+    );
+}
+
 value_ref_wrapper<int> operator>(const value_ref_wrapper<int>& lhs, int rhs) {
     return value_ref_wrapper<int>(
         std::make_shared<ValueRef::Operation<int>>(
             ValueRef::OpType::COMPARE_GREATER_THAN,
+            ValueRef::CloneUnique(lhs.value_ref),
+            std::make_unique<ValueRef::Constant<int>>(rhs))
+    );
+}
+
+value_ref_wrapper<int> operator>=(const value_ref_wrapper<int>& lhs, int rhs) {
+    return value_ref_wrapper<int>(
+        std::make_shared<ValueRef::Operation<int>>(
+            ValueRef::OpType::COMPARE_GREATER_THAN_OR_EQUAL,
             ValueRef::CloneUnique(lhs.value_ref),
             std::make_unique<ValueRef::Constant<int>>(rhs))
     );
@@ -532,7 +599,18 @@ namespace {
                     operands.push_back(std::make_unique<ValueRef::Constant<std::string>>(boost::python::extract<std::string>(args[i])()));
             }
             return boost::python::object(value_ref_wrapper<std::string>(std::make_shared<ValueRef::Operation<std::string>>(op, std::move(operands))));
-        } else {
+        } else if (args[0] == "Visibility") {
+            std::vector<std::unique_ptr<ValueRef::ValueRef<Visibility>>> operands;
+            operands.reserve(boost::python::len(args) - 1);
+            for (auto i = 1; i < boost::python::len(args); i++) {
+                auto arg = boost::python::extract<value_ref_wrapper<Visibility>>(args[i]);
+                if (arg.check())
+                    operands.push_back(ValueRef::CloneUnique(arg().value_ref));
+                else
+                    operands.push_back(std::make_unique<ValueRef::Constant<Visibility>>(boost::python::extract<enum_wrapper<Visibility>>(args[i])().value));
+            }
+            return boost::python::object(value_ref_wrapper<Visibility>(std::make_shared<ValueRef::Operation<Visibility>>(op, std::move(operands))));
+        }{
             ErrorLogger() << "Unsupported type for min/max/oneof : " << boost::python::extract<std::string>(boost::python::str(args[0]))();
 
             throw std::runtime_error(std::string("Not implemented ") + __func__);
@@ -710,6 +788,33 @@ namespace {
             nullptr));
     }
 
+    value_ref_wrapper<double> insert_double_complex_variable_species_(const char* variable, const boost::python::tuple& args, const boost::python::dict& kw) {
+        std::unique_ptr<ValueRef::ValueRef<std::string>> species;
+        auto species_args = boost::python::extract<value_ref_wrapper<std::string>>(kw["species"]);
+        if (species_args.check()) {
+            species = ValueRef::CloneUnique(species_args().value_ref);
+        } else {
+            species = std::make_unique<ValueRef::Constant<std::string>>(boost::python::extract<std::string>(kw["species"])());
+        }
+
+        std::unique_ptr<ValueRef::ValueRef<int>> empire;
+        auto empire_args = boost::python::extract<value_ref_wrapper<int>>(kw["empire"]);
+        if (empire_args.check()) {
+            empire = ValueRef::CloneUnique(empire_args().value_ref);
+        } else {
+            empire = std::make_unique<ValueRef::Constant<int>>(boost::python::extract<int>(kw["empire"])());
+        }
+
+        return value_ref_wrapper<double>(std::make_shared<ValueRef::ComplexVariable<double>>(
+            variable,
+            std::move(empire),
+            nullptr,
+            nullptr,
+            std::move(species),
+            nullptr));
+
+    }
+
     value_ref_wrapper<double> insert_direct_distance_between_(boost::python::object arg1, boost::python::object arg2) {
         std::unique_ptr<ValueRef::ValueRef<int>> id1;
         auto id1_args = boost::python::extract<value_ref_wrapper<int>>(arg1);
@@ -806,6 +911,38 @@ namespace {
         ));
     }
 
+    value_ref_wrapper<double> insert_ship_part_meter_(const boost::python::tuple& args, const boost::python::dict& kw) {
+        std::unique_ptr<ValueRef::ValueRef<std::string>> part;
+        if (kw.has_key("part")) {
+            auto part_args = boost::python::extract<value_ref_wrapper<std::string>>(kw["part"]);
+            if (part_args.check()) {
+                part = ValueRef::CloneUnique(part_args().value_ref);
+            } else {
+                part = std::make_unique<ValueRef::Constant<std::string>>(boost::python::extract<std::string>(kw["part"])());
+            }
+        }
+
+        auto meter_name = ValueRef::MeterToName(boost::python::extract<enum_wrapper<MeterType>>(kw["meter"])().value);
+        auto meter_type = std::make_unique<ValueRef::Constant<std::string>>(std::string{meter_name});
+
+        std::unique_ptr<ValueRef::ValueRef<int>> ship_id;
+        auto ship_args = boost::python::extract<value_ref_wrapper<int>>(kw["ship"]);
+        if (ship_args.check()) {
+            ship_id = ValueRef::CloneUnique(ship_args().value_ref);
+        } else {
+            ship_id = std::make_unique<ValueRef::Constant<int>>(boost::python::extract<int>(kw["ship"])());
+        }
+
+        return value_ref_wrapper<double>(std::make_shared<ValueRef::ComplexVariable<double>>(
+            "ShipPartMeter",
+            std::move(ship_id),
+            nullptr,
+            nullptr,
+            std::move(part),
+            std::move(meter_type)
+        ));
+    }
+
     value_ref_wrapper<double> insert_empire_meter_value_(const boost::python::tuple& args, const boost::python::dict& kw) {
         std::unique_ptr<ValueRef::ValueRef<int>> empire;
         auto empire_args = boost::python::extract<value_ref_wrapper<int>>(kw["empire"]);
@@ -865,6 +1002,7 @@ void RegisterGlobalsValueRefs(boost::python::dict& globals, const PythonParser& 
     globals["NamedReal"] = boost::python::raw_function(insert_named_<double>);
     globals["NamedRealLookup"] = boost::python::raw_function(insert_named_lookup_<double>);
     globals["Value"] = value_ref_wrapper<double>(std::make_shared<ValueRef::Variable<double>>(ValueRef::ReferenceType::EFFECT_TARGET_VALUE_REFERENCE));
+    globals["ValueVisibility"] = value_ref_wrapper<Visibility>(std::make_shared<ValueRef::Variable<Visibility>>(ValueRef::ReferenceType::EFFECT_TARGET_VALUE_REFERENCE));
 
     // free variable name
     for (const char* variable : {"CombatBout",
@@ -916,6 +1054,13 @@ void RegisterGlobalsValueRefs(boost::python::dict& globals, const PythonParser& 
     {
         const auto f_insert_name_property = [variable](const boost::python::tuple& args, const boost::python::dict& kw) { return insert_double_complex_variable_(variable, args, kw); };
         globals[variable] = boost::python::raw_function(f_insert_name_property);
+    }
+
+    // species_empire_opinion
+    for (const char* variable : {"SpeciesEmpireOpinion",
+                                 "SpeciesEmpireTargetOpinion"})
+    {
+        globals[variable] = boost::python::raw_function([variable](const boost::python::tuple& args, const boost::python::dict& kw) { return insert_double_complex_variable_species_(variable, args, kw); });
     }
 
     // single-parameter math functions
@@ -976,6 +1121,7 @@ void RegisterGlobalsValueRefs(boost::python::dict& globals, const PythonParser& 
     globals["JumpsBetween"] = insert_jumps_between_;
     globals["UserString"] = insert_user_string;
     globals["PartsInShipDesign"] = boost::python::raw_function(insert_parts_in_ship_design_);
+    globals["ShipPartMeter"] = boost::python::raw_function(insert_ship_part_meter_);
     globals["EmpireMeterValue"] = boost::python::raw_function(insert_empire_meter_value_);
     globals["EmpireStockpile"] = boost::python::raw_function(insert_empire_stockpile_);
 

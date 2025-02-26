@@ -1,27 +1,24 @@
 #include "Building.h"
 
 #include "BuildingType.h"
-#include "UniverseObjectVisitor.h"
 #include "Universe.h"
 #include "../Empire/EmpireManager.h"
 #include "../util/AppInterface.h"
 #include "../util/i18n.h"
 
 
-Building::Building(int empire_id, std::string building_type, int produced_by_empire_id,
-                   int creation_turn) :
+Building::Building(int empire_id, std::string building_type, int produced_by_empire_id, int creation_turn) :
     UniverseObject{UniverseObjectType::OBJ_BUILDING, "", empire_id, creation_turn},
     m_building_type(std::move(building_type)),
     m_produced_by_empire_id(produced_by_empire_id)
 {
     const BuildingType* type = GetBuildingType(m_building_type);
     Rename(type ? UserString(type->Name()) : UserString("ENC_BUILDING"));
-
-    UniverseObject::Init();
 }
 
 std::shared_ptr<UniverseObject> Building::Clone(const Universe& universe, int empire_id) const {
-    const Visibility vis = universe.GetObjectVisibilityByEmpire(this->ID(), empire_id);
+    const Visibility vis = empire_id == ALL_EMPIRES ?
+        Visibility::VIS_FULL_VISIBILITY : universe.GetObjectVisibilityByEmpire(this->ID(), empire_id);
 
     if (!(vis >= Visibility::VIS_BASIC_VISIBILITY && vis <= Visibility::VIS_FULL_VISIBILITY))
         return nullptr;
@@ -47,7 +44,8 @@ void Building::Copy(const Building& copied_building, const Universe& universe, i
         return;
 
     const int copied_object_id = copied_building.ID();
-    const Visibility vis = universe.GetObjectVisibilityByEmpire(copied_object_id, empire_id);
+    const Visibility vis = empire_id == ALL_EMPIRES ?
+        Visibility::VIS_FULL_VISIBILITY : universe.GetObjectVisibilityByEmpire(copied_object_id, empire_id);
     const auto visible_specials = universe.GetObjectVisibleSpecialsByEmpire(copied_object_id, empire_id);
 
     UniverseObject::Copy(copied_building, vis, visible_specials, universe);
@@ -74,13 +72,12 @@ bool Building::HostileToEmpire(int empire_id, const EmpireManager& empires) cons
         empires.GetDiplomaticStatus(Owner(), empire_id) == DiplomaticStatus::DIPLO_WAR;
 }
 
-UniverseObject::TagVecs Building::Tags(const ScriptingContext&) const {
-    if (const BuildingType* type = ::GetBuildingType(m_building_type))
-        return type->Tags();
-    return {};
+UniverseObject::TagVecs Building::Tags() const {
+    const BuildingType* type = ::GetBuildingType(m_building_type);
+    return type ? TagVecs{type->Tags()} : TagVecs{};
 }
 
-bool Building::HasTag(std::string_view name, const ScriptingContext&) const {
+bool Building::HasTag(std::string_view name) const {
     const BuildingType* type = GetBuildingType(m_building_type);
     return type && type->HasTag(name);
 }
@@ -91,6 +88,15 @@ bool Building::ContainedBy(int object_id) const noexcept {
             ||  object_id == this->SystemID());
 }
 
+std::size_t Building::SizeInMemory() const {
+    std::size_t retval = UniverseObject::SizeInMemory();
+    retval += sizeof(Building) - sizeof(UniverseObject);
+
+    retval += sizeof(decltype(m_building_type)::value_type)*m_building_type.capacity();
+
+    return retval;
+}
+
 std::string Building::Dump(uint8_t ntabs) const {
     std::stringstream os;
     os << UniverseObject::Dump(ntabs);
@@ -98,9 +104,6 @@ std::string Building::Dump(uint8_t ntabs) const {
        << " produced by empire id: " << m_produced_by_empire_id;
     return os.str();
 }
-
-std::shared_ptr<UniverseObject> Building::Accept(const UniverseObjectVisitor& visitor) const
-{ return visitor.Visit(std::const_pointer_cast<Building>(std::static_pointer_cast<const Building>(shared_from_this()))); }
 
 void Building::SetPlanetID(int planet_id) {
     if (planet_id != m_planet_id) {

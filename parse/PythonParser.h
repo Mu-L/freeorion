@@ -25,7 +25,10 @@ public:
 
     PythonParser& operator=(PythonParser&&) = delete;
 
-    bool ParseFileCommon(const boost::filesystem::path& path,
+    /** Parses content file \a path using predefined \a globals,
+      * puts file name from path to \a filename and file content to \a file_contents,
+      * return true if parsing was successfull. */
+    [[nodiscard]] bool ParseFileCommon(const boost::filesystem::path& path,
                          const boost::python::dict& globals,
                          std::string& filename, std::string& file_contents) const;
 
@@ -40,7 +43,8 @@ private:
 
     PythonCommon&                  m_python;
     const boost::filesystem::path& m_scripting_dir;
-    boost::python::list            m_meta_path;
+    boost::optional<boost::python::list>            m_meta_path;
+    int                            m_meta_path_len;
     PyThreadState*                 m_parser_thread_state = nullptr;
     PyThreadState*                 m_main_thread_state = nullptr;
 };

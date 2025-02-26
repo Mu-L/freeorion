@@ -16,7 +16,7 @@ class Order;
 struct ScriptingContext;
 
 /** The pointer type used to store Orders in OrderSets. */
-typedef std::shared_ptr<Order> OrderPtr;
+typedef std::shared_ptr<Order> OrderPtr; // TODO: can this be unique_ptr ?
 
 /** A collection of orders that may be searched using arbitrary predicate
     functions and functors.
@@ -56,16 +56,33 @@ public:
     [[nodiscard]] bool           empty() const noexcept        { return m_orders.empty(); }
     [[nodiscard]] iterator       find(const key_type& k)       { return m_orders.find(k); }
     auto                         insert(const value_type& val) { return m_orders.insert(val); }
+    auto                         insert(iterator begin, iterator end) { return m_orders.insert(begin, end); }
     auto                         erase(const key_type& k)      { return m_orders.erase(k); }
-    [[nodiscard]] OrderPtr&      operator[](std::size_t i);
-    [[nodiscard]] key_compare    key_comp() const              { return m_orders.key_comp(); }
 
     [[nodiscard]] std::string Dump() const;
 
     /** Execute the \p order immediately on the client.
-        Store the \p order in the OrderSet to be executed later on the server.
-        Return an index that can be used to reference the order. */
-    int IssueOrder(OrderPtr order, ScriptingContext& context);
+      * Store the \p order in the OrderSet to be executed later on the server. */
+    void IssueOrder(OrderPtr order, ScriptingContext& context);
+
+    /** Construct and execute an order of specified type on the client.
+      * Store the order in the OrderSet to be executed later on the server.
+      * Returns a pointer to the order. */
+
+    template <typename OrderType, typename... ParamTs>
+    auto IssueOrder(ScriptingContext& context, ParamTs&&... params)
+    {
+        static_assert(std::is_base_of_v<Order, std::decay_t<OrderType>>);
+        if constexpr (requires { OrderType(std::forward<ParamTs>(params)..., context); }) {
+            auto order = std::make_shared<OrderType>(std::forward<ParamTs>(params)..., context);
+            IssueOrder(order, context);
+            return order;
+        } else {
+            auto order = std::make_shared<OrderType>(std::forward<ParamTs>(params)...);
+            IssueOrder(order, context);
+            return order;
+        }
+    }
 
     /** Applies all Orders in the OrderSet.  As of this writing, this is needed only after deserializing an OrderSet
         client-side during game loading. */

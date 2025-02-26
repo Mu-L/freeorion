@@ -24,11 +24,10 @@ public:
               std::vector<std::unique_ptr<Effect::EffectsGroup>>&& effects,
               std::string&& graphic);
 
-    bool operator==(const FieldType& rhs) const;
-    bool operator!=(const FieldType& rhs) const { return !(*this == rhs); }
+    [[nodiscard]] bool operator==(const FieldType& rhs) const;
 
     //! Returns the unique name for this type of field
-    const auto& Name() const { return m_name; }
+    const auto& Name() const noexcept { return m_name; }
 
     //! Returns a text description of this type of building
     const auto& Description() const noexcept { return m_description; }

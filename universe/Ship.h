@@ -30,15 +30,13 @@ public:
     [[nodiscard]] std::string Dump(uint8_t ntabs = 0) const override;
 
     [[nodiscard]] int ContainerObjectID() const noexcept override { return m_fleet_id; }
-    [[nodiscard]] bool ContainedBy(int object_id) const override;
+    [[nodiscard]] bool ContainedBy(int object_id) const noexcept override;
 
     [[nodiscard]] const std::string& PublicName(int empire_id, const Universe& universe) const override;
     [[nodiscard]] const std::string& PublicName(int empire_id) const;
 
-    std::shared_ptr<UniverseObject> Accept(const UniverseObjectVisitor& visitor) const override;
-
     /** Back propagates part meters (which UniverseObject equivalent doesn't). */
-    void BackPropagateMeters() override;
+    void BackPropagateMeters() noexcept override;
 
     void ResetTargetMaxUnpairedMeters() override;
     void ResetPairedActiveMeters() override;
@@ -99,6 +97,8 @@ public:
       * assuming the ship has been resupplied recently (i.e. this uses Max*Meters) */
     [[nodiscard]] std::vector<float> AllWeaponsMaxShipDamage(const ScriptingContext& context, float shield_DR = 0.0f, bool include_fighters = true) const;
 
+    [[nodiscard]] std::size_t        SizeInMemory() const override;
+
     void SetFleetID(int fleet_id); ///< sets the ID of the fleet the ship resides in
     void SetArrivedOnTurn(int turn);
     void Resupply(int turn);
@@ -120,11 +120,27 @@ public:
         @p production_by_empire_id. */
     Ship(int empire_id, int design_id, std::string species_name, const Universe& universe,
          const SpeciesManager& species, int produced_by_empire_id, int current_turn);
-    Ship() : UniverseObject(UniverseObjectType::OBJ_SHIP) {}
+    Ship() : UniverseObject(UniverseObjectType::OBJ_SHIP) { AddMeters(ship_meter_types); }
+    Ship(Ship&&) = default;
 
 private:
     friend class Universe;
     template <typename T> friend void boost::python::detail::value_destroyer<false>::execute(T const volatile* p);
+
+    static constexpr auto ship_meter_types = []() {
+        using MT = MeterType;
+        auto retval = std::array{
+            MT::METER_FUEL,            MT::METER_MAX_FUEL,        MT::METER_SHIELD,     MT::METER_MAX_SHIELD,
+            MT::METER_DETECTION,       MT::METER_STRUCTURE,       MT::METER_MAX_STRUCTURE,
+            MT::METER_SPEED,           MT::METER_TARGET_INDUSTRY, MT::METER_INDUSTRY,
+            MT::METER_TARGET_RESEARCH, MT::METER_RESEARCH,        MT::METER_TARGET_INFLUENCE,
+            MT::METER_INFLUENCE
+        };
+#if defined(__cpp_lib_constexpr_algorithms)
+        std::sort(retval.begin(), retval.end());
+#endif
+        return retval;
+    }();
 
     PartMeterMap    m_part_meters;
     std::string     m_species_name;

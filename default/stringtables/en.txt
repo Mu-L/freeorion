@@ -1213,6 +1213,36 @@ Enable Experimentors
 RULE_ENABLE_EXPERIMENTORS_DESC
 Enables Experimentors during galaxy generation
 
+RULE_EXPERIMENTORS_SPAWN_BASE_TURN
+Experimentors spawn base turn
+
+RULE_EXPERIMENTORS_SPAWN_BASE_TURN_DESC
+Minimum turn experimentors spawn. Modified by galaxy size and AI Agression.
+
+RULE_NESTS_ALWAYS_SPAWN_WILD
+Nests always spawn wild monsters
+
+RULE_NESTS_ALWAYS_SPAWN_WILD_DESC
+Monster nests will always spawn wild monsters, even when outposted
+
+RULE_WANDERING_MONSTERS_CAN_STOP_INSYSTEM
+Wandering monsters ocassionally stop insystem
+
+RULE_WANDERING_MONSTERS_CAN_STOP_INSYSTEM_DESC
+Wandering monsters ocassionally stop insystem
+
+RULE_WILD_NEST_MONSTER_SPAWN_FACTOR
+Wild nest monster spawn factor
+
+RULE_WILD_NEST_MONSTER_SPAWN_FACTOR_DESC
+Multiplies the probability of a nest spawning a wild monster
+
+RULE_DOMESTIC_NEST_MONSTER_SPAWN_FACTOR
+Domestic nest monster spawn factor
+
+RULE_DOMESTIC_NEST_MONSTER_SPAWN_FACTOR_DESC
+Multiplies the probability of a nest spawning a domesticated monster
+
 RULE_ENABLE_SUPER_TESTER
 Enable Super-Tester Takeover
 
@@ -1273,6 +1303,12 @@ Extrasolar Ship Detection
 RULE_EXTRASOLAR_SHIP_DETECTION_DESC
 Ships outside systems provide detection.
 
+RULE_OVERRIDE_VIS_LEVEL
+Stealthy Blockader Visibility
+
+RULE_OVERRIDE_VIS_LEVEL_DESC
+Visibility level at which otherwise stealthy fleets and ships are revealed to the empire that owns a fleet that is blockaded.
+
 RULE_UNSEEN_STEALTHY_PLANETS_INVISIBLE
 Undetectable Stealthy Planets
 
@@ -1288,6 +1324,22 @@ RULE_BASIC_VIS_SYSTEM_INFO_SHOWN_DESC
 '''<u>If On</u>: Systems that are detected by an empire at only basic visibility have their name and star type revealed to that empire. Causes a UI issue where it is difficult to tell if starlanes of a system are known.
 
 <u>If Off</u>: Basic level visible systems that have never been detected at higher visiblity have unknown name and star type.'''
+
+RULE_HIDDEN_POLICIES
+Hide Empire Policies
+
+RULE_HIDDEN_POLICIES_DESC
+'''<u>If On</u>: Players who are not allied to an empire do not know other empires' adopted or available policies.
+
+<u>If Off</u>: All players know all other empires' adopted and available policies.'''
+
+RULE_HIDDEN_TECHS_QUEUES_AVAILABILITIES
+Hide Empire Techs, Queues, and Availabilites
+
+RULE_HIDDEN_TECHS_QUEUES_AVAILABILITIES_DESC
+'''<u>If On</u>: Players who are not allied to an empire do not know other empires' researched techs, queues and part, hull, or building availabilities.
+
+<u>If Off</u>: All players know all other empires' researched techs, queues, and availabilities.'''
 
 RULE_HABITABLE_SIZE_TINY
 Tiny planets Habitable size
@@ -1311,13 +1363,37 @@ RULE_HABITABLE_SIZE_GASGIANT
 Gas Giants Habitable size
 
 RULE_HABITABLE_SIZE_DESC
-Value used to adjust for [[METER_POPULATION]] changes on a planet of this size.
+Value used to adjust for [[METER_POPULATION]] changes on a planet of this size
 
 RULE_BASELINE_PLANET_STABILITY
 Planet Stability Baseline
 
 RULE_BASELINE_PLANET_STABILITY_DESC
 Baseline level of planet [[METER_HAPPINESS]].
+
+RULE_BASELINE_SPECIES_EMPIRE_OPINION
+Species Empire Opinion Baseline
+
+RULE_BASELINE_SPECIES_EMPIRE_OPINION_DESC
+Baseline level of species opinions of empires.
+
+RULE_INVASION_OPINION_PENALTY_SCALING
+Planet invasion species opinion scaling
+
+RULE_INVASION_OPINION_PENALTY_SCALING_DESC
+Scales penalty to species opinion of an empire that was the most recent invader of planets with species
+
+RULE_SHIPS_LOST_DESTROYED_PENALTY_SCALING
+Ship loss or destruction species opinion scaling
+
+RULE_SHIPS_LOST_DESTROYED_PENALTY_SCALING_DESC
+Scales penalty to species opinion of an empire that loses or destroys in combat ships of a species
+
+RULE_COLONIES_FOUNDED_BONUS_SCALING
+Colonies founded opinion scaling
+
+RULE_COLONIES_FOUNDED_BONUS_SCALING_DESC
+Scales bonus to species opinion of an empire that founds colonies with that species
 
 RULE_PROTECTION_FOCUS_STABILITY
 Protection Focus Stability Bonus
@@ -1409,6 +1485,24 @@ Maximum Colonies When Conceding
 RULE_CONCEDE_COLONIES_THRESHOLD_DESC
 Empires with more than this number of colonies may not concede.
 
+RULE_CONCEDE_DESTROY_COLONIES
+Depopulate Conceded Colonies
+
+RULE_CONCEDE_DESTROY_COLONIES_DESC
+If true, colonies owned by empires that concede are depopulated. If false, ships are set to unowned.
+
+RULE_CONCEDE_DESTROY_BUILDINGS
+Destroy Conceded Buildings
+
+RULE_CONCEDE_DESTROY_BUILDINGS_DESC
+If true, buildings owned by empires that concede are destroyed. If false, buildings are set to unowned.
+
+RULE_CONCEDE_DESTROY_SHIPS
+Destroy Conceded Ships
+
+RULE_CONCEDE_DESTROY_SHIPS_DESC
+If true, ships owned by empires that concede are destroyed. If false, ships are set to unowned.
+
 RULE_THRESHOLD_HUMAN_PLAYER_WIN
 Max human player winners
 
@@ -1427,12 +1521,6 @@ Use part-based upkeep
 RULE_SHIP_PART_BASED_UPKEEP_DESC
 Calculate upkeep based on ship parts instead of ships themselves.
 
-RULE_ENABLE_ALLIED_REPAIR
-Drydocks and Fleet Field Repair repair allied ships
-
-RULE_ENABLE_ALLIED_REPAIR_DESC
-Allow Drydocks building and Fleet Field Repair tech to repair ships of allied empires.
-
 RULE_DIPLOMACY
 Allowed diplomacy
 
@@ -1444,6 +1532,36 @@ All Allowed
 
 RULE_DIPLOMACY_FORBIDDEN_FOR_ALL
 All Forbidden
+
+RULE_ANNEX_COST_OPINION_EXP_BASE
+Annex Cost Opinion Exponential Base
+
+RULE_ANNEX_COST_OPINION_EXP_BASE_DESC
+Base of exponential determining how annexation costs scale with species empire opinion.
+
+RULE_ANNEX_COST_SCALING
+Annex Cost Population Scaling
+
+RULE_ANNEX_COST_SCALING_DESC
+Scaling factor for how annexation costs scale with planet population.
+
+RULE_ANNEX_COST_STABILITY_EXP_BASE
+Annex Cost Stability Exponential Base
+
+RULE_ANNEX_COST_STABILITY_EXP_BASE_DESC
+Base of exponential determining how annexation costs scale with planet stability.
+
+RULE_BUILDING_ANNEX_COST_SCALING
+Annex Cost Building Scaling
+
+RULE_BUILDING_ANNEX_COST_SCALING_DESC
+Scaling factor for how annexation costs scale with building production cost.
+
+RULE_ANNEX_COST_MINIMUM
+Annex Cost Minimum
+
+RULE_ANNEX_COST_MINIMUM_DESC
+Minimum cost to annex a planet.
 
 
 ##
@@ -3456,6 +3574,9 @@ Music files
 OPTIONS_SOUND_FILE
 Sound files
 
+OPTIONS_FONT_FILE
+Font files
+
 OPTIONS_DUMP_EFFECTS_GROUPS_DESC
 Auto-generated effect descriptions
 
@@ -3656,7 +3777,7 @@ MAP_BTN_OBJECTS_DESC
 ''''''
 
 MAP_BTN_SITREP
-SitRep
+Situation Report
 
 MAP_BTN_SITREP_DESC
 ''''''
@@ -3674,7 +3795,7 @@ MAP_BTN_PRODUCTION_DESC
 ''''''
 
 MAP_BTN_DESIGN
-Design
+Ship Design
 
 MAP_BTN_DESIGN_DESC
 ''''''
@@ -3867,6 +3988,45 @@ Planet Panel
 PL_ASTEROID_BELT_OF_SYSTEM
 %1% Asteroids
 
+# %1% cost in IP to annex this planet
+PL_ANNEX
+Annex (%1% IP)
+
+PL_ANNEX_FREE
+Annex
+
+# %1% cost in IP to annex this planet
+PL_ANNEXABLE
+Annexable for %1% IP
+
+PL_ANNEXATION_RESTRICTED
+Not Annexable
+
+# %1% cost in IP to annex this planet
+PL_CANCEL_ANNEX
+Cancel Annexation (%1% IP)
+
+# %1% planet species name
+# %2% name of client empire
+# %3% species on planet opinion of client empire
+# %4% name of owner empire or "unowned"
+# %5% species opinion of onwer empire
+# %6% stability of planet
+# %7% population of planet
+# %8% PP cost for client empire of buildings on planet
+# %9% annexation cost by client empire
+# %10% description of conditions for annexation
+ANNEX_BUTTON_TOOLTIP
+'''%1% opinion of %2%: %3%
+%1% opinion of %4%: %5%
+Planet Stability: %6%
+Planet Population: %7%
+Building Production Costs: %8%
+Annexation cost for %2%: %9%
+
+Conditions:
+%10%'''
+
 # %1% size of the population this planet is colonized with.
 # %2% maximum population this planet can support.
 PL_COLONIZE
@@ -3903,6 +4063,12 @@ PL_TYPE_SIZE
 # %4% species name for which suitability applies (Human, Trith, ...).
 PL_TYPE_SIZE_ENV
 %1% %2% (%4%: %3%)
+
+VISIBILITY
+Visibility
+
+LAST_VISIBILITY_TURN
+Last Turn Visible
 
 PL_NO_VISIBILITY
 Planet is not currently visible.
@@ -5464,6 +5630,12 @@ Empire ID
 EMPIRE_METERS
 Meters:
 
+UNKNOWN_SPECIES
+Unknown Species
+
+UNKNOWN_EMPIRE
+Unknown Empire (%1%)
+
 RESEARCHED_TECHS
 '''Researched Techs: '''
 
@@ -5485,6 +5657,9 @@ Fleet Move %1% to %2%
 ORDER_FLEET_TRANSFER
 Fleet Transfer %1% to %2%
 
+ORDER_ANNEX
+Annex %1%
+
 ORDER_COLONIZE
 Colonize %1% with %2%
 
@@ -5503,8 +5678,17 @@ Adopt Policy %1% in category %2% slot %3%
 ORDER_POLICY_ABANDON
 Abandon Policy %1%
 
-ORDER_RESEARCH
-Research
+ORDER_RESEARCH_REMOVE
+Remove Tech %1% from Queue
+
+ORDER_RESEARCH_PAUSE
+Pause Researching Tech %1%
+
+ORDER_RESEARCH_RESUME
+Resume Researching Tech %1%
+
+ORDER_RESEARCH_ENQUEUE_AT
+Enqueue Tech %1% at index %2%
 
 ORDER_PRODUCTION
 Production
@@ -5537,7 +5721,7 @@ ADOPTED_POLICIES
 '''Adopted Policies: '''
 
 NO_POLICIES_ADOPTED
-No Policies Adopted
+No Policies Known Adopted
 
 AVAILABLE_PARTS
 '''Available Parts: '''
@@ -5945,6 +6129,11 @@ ENC_COMBAT_NEUTRAL_INITIAL_STEALTH_LIST
 # %3 link to the empire that owns the defending unit.
 ENC_COMBAT_STEALTH_DECLOAK_ATTACK
 %2% detects %1% during attack.
+
+# %1 link to the launching unit
+# %2 link to the empire that detects the launcher
+ENC_COMBAT_STEALTH_DECLOAK_LAUNCH
+%2% detects %1% during fighter launch.
 
 # %1% unused
 # %2% name of empire detecting decloacking ship
@@ -7377,8 +7566,14 @@ Last Turn Colonized
 LAST_TURN_CONQUERED
 Last Turn Conquered
 
+LAST_TURN_ANNEXED
+Last Turn Annexed
+
 LAST_TURN_ATTACKED_BY_SHIP
 Last Turn Attacked By Ship
+
+ANNEXATION_COST_BY_ME
+Annexation Cost
 
 ARRIVED_ON_TURN
 Arrived on Turn
@@ -7630,6 +7825,12 @@ All %shippart% weapons on supplied ships have been upgraded to %tech%. Upgraded 
 SITREP_WEAPONS_UPGRADED_LABEL
 Weapon Tech Upgrade
 
+SITREP_WEAPON_SHOTS_UPGRADED
+All %shippart% weapons on supplied ships have been upgraded with %tech% technology. Upgraded weapons do %rawtext:shots% extra shot per bout (%rawtext:shotsum%)
+
+SITREP_WEAPON_SHOTS_UPGRADED_LABEL
+Weapon Tech Upgrade
+
 SITREP_COMBAT_SYSTEM
 At %system%: there was %combat%.
 
@@ -7765,6 +7966,18 @@ The population of %planet% has died out entirely!
 SITREP_PLANET_DEPOPULATED_LABEL
 Planet Destroyed
 
+SITREP_PLANET_ANNEXED
+%planet% has been annexed by %empire%.
+
+SITREP_PLANET_ANNEXED_LABEL
+Neutral Planet Annexed
+
+SITREP_PLANET_ANNEXED_FROM_OTHER_EMPIRE
+%planet% has been annexed by %empire:annexer% from %empire:original%.
+
+SITREP_PLANET_ANNEXED_FROM_OTHER_EMPIRE_LABEL
+Empire Planet Annexed
+
 SITREP_PLANET_COLONIZED
 %planet% has been colonized with %species%.
 
@@ -7881,6 +8094,21 @@ At %system%: the %empire% fleet '%fleet%' (%rawtext% ships) has arrived.
 
 SITREP_FOREIGN_FLEET_ARRIVED_AT_DESTINATION_LABEL
 Foreign Fleet Arrived
+
+SITREP_FLEET_BLOCKADED
+At %system%: the %empire:blockaded% fleet %fleet% was forced to halt by a %empire:blockader% blockade.
+
+SITREP_FLEET_BLOCKADED_NEUTRAL
+At %system%: the fleet %fleet% was forced to halt by a blockade.
+
+SITREP_FLEET_BLOCKADED_LABEL
+Fleet Blockaded
+
+SITREP_FLEET_BLOCKADED_NO_EMPIRE
+At %system%: the fleet %fleet% was forced to halt by a blockade.
+
+SITREP_FLEET_BLOCKADED_NO_EMPIRE_LABEL
+Fleet Blockaded
 
 SITREP_POP_THRESHOLD
 On %planet%: The colony has reached sufficient size and [[metertype METER_HAPPINESS]] to be a settler source for colonizing other planets. Also [[metertype METER_INDUSTRY]] and [[metertype METER_RESEARCH]] may start growing.
@@ -8466,6 +8694,9 @@ Opinions of Empires:
 
 OPINIONS_OF_OTHER_SPECIES
 Opinions of Other Species:
+
+SPECIES_OPINIONS
+Species Opinions:
 
 
 ##
@@ -10947,10 +11178,10 @@ DESC_VAR_TARGET
 target
 
 DESC_VAR_LOCAL_CANDIDATE
-local condition candidate
+candidate
 
 DESC_VAR_ROOT_CANDIDATE
-root condition candidate
+root candidate
 
 DESC_STAT_TYPE
 stat type
@@ -11126,6 +11357,18 @@ ID
 DESC_VAR_AGE
 age in turns
 
+DESC_VAR_TURNSSINCEFOCUSCHANGE
+turns since focus change
+
+DESC_VAR_TURNSSINCEANNEXATION
+turns since annexation
+
+DESC_VAR_TURNSSINCECOLONIZATION
+turns since colonization
+
+DESC_VAR_TURNSSINCELASTCONQUERED
+turns since being conquered
+
 DESC_VAR_PRODUCEDBYEMPIREID
 producer empire
 
@@ -11152,6 +11395,15 @@ next system id
 
 DESC_VAR_PREVIOUSSYSTEMID
 previous system id
+
+DESC_VAR_PREVIOUSTOFINALDESTINATIONID
+previous final destination id
+
+DESC_VAR_ARRIVALSTARLANEID
+arrival starlane id
+
+DESC_VAR_LASTTURNMOVEORDERED
+last turn ordered to move id
 
 DESC_VAR_NUMSHIPS
 number of ships
@@ -11194,6 +11446,30 @@ owner's top priority enqueued tech
 
 DESC_VAR_LASTTURNBATTLEHERE
 last turn a battle occurred here
+
+DESC_VAR_LASTTURNATTACKEDBYSHIP
+last turn attacked by ship
+
+DESC_VAR_LASTTURNCOLONIZED
+last turn colonized
+
+DESC_VAR_LASTTURNCONQUERED
+last turn conquered
+
+DESC_VAR_LASTTURNANNEXED
+last turn annexed
+
+DESC_VAR_ORDEREDGIVENTOEMPIRE
+ordered given to empire
+
+DESC_VAR_OWNERBEFORELASTCONQUERED
+owner before last conquered
+
+DESC_VAR_LASTINVADEDBYEMPIRE
+last invaded by empire
+
+DESC_VAR_LASTCOLONIZEDBYEMPIRE
+last colonized by empire
 
 DESC_VAR_JUMPSBETWEEN
 starlane jumps between systems containing objects with ids %1% and %2%
@@ -11332,6 +11608,12 @@ DESC_NONE_NOT
 
 DESC_NOOP
 (NoOp)
+
+DESC_EMPIRE_HAS_ADOPTED_POLICY
+''' that belongs to an empire that has adopted %1%'''
+
+DESC_EMPIRE_HAS_ADOPTED_POLICY_NOT
+''' that belongs to an empire that has not adopted %1%'''
 
 # %1% name of the empire this condition applies to.
 DESC_EMPIRE_AFFILIATION_SELF
@@ -11784,12 +12066,42 @@ DESC_WITHIN_STARLANE_JUMPS_NOT
 ''' that is not within %1% starlane jumps of any object%2%'''
 
 # %1% textual description of the far endpoint system the starlane connects to.
-DESC_CAN_ADD_STARLANE_CONNECTION
-''' that can have starlanes added connecting to all systems that contain objects%1%'''
+DESC_HAS_STARLANE_TO
+''' that has a starlane to the location of any object%1%'''
 
 # %1% textual description of the far endpoint system the starlane connects to.
-DESC_CAN_ADD_STARLANE_CONNECTION_NOT
-''' that can not have starlanes added connecting to all systems that contain objects%1%'''
+DESC_HAS_STARLANE_TO_NOT
+''' that does not have a starlane to the location of any object%1%'''
+
+# %1% textual description of the other endpoint system the starlane connects to.
+DESC_STARLANE_TO_WOULD_CROSS_EXISTING_LANE
+''' that would cross an existing starlane if adding a starlane between it and the location of any object %1%'''
+
+# %1% textual description of the other endpoint system the starlane connects to.
+DESC_STARLANE_TO_WOULD_CROSS_EXISTING_LANE_NOT
+''' that would not cross an existing starlane if adding a starlane between it and the location of any object %1%'''
+
+# %1% textual description of the other endpoint system the starlane connects to.
+# %2% textual description max dot product of normalized lane vectors to consider "close".
+DESC_STARLANE_TO_WOULD_BE_ANGULARLY_CLOSE
+''' to which a new starlane would be angularly close (dot product > %2%) to an existing starlane on either end, with the other end being at any object %1%'''
+
+# %1% textual description of the other endpoint system the starlane connects to.
+# %2% textual description max dot product of normalized lane vectors to consider "close".
+DESC_STARLANE_TO_WOULD_BE_ANGULARLY_CLOSE_NOT
+''' to which a new starlane would not be angularly close (dot product > %2%) to an existing starlane on either end, with the other end being at any object %1%'''
+
+# %1% textual description of the other endpoint objects(s) the starlane(s) connect(s) to.
+# %2% textual description max distance from a lane to consider "close".
+# %3% textual description of the object(s) that the lane would be close to
+DESC_STARLANE_TO_WOULD_BE_CLOSE
+''' to which a new starlane from an object that %1% would be close (distance < %2%) to an object %3%'''
+
+# %1% textual description of the other endpoint object(s) the starlane(s) connect(s) to.
+# %2% textual description max distance from a lane to consider "close".
+# %3% textual description of the object(s) that the lane would be close to
+DESC_STARLANE_TO_WOULD_BE_CLOSE_NOT
+''' to which a new starlane from an object that %1% would not be close (distance < %2%) to an object %3%'''
 
 # %1% textual description of the empire.
 DESC_EXPLORED_BY_EMPIRE
@@ -11852,6 +12164,12 @@ DESC_ORDERED_BOMBARDED
 # %1% textual description of the bombarding object.
 DESC_ORDERED_BOMBARDED_NOT
 ''' that is not being bombarded by an object %1%'''
+
+DESC_ORDERED_ANNEXED
+''' that is being annexed'''
+
+DESC_ORDERED_ANNEXED_NOT
+''' that is not being annexed'''
 
 # %1% content type description, eg. species, building, focus, tech
 # %2% name of specific scripted content, eg. Human, Imperial Palace, Industry Focus, The Physicsal Brain
@@ -12044,17 +12362,29 @@ DESC_MIN_NUMBER_OF
 DESC_MIN_NUMBER_OF_NOT
 ''' that is not one of %1% objects with the smallest value of%2% and%3%'''
 
-# %1% FIXME
-# %2% FIXME
-# %3% FIXME
+# %1% number of objects to match (upper limit)
+# %2% description of the sort key determined for each object
+# %3% description of the selection condition for potentially matched objects
 DESC_MODE_NUMBER_OF
-''' that is one of %1% objects with the most common value of%2% and%3%'''
+''' that is one of %1% objects with the most common value(s) of%2% and%3%'''
 
-# %1% FIXME
-# %2% FIXME
-# %3% FIXME
+# %1% number of objects to match (upper limit)
+# %2% description of the sort key determined for each object
+# %3% description of the selection condition for potentially matched objects
 DESC_MODE_NUMBER_OF_NOT
-''' that is not one of %1% objects with the most common value of%2% and%3%'''
+''' that is not one of %1% objects with the most common value(s) of%2% and%3%'''
+
+# %1% number of objects to match (upper limit)
+# %2% description of the sort key determined for each object
+# %3% description of the selection condition for potentially matched objects
+DESC_UNIQUE_OF
+''' that is one of %1% objects with distinct values of of%2% and%3%'''
+
+# %1% number of objects to match (upper limit)
+# %2% description of the sort key determined for each object
+# %3% description of the selection condition for potentially matched objects
+DESC_UNIQUE_OF_NOT
+''' that is not one of %1% objects with distinct values of%2% and%3%'''
 
 # %1% FIXME
 DESC_VALUE_TEST
@@ -12189,12 +12519,12 @@ Centralization
 
 PLC_CENTRALIZATION_DESC
 '''Boosts production output at the capital, regardless of the focus:
-• Increases [[metertype METER_TARGET_RESEARCH]] by [[value PLC_CENTRALIZATION_TARGET_RESEARCH_PERPOP]] per [[metertype METER_POPULATION]].
-• Increases [[metertype METER_TARGET_INDUSTRY]] by [[value PLC_CENTRALIZATION_TARGET_INDUSTRY_PERPOP]] per population.
+• Increases [[metertype METER_TARGET_RESEARCH]] by [[value PLC_CENTRALIZATION_TARGET_RESEARCH_PERPOP]] per [[metertype METER_POPULATION]], multiplied by how much stability is above [[value PLC_CENTRALIZATION_MIN_STABILITY]], up to a maximum at [[value PLC_CENTRALIZATION_MAX_STABILITY]] stability.
+• Increases [[metertype METER_TARGET_INDUSTRY]] by [[value PLC_CENTRALIZATION_TARGET_INDUSTRY_PERPOP]] per [[metertype METER_POPULATION]], multiplied by how much stability is above [[value PLC_CENTRALIZATION_MIN_STABILITY]], up to a maximum at [[value PLC_CENTRALIZATION_MAX_STABILITY]] stability.
 • Increases [[metertype METER_TARGET_CONSTRUCTION]] by [[value PLC_CENTRALIZATION_TARGET_CONSTRUCTION_FLAT]].
 The effect requires a stability of [[value PLC_CENTRALIZATION_MIN_STABILITY]].
 
-However, it also reduces [[metertype METER_SUPPLY]] range ([[value PLC_CENTRALIZATION_MAX_SUPPLY_FLAT]]) and [[metertype METER_STOCKPILE]] ([[value PLC_CENTRALIZATION_MAX_STOCKPILE_FLAT]]), and increases the [[metertype METER_INFLUENCE]] cost of the empire's colonies:
+However, it also reduces [[metertype METER_STOCKPILE]] ([[value PLC_CENTRALIZATION_MAX_STOCKPILE_FLAT]]), [[metertype METER_SUPPLY]] range ([[value PLC_CENTRALIZATION_MAX_SUPPLY_FLAT]]) on all colonies, and increases the [[metertype METER_INFLUENCE]] cost of the empire's colonies:
 • [[metertype METER_SUPPLY]] connected colonies get a penalization of [[value PLC_CENTRALIZATION_TARGET_INFLUENCE_PERJUMP]] per jump distance to the capital, capped at [[value PLC_CENTRALIZATION_TARGET_INFLUENCE_MAX]].
 • Colonies not [[metertype METER_SUPPLY]] connected to the capital gets the maximum penalization ([[value PLC_CENTRALIZATION_TARGET_INFLUENCE_MAX]]).
 Additionally, the cost of colonization ship parts is increased by 33%.
@@ -12259,7 +12589,8 @@ Marine Recruitment
 
 PLC_MARINE_RECRUITMENT_DESC
 '''• Reduces the cost of ground troop ship parts by 50%.
-• Increases planet troop regeneration rate by [[value PLC_MARINE_RECRUITMENT_TROOP_GROWTH_FLAT]].'''
+• Increases planet troop regeneration rate by [[value PLC_MARINE_RECRUITMENT_TROOP_GROWTH_FLAT]].
+• Removes the troop penalty on outposts.'''
 
 PLC_MARINE_RECRUITMENT_SHORT_DESC
 Reduces Ground Troop Cost
@@ -12320,8 +12651,8 @@ Environmentalism
 
 PLC_ENVIRONMENTALISM_DESC
 '''• Decreases [[metertype METER_CONSTRUCTION]] by [[value PLC_ENVIRONMENTALISM_TARGET_CONSTRUCTION_TERRAFORMED_FLAT]], [[metertype METER_TARGET_HAPPINESS]] by [[value PLC_ENVIRONMENTALISM_TARGET_HAPPINESS_FLAT]] and [[metertype METER_TARGET_INFLUENCE]] by [[value PLC_ENVIRONMENTALISM_TARGET_INFLUENCE_FLAT]] on planets that have been terraformed, or otherwise changed from their original environment.
-• Decreases [[metertype METER_TARGET_INDUSTRY]] by [[value PLC_ENVIRONMENTALISM_TARGET_INDUSTRY_FLAT]] and [[metertype METER_CONSTRUCTION]] by [[value PLC_ENVIRONMENTALISM_TARGET_CONSTRUCTION_FLAT]] on non-asteroids.
-• Boosts [[metertype METER_TARGET_HAPPINESS]] by [[value PLC_ENVIRONMENTALISM_TARGET_HAPPINESS_ORIGINAL_FLAT]], [[metertype METER_TARGET_INFLUENCE]] by [[value PLC_ENVIRONMENTALISM_TARGET_INFLUENCE_ORIGINAL_FLAT]], [[metertype METER_TARGET_RESEARCH]] by [[value PLC_ENVIRONMENTALISM_TARGET_RESEARCH_ORIGINAL_FLAT]] and [[metertype METER_STEALTH]] by [[value PLC_ENVIRONMENTALISM_STEALTH_ORIGINAL_FLAT]] on planets that are not asteroids or gas giants, have not been terraformed, contain no buildings and are not industry-focused.
+• Decreases [[metertype METER_TARGET_INDUSTRY]] by [[value PLC_ENVIRONMENTALISM_TARGET_INDUSTRY_FLAT]] and [[metertype METER_CONSTRUCTION]] by [[value PLC_ENVIRONMENTALISM_TARGET_CONSTRUCTION_FLAT]] on populated planets.
+• Boosts [[metertype METER_TARGET_HAPPINESS]] by [[value PLC_ENVIRONMENTALISM_TARGET_HAPPINESS_ORIGINAL_FLAT]], [[metertype METER_TARGET_INFLUENCE]] by [[value PLC_ENVIRONMENTALISM_TARGET_INFLUENCE_ORIGINAL_FLAT]], [[metertype METER_TARGET_RESEARCH]] by [[value PLC_ENVIRONMENTALISM_TARGET_RESEARCH_ORIGINAL_FLAT]] and [[metertype METER_STEALTH]] by [[value PLC_ENVIRONMENTALISM_STEALTH_ORIGINAL_FLAT]] on planets that have not been terraformed, contain no buildings and are not industry-focused.
 • Makes terraforming a planet 3x as expensive.'''
 
 PLC_ENVIRONMENTALISM_SHORT_DESC
@@ -12366,14 +12697,14 @@ PLC_CHECKPOINTS
 Border Checkpoints
 
 PLC_CHECKPOINTS_DESC
-'''Decreases [[metertype METER_STEALTH]] of foreign ships and planets in [[metertype METER_SUPPLY]] by up to [[value PLC_CHECKPOINTS_MAX_STEALTH_MALUS]]. Ships and planets are considered foreign if not owned by or allied to this empire. Unowned planets and monsters are also foreign.
+'''Decreases [[metertype METER_STEALTH]] of foreign ships in [[metertype METER_SUPPLY]] by up to [[value PLC_CHECKPOINTS_MAX_STEALTH_MALUS]].
 
 The decrease depends on the time this policy is adopted, decreasing [[metertype METER_STEALTH]] by 1 per turn up to [[value PLC_CHECKPOINTS_MAX_STEALTH_MALUS]].
 
-Reduces [[metertype METER_INFLUENCE]] generation ([[value PLC_CHECKPOINTS_TARGET_INFLUENCE_FLAT]]).'''
+Decreases [[metertype METER_TARGET_INFLUENCE]] by [[value PLC_CHECKPOINTS_TARGET_INFLUENCE_FLAT]] on populated planets owned by empire.'''
 
 PLC_CHECKPOINTS_SHORT_DESC
-Improves Detection / Hinders Supply
+Improves Detection / Costs Influence
 
 PLC_DIVERSITY
 Diversity
@@ -12540,18 +12871,28 @@ PLC_TERROR_SUPPRESSION
 Terror Suppression
 
 PLC_TERROR_SUPPRESSION_DESC
-'''• Increases populated planet [[metertype METER_TARGET_HAPPINESS]] by [[value PLC_TERROR_SUPPRESSION_TARGET_STABILITY_SCALE]] per ship in the system that is owned by the empire, is armed, and is crewed by the imperial capital planet's species.
-• Decreases those planets' [[metertype METER_REBEL_TROOPS]] by [[value PLC_TERROR_SUPPRESSION_REBEL_REDUCTION_SCALE]] per ship.
-• Makes those ships cost [[value PLC_TERROR_SUPPRESSION_SHIP_INFLUENCE_FLAT]] [[metertype METER_INFLUENCE]].'''
+'''• Increases an empire's populated planet [[metertype METER_TARGET_HAPPINESS]] by [[value PLC_TERROR_SUPPRESSION_TARGET_STABILITY_SCALE]] per ship in the system that is owned by the empire, is armed, is in a fleet set to initiate combat, and is crewed by the imperial capital planet's species.
+• Decreases own and enemy planets' [[metertype METER_REBEL_TROOPS]] by [[value PLC_TERROR_SUPPRESSION_REBEL_REDUCTION_SCALE]] per (armed, combat-initiating, capital species) ship.
+• Decreases enemy empires' populated (by a species other than the ships' empire's capital species) planet [[metertype METER_TARGET_HAPPINESS]] by [[value PLC_TERROR_SUPPRESSION_TARGET_STABILITY_SCALE]] per (armed, combat-initiating, capital species) ship.
+• Makes (armed, capital species crewed) ships cost [[value PLC_TERROR_SUPPRESSION_SHIP_INFLUENCE_FLAT]] [[metertype METER_INFLUENCE]] (regardless of whether set to initiate combat).'''
 
 PLC_TERROR_SUPPRESSION_SHORT_DESC
 Increases stability with armed ships
+
+PLC_INSURGENCY
+Insurgency
+
+PLC_INSURGENCY_DESC
+Decreases [[metertype METER_TARGET_HAPPINESS]] by [[value PLC_INSURGENCY_EFFECT]] on planets owned by enemies of and within the supply network of the empire that adopts this policy.
+
+PLC_INSURGENCY_SHORT_DESC
+Decreases enemy stability
 
 PLC_DREAM_RECURSION
 Dream Recursion
 
 PLC_DREAM_RECURSION_DESC
-'''Increases [[metertype METER_TARGET_HAPPINESS]] on populated planets by however much is needed to reach [[value PLC_INDOCTRINATION_STRENGTH_BASE]]. This limit is increased by [[value PLC_INDOCTRINATION_STRENGTH_PER_COLLECTIVE_NET]] for each [[buildingtype BLD_COLLECTIVE_NET]] controlled by the empire that has adopted this policy.
+'''If the empire has no [[RE_INFLUENCE]] debt (i.e. [[IP_STOCKPILE]] of at least zero), increases [[metertype METER_TARGET_HAPPINESS]] on populated planets by however much is needed to reach [[value PLC_INDOCTRINATION_STRENGTH_BASE]]. This target is increased by [[value PLC_INDOCTRINATION_STRENGTH_PER_COLLECTIVE_NET]] for each [[buildingtype BLD_COLLECTIVE_NET]] controlled by the empire that has adopted this policy.
 
 Reduces each planet's [[metertype METER_INFLUENCE]] by the square-root of the amount that [[metertype METER_TARGET_HAPPINESS]] is increased.'''
 
@@ -12582,7 +12923,7 @@ PLC_TRAFFIC_CONTROL
 Traffic Control
 
 PLC_TRAFFIC_CONTROL_DESC
-Increases [[metertype METER_SPEED]] of ships by 20 when they are within 50 uu of a controlled planet.
+Increases [[metertype METER_SPEED]] of non-enemy ships by 20 when they are within 50 uu of a controlled planet.
 
 PLC_TRAFFIC_CONTROL_SHORT_DESC
 Speeds ships near empire planets
@@ -12681,9 +13022,8 @@ PLC_AUGMENTATION
 Augmentation
 
 PLC_AUGMENTATION_DESC
-'''• Increases the [[metertype METER_TARGET_POPULATION]] on [[PE_HOSTILE]] planets by planet size: ([[SZ_TINY]] +2) ([[SZ_SMALL]] +4) ([[SZ_MEDIUM]] +6) ([[SZ_LARGE]] +8) ([[SZ_HUGE]] +10).
+'''• Sets the minimum [[metertype METER_TARGET_POPULATION]] on all habitable planets to planet size: ([[SZ_TINY]] = 1) ([[SZ_SMALL]] = 2) ([[SZ_MEDIUM]] = 3) ([[SZ_LARGE]] = 4) ([[SZ_HUGE]] = 5).
 • Increases max [[metertype METER_TROOPS]] on all planets by [[value CYBORG_MAX_TROOPS_PERPOP]] per [[metertype METER_POPULATION]].
-• Increases or decreases population growth, dependent on whether a planet's infrastructure is above or below [[value AUGMENTATION_FULL_GROWTH_INFRASTRUCTURE_REQUIREMENT]].
 
 Cyborgification produces a versatile fusion of the organic, inorganic and machine-based life that is capable of adapting rapidly to changing circumstances. Spontaneous generation of specialized organs, mechanisms, and environmental adaptation allows cyborgs to exist and thrive in nearly any environment.'''
 
@@ -12694,9 +13034,9 @@ PLC_ISOLATION
 Isolation
 
 PLC_ISOLATION_DESC
-'''• Increases stability on colonies that are further than [[value PLC_ISOLATION_THRESHOLD_DISTANCE]] uu from another populated planet.
-• Decreases stability on colonies that are closer than [[value PLC_ISOLATION_THRESHOLD_DISTANCE]] uu from another populated planet.
-• Increases stealth of colonies by [[value PLC_ISOLATION_STEALTH]].'''
+'''• Increases stability on colonies by up to [[value PLC_ISOLATION_MAX_STABILITY_MODIFIER]] that are further than [[value PLC_ISOLATION_THRESHOLD_DISTANCE]] uu from another populated planet.
+• Decreases stability on colonies by up to [[value PLC_ISOLATION_MAX_STABILITY_MODIFIER]] that are closer than [[value PLC_ISOLATION_THRESHOLD_DISTANCE]] uu from another populated planet.
+• Increases stealth of colonies and outposts by [[value PLC_ISOLATION_STEALTH]].'''
 
 PLC_ISOLATION_SHORT_DESC
 Boosts isolated planets
@@ -14106,7 +14446,7 @@ SHP_FIGHTERS_1_DESC
 
 A [[encyclopedia PC_FIGHTER_BAY]] can launch a number of fighters in each combat round. These fighters will then be both valid targets and able to attack ships and other fighters in subsequent combat rounds, but a single hit from any source will destroy a fighter. Unlike [[encyclopedia DAMAGE_TITLE]] inflicted by regular weapons, fighter damage ignores [[metertype METER_SHIELD]] on warships (they fire from within the shields).
 
-Piloting traits affect [[FT_HANGAR_2]], [[FT_HANGAR_3]], and [[FT_HANGAR_4]] fighters in the same way: bad piloting reduces damage by 6 per fighter; good piloting increases damage by 6, great piloting by 12, and ultimate piloting by 18 per fighter shot.
+Piloting traits affect [[FT_HANGAR_2]], [[FT_HANGAR_3]], and [[FT_HANGAR_4]] fighters in the same way: bad piloting reduces damage by [[value BAD_PILOT_FIGHTER_DAMAGE_BONUS]] per fighter; good piloting increases damage by [[value GOOD_PILOT_FIGHTER_DAMAGE_BONUS]], great piloting by [[value GREAT_PILOT_FIGHTER_DAMAGE_BONUS]], and ultimate piloting by [[value ULTIMATE_PILOT_FIGHTER_DAMAGE_BONUS]] per fighter shot.
 Piloting traits do not affect [[FT_HANGAR_1]] fighters.
 
 At the end of combat, carriers will collect any fighters that have survived. If a carrier is in [[metertype METER_SUPPLY]] immediately after movement is resolved, it will refill hangars to maximum.'''
@@ -14115,19 +14455,19 @@ SHP_FIGHTERS_2
 Fighters and Launch Bays 2
 
 SHP_FIGHTERS_2_DESC
-Upgrades the fighters of all carriers within [[metertype METER_SUPPLY]] to have laser weaponry. [[encyclopedia DAMAGE_TITLE]] from fighters in a [[shippart FT_HANGAR_2]] is increased by 12, [[shippart FT_HANGAR_3]] by 18, and [[shippart FT_HANGAR_4]] by 36. For [[shippart FT_HANGAR_1]] fighters the capacity as well as the launch rate of the [[shippart FT_BAY_1]] is increased by 1.
+Upgrades the fighters of all carriers within [[metertype METER_SUPPLY]] to have laser weaponry. [[encyclopedia DAMAGE_TITLE]] from fighters in a [[shippart FT_HANGAR_2]] is increased by [[value SHP_FIGHTERS_2_FT_HANGAR_2_DAMAGE_BONUS]], [[shippart FT_HANGAR_3]] by [[value SHP_FIGHTERS_2_FT_HANGAR_3_DAMAGE_BONUS]], and [[shippart FT_HANGAR_4]] by [[value SHP_FIGHTERS_2_FT_HANGAR_4_DAMAGE_BONUS]]. For [[shippart FT_HANGAR_1]] fighters the capacity is increased by 1 and the launch rate for the [[shippart FT_BAY_1]] is increased by 1.
 
 SHP_FIGHTERS_3
 Fighters and Launch Bays 3
 
 SHP_FIGHTERS_3_DESC
-Upgrades the fighters of all carriers within [[metertype METER_SUPPLY]] to have plasma weaponry. [[encyclopedia DAMAGE_TITLE]] from fighters in a [[shippart FT_HANGAR_2]] is increased by 12, [[shippart FT_HANGAR_3]] by 18, and [[shippart FT_HANGAR_4]] by 36. For [[shippart FT_HANGAR_1]] fighters the capacity as well as the launch rate of the [[shippart FT_BAY_1]] is increased by 1.
+Upgrades the fighters of all carriers within [[metertype METER_SUPPLY]] to have laser weaponry. [[encyclopedia DAMAGE_TITLE]] from fighters in a [[shippart FT_HANGAR_2]] is increased by [[value SHP_FIGHTERS_3_FT_HANGAR_2_DAMAGE_BONUS]], [[shippart FT_HANGAR_3]] by [[value SHP_FIGHTERS_3_FT_HANGAR_3_DAMAGE_BONUS]], and [[shippart FT_HANGAR_4]] by [[value SHP_FIGHTERS_3_FT_HANGAR_4_DAMAGE_BONUS]]. For [[shippart FT_HANGAR_1]] fighters the capacity is increased by 1 and the launch rate for the [[shippart FT_BAY_1]] is increased by 1.
 
 SHP_FIGHTERS_4
 Fighters and Launch Bays 4
 
 SHP_FIGHTERS_4_DESC
-Upgrades the fighters of all carriers within [[metertype METER_SUPPLY]] to have death ray weaponry. [[encyclopedia DAMAGE_TITLE]] from fighters in a [[shippart FT_HANGAR_2]] is increased by 12, [[shippart FT_HANGAR_3]] by 18, and [[shippart FT_HANGAR_4]] by 36. For [[shippart FT_HANGAR_1]] fighters the capacity as well as the launch rate of the [[shippart FT_BAY_1]] is increased by 1.
+Upgrades the fighters of all carriers within [[metertype METER_SUPPLY]] to have laser weaponry. [[encyclopedia DAMAGE_TITLE]] from fighters in a [[shippart FT_HANGAR_2]] is increased by [[value SHP_FIGHTERS_4_FT_HANGAR_2_DAMAGE_BONUS]], [[shippart FT_HANGAR_3]] by [[value SHP_FIGHTERS_4_FT_HANGAR_3_DAMAGE_BONUS]], and [[shippart FT_HANGAR_4]] by [[value SHP_FIGHTERS_4_FT_HANGAR_4_DAMAGE_BONUS]]. For [[shippart FT_HANGAR_1]] fighters the capacity is increased by 1 and the launch rate for the [[shippart FT_BAY_1]] is increased by 1.
 
 SHP_WEAPON_1_2
 Mass Driver 2
@@ -14139,7 +14479,9 @@ SHP_WEAPON_1_3
 Mass Driver 3
 
 SHP_WEAPON_1_3_DESC
-Upgrades [[shippart SR_WEAPON_1_1]] parts on all ships within [[metertype METER_SUPPLY]] (or after entering it later). The improved weapon part has shot damage of [[value SHP_WEAPON_1_3_UPGRADED_DAMAGE]].
+'''Upgrades [[shippart SR_WEAPON_1_1]] parts on all ships within [[metertype METER_SUPPLY]] (or after entering it later). The improved weapon part has shot damage of [[value SHP_WEAPON_1_3_UPGRADED_DAMAGE]].
+
+Also upgrades [[shippart SR_WEAPON_0_1]] parts on all ships within [[metertype METER_SUPPLY]] (or after entering it later). The improved weapon part fires [[value SHP_WEAPON_1_3_UPGRADE_SHOTS]] extra shots per bout.'''
 
 SHP_WEAPON_1_4
 Mass Driver 4
@@ -14163,7 +14505,9 @@ SHP_WEAPON_2_3
 Laser 3
 
 SHP_WEAPON_2_3_DESC
-Upgrades [[shippart SR_WEAPON_2_1]] parts on all ships within [[metertype METER_SUPPLY]] (or after entering it later). The improved weapon part has shot damage of [[value SHP_WEAPON_2_3_UPGRADED_DAMAGE]].
+'''Upgrades [[shippart SR_WEAPON_2_1]] parts on all ships within [[metertype METER_SUPPLY]] (or after entering it later). The improved weapon part has shot damage of [[value SHP_WEAPON_2_3_UPGRADED_DAMAGE]].
+
+Also upgrades [[shippart SR_WEAPON_0_1]] parts on all ships within [[metertype METER_SUPPLY]] (or after entering it later). The improved weapon part fires [[value SHP_WEAPON_2_3_UPGRADE_SHOTS]] extra shots per bout.'''
 
 SHP_WEAPON_2_4
 Laser 4
@@ -14187,7 +14531,9 @@ SHP_WEAPON_3_3
 Plasma Cannon 3
 
 SHP_WEAPON_3_3_DESC
-Upgrades [[shippart SR_WEAPON_3_1]] parts on all ships within [[metertype METER_SUPPLY]] (or after entering it later). The improved weapon part has shot damage of [[value SHP_WEAPON_3_3_UPGRADED_DAMAGE]].
+'''Upgrades [[shippart SR_WEAPON_3_1]] parts on all ships within [[metertype METER_SUPPLY]] (or after entering it later). The improved weapon part has shot damage of [[value SHP_WEAPON_3_3_UPGRADED_DAMAGE]].
+
+Also upgrades [[shippart SR_WEAPON_0_1]] parts on all ships within [[metertype METER_SUPPLY]] (or after entering it later). The improved weapon part fires [[value SHP_WEAPON_3_3_UPGRADE_SHOTS]] extra shots per bout.'''
 
 SHP_WEAPON_3_4
 Plasma Cannon 4
@@ -14211,7 +14557,9 @@ SHP_WEAPON_4_3
 Death Ray 3
 
 SHP_WEAPON_4_3_DESC
-Upgrades [[shippart SR_WEAPON_4_1]] parts on all ships within [[metertype METER_SUPPLY]] (or after entering it later). The improved weapon part has shot damage of [[value SHP_WEAPON_4_3_UPGRADED_DAMAGE]].
+'''Upgrades [[shippart SR_WEAPON_4_1]] parts on all ships within [[metertype METER_SUPPLY]] (or after entering it later). The improved weapon part has shot damage of [[value SHP_WEAPON_4_3_UPGRADED_DAMAGE]].
+
+Also upgrades [[shippart SR_WEAPON_0_1]] parts on all ships within [[metertype METER_SUPPLY]] (or after entering it later). The improved weapon part fires [[value SHP_WEAPON_4_3_UPGRADE_SHOTS]] extra shots per bout.'''
 
 SHP_WEAPON_4_4
 Death Ray 4
@@ -14433,7 +14781,7 @@ Improved Engine Couplings
 SHP_IMPROVED_ENGINE_COUPLINGS_DESC
 '''[[COLONY_BUILDING_TIME_DECREASE]]
 
-Better engine parts equate to better engines. Increases [[metertype METER_SPEED]] by 20.'''
+Better engine parts equate to better engines.'''
 
 SHP_N_DIMENSIONAL_ENGINE_MATRIX
 N-Dimensional Engine Matrix
@@ -14441,7 +14789,7 @@ N-Dimensional Engine Matrix
 SHP_N_DIMENSIONAL_ENGINE_MATRIX_DESC
 '''[[COLONY_BUILDING_TIME_DECREASE]]
 
-N-Dimensional subspace research resulted in a more efficient engine matrix. Increases [[metertype METER_SPEED]] by 40.'''
+N-Dimensional subspace research resulted in a more efficient engine matrix.'''
 
 SHP_SINGULARITY_ENGINE_CORE
 Singularity Engine Core
@@ -14449,7 +14797,7 @@ Singularity Engine Core
 SHP_SINGULARITY_ENGINE_CORE_DESC
 '''[[COLONY_BUILDING_TIME_DECREASE]]
 
-A smaller cousin of the [[buildingtype BLD_HYPER_DAM]] outfitted for ships, the Singularity Engine Core drastically boosts power generation. Increases [[metertype METER_SPEED]] by 80.'''
+A smaller cousin of the [[buildingtype BLD_HYPER_DAM]] outfitted for ships, the Singularity Engine Core drastically boosts power generation.'''
 
 SHP_DEUTERIUM_TANK
 Deuterium Fuel
@@ -14922,7 +15270,7 @@ BLD_LIGHTHOUSE
 Interstellar Lighthouse
 
 BLD_LIGHTHOUSE_DESC
-'''Decreases the [[metertype METER_STEALTH]] of all ships in the same system by [[value BLD_LIGHTHOUSE_IMMEDIATE_STEALTH_MALUS]]. On top of this the Interstellar Lighthouse decreases the [[metertype METER_STEALTH]] of all objects by the number of turns it operates, up to [[value BLD_LIGHTHOUSE_CATALOG_STEALTH_MALUS]]. It also increases the [[metertype METER_SPEED]] of friendly ships that start the turn within [[value BLD_LIGHTHOUSE_SPEEDUP_DISTANCE]] uu by [[value BLD_LIGHTHOUSE_SPEEDUP]] for that turn. [[BUILDING_AVAILABLE_ON_OUTPOSTS]] and may facilitate use of a [[buildingtype BLD_PLANET_DRIVE]].
+'''Decreases the [[metertype METER_STEALTH]] of all ships in the same system by [[value BLD_LIGHTHOUSE_IMMEDIATE_STEALTH_MALUS]]. On top of this the Interstellar Lighthouse decreases the [[metertype METER_STEALTH]] of all objects by the number of turns it operates, up to [[value BLD_LIGHTHOUSE_CATALOG_STEALTH_MALUS]]. It also increases the [[metertype METER_SPEED]] of non-enemy ships that start the turn within [[value BLD_LIGHTHOUSE_SPEEDUP_DISTANCE]] uu by [[value BLD_LIGHTHOUSE_SPEEDUP]] for that turn. [[BUILDING_AVAILABLE_ON_OUTPOSTS]] and may facilitate use of a [[buildingtype BLD_PLANET_DRIVE]].
 
 This building complex sends a complex pattern of EM pulses and particle streams to reveal the location of objects in a system. After a while, all usual objects in a system are registered in a catalog so unusual occurences can be identified more effectively.
 
@@ -15680,7 +16028,13 @@ Flak Cannon
 SR_WEAPON_0_1_DESC
 '''The flak cannon is inexpensive and effective at destroying fighters, but does not target ships or planets.
 
-Each flak cannon on a ship built by a species with the piloting trait will have an additional number of shots equal to 1 per piloting level (-1 shot for Bad Pilots).'''
+Each flak cannon on a ship built by a species with the piloting trait will have an additional number of shots equal to 1 per piloting level (-1 shot for Bad Pilots).
+Researching advanced weapon technologies also gives additional shots
+- [[tech SHP_WEAPON_1_3]] [[value SHP_WEAPON_1_3_UPGRADE_SHOTS]]
+- [[tech SHP_WEAPON_2_3]] [[value SHP_WEAPON_2_3_UPGRADE_SHOTS]]
+- [[tech SHP_WEAPON_3_3]] [[value SHP_WEAPON_3_3_UPGRADE_SHOTS]]
+- [[tech SHP_WEAPON_4_3]] [[value SHP_WEAPON_4_3_UPGRADE_SHOTS]]
+'''
 
 SR_WEAPON_1_1
 Mass Driver
@@ -15980,7 +16334,7 @@ FU_RAMSCOOP
 Ramscoop
 
 FU_RAMSCOOP_DESC
-Slowly generates [[metertype METER_FUEL]] while in systems by collecting hydrogen from the diffuse gas in space.
+Slowly generates [[metertype METER_FUEL]] while in systems by collecting hydrogen from the diffuse gas in space. Increases [[metertype METER_FUEL]] by [[value FU_RAMSCOOP_REFUEL]] if ship is stationary.
 
 ST_CLOAK_1
 Electromagnetic Damper
@@ -16401,7 +16755,7 @@ SH_LOGISTICS_FACILITATOR
 Logistics Facilitator
 
 SH_LOGISTICS_FACILITATOR_DESC
-'''This organizational flagship is designed to organize and manage mid-battle transfers of crewmen and other objects. It has seven external slots, two internal slots and a core slot. Its built-in fleet of stealthy freighters allows transfer of personnel and material during battle, enabling all friendly ships to effect partial repairs even on turns when combat has occured, and to restore [[metertype METER_STRUCTURE]] to double the current when out of combat, meaning ships with at least half strength will fully repair.
+'''This organizational flagship is designed to organize and manage mid-battle transfers of crewmen and other objects. It has six external slots, two internal slots and a core slot. Its built-in fleet of stealthy freighters allows transfer of personnel and material during battle, enabling all friendly ships to effect partial repairs even on turns when combat has occured, and to restore [[metertype METER_STRUCTURE]] to double the current when out of combat, meaning ships with at least half strength will fully repair.
 
 [[metertype METER_STEALTH]] is medium, [[metertype METER_DETECTION]] is medium and [[metertype METER_SPEED]] is average.
 
@@ -16504,9 +16858,9 @@ SH_ORGANIC_DESC
 '''A living hull with one external slot and one internal slot.
 Organic Growth: starts with 24 [[metertype METER_STRUCTURE]], but grows an additional 24 structure over 25 turns.
 
-[[metertype METER_STEALTH]] is medium, [[metertype METER_DETECTION]] is low and [[metertype METER_SPEED]] is high.
+[[metertype METER_STEALTH]] is medium, [[metertype METER_DETECTION]] is medium and [[metertype METER_SPEED]] is high.
 
-Cheap and versatile hull able to carry out many fleet roles but likely to become obsolete as technology develops. Low detection makes it poorly suited in a scouting role but it can make a capable warship.
+Cheap and versatile hull able to carry out many fleet roles. Fuel regeneration and high [[encyclopedia FUEL_EFFICIENCY_TITLE]] makes the organic hull well suited for deep space exploration.
 
 [[LIVING_HULL_AUTO_REGEN]]
 
@@ -16749,6 +17103,12 @@ Dragon Body
 
 SH_STRONG_MONSTER_BODY_DESC
 Large strong body with fearsome natural weapons and strong natural armor.
+
+SH_GUARD_ACIREMA_BODY
+Acirema Guard Hull
+
+SH_GUARD_ACIREMA_BODY_DESC
+[[SH_ENERGY_FRIGATE_DESC]]
 
 SH_GUARD_MONSTER_BODY
 Guard Hull
@@ -17325,6 +17685,15 @@ GASEOUS_DESC
 '''+	Live on Gas Giants
 +	Refuel on Gas Giants 0.2 per turn'''
 
+ABADDONI_STARTING_UNLOCKS_DESC
++	Starts with [[tech GRO_SUBTER_HAB]] researched
+
+FULVER_STARTING_UNLOCKS_DESC
++	Starts with [[tech PRO_GENERIC_SUPPLIES]] researched
+
+SLY_STARTING_UNLOCKS_DESC
++	Starts with [[policy PLC_CONFEDERATION]] unlocked
+
 EXTREMELY_BAD_POPULATION_DESC
 −−−	Extremely Bad [[metertype METER_POPULATION]]: 25%
 
@@ -17897,11 +18266,6 @@ NATIVE_PLANETARY_DEFENSE_LABEL
 # %2% FIXME
 NATIVE_PLANETARY_SHIELDS_LABEL
 %2% Native Planetary Shields
-
-# %1% FIXME
-# %2% FIXME
-NATIVE_PLANETARY_TROOPS_LABEL
-%2% Native Planetary Troops
 
 VERY_BRIGHT_STAR
 Very bright star

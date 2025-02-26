@@ -6,159 +6,15 @@
 #include "../Empire/EmpireManager.h"
 #include "../Empire/Supply.h"
 #include "../Empire/Diplomacy.h"
-#include "../universe/Universe.h"
 
 #include "GameRules.h"
 
 #include "Serialize.ipp"
 #include <boost/serialization/array.hpp>
 #include <boost/serialization/version.hpp>
-#include <boost/uuid/random_generator.hpp>
 
 
 template <typename Archive>
-void ResearchQueue::Element::serialize(Archive& ar, const unsigned int version)
-{
-    ar  & BOOST_SERIALIZATION_NVP(name)
-        & BOOST_SERIALIZATION_NVP(empire_id)
-        & BOOST_SERIALIZATION_NVP(allocated_rp)
-        & BOOST_SERIALIZATION_NVP(turns_left)
-        & BOOST_SERIALIZATION_NVP(paused);
-}
-
-template void ResearchQueue::Element::serialize<freeorion_bin_oarchive>(freeorion_bin_oarchive&, const unsigned int);
-template void ResearchQueue::Element::serialize<freeorion_bin_iarchive>(freeorion_bin_iarchive&, const unsigned int);
-template void ResearchQueue::Element::serialize<freeorion_xml_oarchive>(freeorion_xml_oarchive&, const unsigned int);
-template void ResearchQueue::Element::serialize<freeorion_xml_iarchive>(freeorion_xml_iarchive&, const unsigned int);
-
-template <typename Archive>
-void ResearchQueue::serialize(Archive& ar, const unsigned int version)
-{
-    ar  & BOOST_SERIALIZATION_NVP(m_queue)
-        & BOOST_SERIALIZATION_NVP(m_projects_in_progress)
-        & BOOST_SERIALIZATION_NVP(m_total_RPs_spent)
-        & BOOST_SERIALIZATION_NVP(m_empire_id);
-}
-
-template void ResearchQueue::serialize<freeorion_bin_oarchive>(freeorion_bin_oarchive&, const unsigned int);
-template void ResearchQueue::serialize<freeorion_bin_iarchive>(freeorion_bin_iarchive&, const unsigned int);
-template void ResearchQueue::serialize<freeorion_xml_oarchive>(freeorion_xml_oarchive&, const unsigned int);
-template void ResearchQueue::serialize<freeorion_xml_iarchive>(freeorion_xml_iarchive&, const unsigned int);
-
-template <typename Archive>
-void ProductionQueue::ProductionItem::serialize(Archive& ar, const unsigned int version)
-{
-    ar  & BOOST_SERIALIZATION_NVP(build_type)
-        & BOOST_SERIALIZATION_NVP(name)
-        & BOOST_SERIALIZATION_NVP(design_id);
-}
-
-template void ProductionQueue::ProductionItem::serialize<freeorion_bin_oarchive>(freeorion_bin_oarchive&, const unsigned int);
-template void ProductionQueue::ProductionItem::serialize<freeorion_bin_iarchive>(freeorion_bin_iarchive&, const unsigned int);
-template void ProductionQueue::ProductionItem::serialize<freeorion_xml_oarchive>(freeorion_xml_oarchive&, const unsigned int);
-template void ProductionQueue::ProductionItem::serialize<freeorion_xml_iarchive>(freeorion_xml_iarchive&, const unsigned int);
-
-template <typename Archive>
-void ProductionQueue::Element::serialize(Archive& ar, const unsigned int version)
-{
-    ar  & BOOST_SERIALIZATION_NVP(item)
-        & BOOST_SERIALIZATION_NVP(empire_id)
-        & BOOST_SERIALIZATION_NVP(ordered)
-        & BOOST_SERIALIZATION_NVP(remaining)
-        & BOOST_SERIALIZATION_NVP(blocksize)
-        & BOOST_SERIALIZATION_NVP(location)
-        & BOOST_SERIALIZATION_NVP(allocated_pp)
-        & BOOST_SERIALIZATION_NVP(progress)
-        & BOOST_SERIALIZATION_NVP(progress_memory)
-        & BOOST_SERIALIZATION_NVP(blocksize_memory)
-        & BOOST_SERIALIZATION_NVP(turns_left_to_next_item)
-        & BOOST_SERIALIZATION_NVP(turns_left_to_completion)
-        & BOOST_SERIALIZATION_NVP(rally_point_id)
-        & BOOST_SERIALIZATION_NVP(paused)
-        & BOOST_SERIALIZATION_NVP(allowed_imperial_stockpile_use);
-
-    if (Archive::is_loading::value && version < 3) {
-        to_be_removed = false;
-    } else {
-        ar  & BOOST_SERIALIZATION_NVP(to_be_removed);
-    }
-
-    if constexpr (Archive::is_saving::value) {
-        // Serialization of uuid as a primitive doesn't work as expected from
-        // the documentation.  This workaround instead serializes a string
-        // representation.
-        auto string_uuid = boost::uuids::to_string(uuid);
-        ar & BOOST_SERIALIZATION_NVP(string_uuid);
-
-    } else if (Archive::is_loading::value && version < 2) {
-        // assign a random ID to this element so that future-issued orders can refer to it
-        uuid = boost::uuids::random_generator()();
-
-    } else {
-        // convert string back into UUID
-        std::string string_uuid;
-        ar & BOOST_SERIALIZATION_NVP(string_uuid);
-
-        try {
-            uuid = boost::lexical_cast<boost::uuids::uuid>(string_uuid);
-        } catch (const boost::bad_lexical_cast&) {
-            uuid = boost::uuids::random_generator()();
-        }
-    }
-}
-
-BOOST_CLASS_VERSION(ProductionQueue::Element, 3)
-
-template void ProductionQueue::Element::serialize<freeorion_bin_oarchive>(freeorion_bin_oarchive&, const unsigned int);
-template void ProductionQueue::Element::serialize<freeorion_bin_iarchive>(freeorion_bin_iarchive&, const unsigned int);
-template void ProductionQueue::Element::serialize<freeorion_xml_oarchive>(freeorion_xml_oarchive&, const unsigned int);
-template void ProductionQueue::Element::serialize<freeorion_xml_iarchive>(freeorion_xml_iarchive&, const unsigned int);
-
-template <typename Archive>
-void ProductionQueue::serialize(Archive& ar, const unsigned int version)
-{
-    ar  & BOOST_SERIALIZATION_NVP(m_queue)
-        & BOOST_SERIALIZATION_NVP(m_projects_in_progress)
-        & BOOST_SERIALIZATION_NVP(m_object_group_allocated_pp)
-        & BOOST_SERIALIZATION_NVP(m_object_group_allocated_stockpile_pp)
-        & BOOST_SERIALIZATION_NVP(m_expected_new_stockpile_amount)
-        & BOOST_SERIALIZATION_NVP(m_empire_id);
-}
-
-template void ProductionQueue::serialize<freeorion_bin_oarchive>(freeorion_bin_oarchive&, const unsigned int);
-template void ProductionQueue::serialize<freeorion_bin_iarchive>(freeorion_bin_iarchive&, const unsigned int);
-template void ProductionQueue::serialize<freeorion_xml_oarchive>(freeorion_xml_oarchive&, const unsigned int);
-template void ProductionQueue::serialize<freeorion_xml_iarchive>(freeorion_xml_iarchive&, const unsigned int);
-
-template <typename Archive>
-void InfluenceQueue::Element::serialize(Archive& ar, const unsigned int version)
-{
-    ar  & BOOST_SERIALIZATION_NVP(name)
-        & BOOST_SERIALIZATION_NVP(empire_id)
-        & BOOST_SERIALIZATION_NVP(allocated_ip)
-        & BOOST_SERIALIZATION_NVP(paused);
-}
-
-template void InfluenceQueue::Element::serialize<freeorion_bin_oarchive>(freeorion_bin_oarchive&, const unsigned int);
-template void InfluenceQueue::Element::serialize<freeorion_bin_iarchive>(freeorion_bin_iarchive&, const unsigned int);
-template void InfluenceQueue::Element::serialize<freeorion_xml_oarchive>(freeorion_xml_oarchive&, const unsigned int);
-template void InfluenceQueue::Element::serialize<freeorion_xml_iarchive>(freeorion_xml_iarchive&, const unsigned int);
-
-template <class Archive>
-void InfluenceQueue::serialize(Archive& ar, const unsigned int version)
-{
-    ar  & BOOST_SERIALIZATION_NVP(m_queue)
-        & BOOST_SERIALIZATION_NVP(m_projects_in_progress)
-        & BOOST_SERIALIZATION_NVP(m_total_IPs_spent)
-        & BOOST_SERIALIZATION_NVP(m_empire_id);
-}
-
-template void InfluenceQueue::serialize<freeorion_bin_oarchive>(freeorion_bin_oarchive&, const unsigned int);
-template void InfluenceQueue::serialize<freeorion_bin_iarchive>(freeorion_bin_iarchive&, const unsigned int);
-template void InfluenceQueue::serialize<freeorion_xml_oarchive>(freeorion_xml_oarchive&, const unsigned int);
-template void InfluenceQueue::serialize<freeorion_xml_iarchive>(freeorion_xml_iarchive&, const unsigned int);
-
-template <class Archive>
 void Empire::PolicyAdoptionInfo::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_NVP(adoption_turn)
@@ -172,7 +28,7 @@ template void Empire::PolicyAdoptionInfo::serialize<freeorion_xml_oarchive>(free
 template void Empire::PolicyAdoptionInfo::serialize<freeorion_xml_iarchive>(freeorion_xml_iarchive&, const unsigned int);
 
 
-template <class Archive>
+template <typename Archive>
 void Empire::serialize(Archive& ar, const unsigned int version)
 {
     ar  & BOOST_SERIALIZATION_NVP(m_id)
@@ -182,6 +38,8 @@ void Empire::serialize(Archive& ar, const unsigned int version)
     ar  & BOOST_SERIALIZATION_NVP(m_capital_id)
         & BOOST_SERIALIZATION_NVP(m_source_id)
         & BOOST_SERIALIZATION_NVP(m_eliminated);
+
+
     if (Archive::is_loading::value && version < 13) {
         std::set<std::string> victories;
         ar  & boost::serialization::make_nvp("m_victories", victories);
@@ -192,23 +50,9 @@ void Empire::serialize(Archive& ar, const unsigned int version)
     }
 
 
-    auto encoding_empire = GlobalSerializationEncodingForEmpire();
-    bool visible =
-        (ALL_EMPIRES == encoding_empire) ||
-        (m_id == encoding_empire); // TODO: GameRule for all empire info known to other empires
-    bool allied_visible = visible;
-    if constexpr (Archive::is_saving::value)
-        allied_visible = allied_visible || Empires().GetDiplomaticStatus(m_id, GlobalSerializationEncodingForEmpire()) ==
-            DiplomaticStatus::DIPLO_ALLIED; // TODO: pass in diplo status map?
-
-    TraceLogger() << "serializing empire " << m_id << ": " << m_name;
-    TraceLogger() << "encoding empire: " << encoding_empire;
-    if constexpr (Archive::is_loading::value) {
-        TraceLogger() << std::string(visible ? "visible" : "NOT visible");
-    } else {
-        TraceLogger() << std::string(visible ? "visible" : "NOT visible") << "  /  "
-                      << std::string(allied_visible ? "allied visible" : "NOT allied visible");
-    }
+    const auto encoding_empire = GlobalSerializationEncodingForEmpire();
+    TraceLogger() << "serializing empire " << m_id << ": " << m_name
+                  << " for encoding empire: " << encoding_empire;
 
     if (Archive::is_loading::value && version < 11) {
         std::map<std::string, int> techs;
@@ -220,8 +64,12 @@ void Empire::serialize(Archive& ar, const unsigned int version)
         ar  & boost::serialization::make_nvp("m_techs", techs);
         m_techs.insert(boost::container::ordered_unique_range, techs.begin(), techs.end());
 
+    } else if constexpr (Archive::is_loading::value) {
+        ar  & boost::serialization::make_nvp("m_techs", m_techs);
+
     } else {
-        ar  & BOOST_SERIALIZATION_NVP(m_techs);
+        const auto& techs_to_serialize = GetTechsToSerialize(encoding_empire);
+        ar  & boost::serialization::make_nvp("m_techs", techs_to_serialize);
     }
 
     if (Archive::is_loading::value && version < 10) {
@@ -241,13 +89,25 @@ void Empire::serialize(Archive& ar, const unsigned int version)
         m_available_policies.clear();
         m_available_policies.insert(available_policies.begin(), available_policies.end());
 
-    } else {
+    } else if constexpr (Archive::is_loading::value) {
         ar  & BOOST_SERIALIZATION_NVP(m_adopted_policies)
             & BOOST_SERIALIZATION_NVP(m_initial_adopted_policies)
             & BOOST_SERIALIZATION_NVP(m_available_policies);
+    } else {
+        const auto& adopted_to_serialize = GetAdoptedPoliciesToSerialize(encoding_empire);
+        const auto& initial_to_serialize = GetInitialPoliciesToSerialize(encoding_empire);
+        const auto& available_to_serialize = GetAvailablePoliciesToSerialize(encoding_empire);
+        ar  & boost::serialization::make_nvp("m_adopted_policies", adopted_to_serialize)
+            & boost::serialization::make_nvp("m_initial_adopted_policies", initial_to_serialize)
+            & boost::serialization::make_nvp("m_available_policies", available_to_serialize);
     }
 
-    ar  & BOOST_SERIALIZATION_NVP(m_policy_adoption_total_duration);
+    if constexpr (Archive::is_loading::value) {
+        ar  & BOOST_SERIALIZATION_NVP(m_policy_adoption_total_duration);
+    } else {
+        const auto& adopted_durations_to_serialize = GetAdoptionTotalDurationsToSerialize(encoding_empire);
+        ar  & boost::serialization::make_nvp("m_policy_adoption_total_duration", adopted_durations_to_serialize);
+    }
 
     if (Archive::is_loading::value && version < 7) {
         const auto* app = IApp::GetApp();
@@ -258,8 +118,13 @@ void Empire::serialize(Archive& ar, const unsigned int version)
             m_policy_adoption_current_duration[policy_name] =
                 app ? (current_turn - adoption_info.adoption_turn) : 0;
         }
-    } else {
+
+    } else if constexpr (Archive::is_loading::value) {
         ar  & BOOST_SERIALIZATION_NVP(m_policy_adoption_current_duration);
+
+    } else {
+        const auto& current_durations_to_serialize = GetAdoptionCurrentDurationsToSerialize(encoding_empire);
+        ar  & boost::serialization::make_nvp("m_policy_adoption_current_duration", current_durations_to_serialize);
     }
 
     if (Archive::is_loading::value && version < 11) {
@@ -277,51 +142,54 @@ void Empire::serialize(Archive& ar, const unsigned int version)
         ar  & BOOST_SERIALIZATION_NVP(m_meters);
     }
 
-    if (Archive::is_saving::value && !allied_visible) {
-        // don't send what other empires building and researching
-        // and which building and ship parts are available to them
-        ResearchQueue empty_research_queue(m_id);
-        decltype(this->m_research_progress) empty_research_progress;
-        ProductionQueue empty_production_queue(m_id);
-        decltype(this->m_available_building_types) empty_string_set;
-        static_assert(std::is_same_v<decltype(empty_string_set), decltype(this->m_available_ship_parts)>);
-        static_assert(std::is_same_v<decltype(empty_string_set), decltype(this->m_available_ship_hulls)>);
-        InfluenceQueue empty_influence_queue(m_id);
-
-        ar  & boost::serialization::make_nvp("m_research_queue", empty_research_queue)
-            & boost::serialization::make_nvp("m_research_progress", empty_research_progress)
-            & boost::serialization::make_nvp("m_production_queue", empty_production_queue)
-            & boost::serialization::make_nvp("m_influence_queue", empty_influence_queue)
-            & boost::serialization::make_nvp("m_available_building_types", empty_string_set)
-            & boost::serialization::make_nvp("m_available_part_types", empty_string_set)
-            & boost::serialization::make_nvp("m_available_hull_types", empty_string_set);
-    } else {
-        // processing all data on deserialization, saving to savegame,
-        // or sending data to the current empire itself
+    if constexpr (Archive::is_loading::value) {
+        // loading
         ar  & BOOST_SERIALIZATION_NVP(m_research_queue)
             & BOOST_SERIALIZATION_NVP(m_research_progress)
             & BOOST_SERIALIZATION_NVP(m_production_queue)
             & BOOST_SERIALIZATION_NVP(m_influence_queue);
 
-        if (Archive::is_loading::value && version < 13) {
+        if (version < 13) {
             std::set<std::string> buf;
             ar  & boost::serialization::make_nvp("m_available_building_types", buf);
             m_available_building_types.insert(boost::container::ordered_unique_range, buf.begin(), buf.end());
+            buf.clear();
             ar  & boost::serialization::make_nvp("m_available_part_types", buf);
             m_available_ship_parts.insert(boost::container::ordered_unique_range, buf.begin(), buf.end());
+            buf.clear();
             ar  & boost::serialization::make_nvp("m_available_hull_types", buf);
             m_available_ship_hulls.insert(boost::container::ordered_unique_range, buf.begin(), buf.end());
 
         } else {
-            ar  & BOOST_SERIALIZATION_NVP(m_available_building_types)
-                & BOOST_SERIALIZATION_NVP(m_available_ship_parts)
-                & BOOST_SERIALIZATION_NVP(m_available_ship_hulls);
+            ar  & boost::serialization::make_nvp("m_available_building_types", m_available_building_types)
+                & boost::serialization::make_nvp("m_available_part_types", m_available_ship_parts)
+                & boost::serialization::make_nvp("m_available_hull_types", m_available_ship_hulls);
         }
+
+    } else {
+        const auto& research_queue = GetResearchQueueToSerialize(encoding_empire);
+        const auto& research_progress = GetResearchProgressToSerialize(encoding_empire);
+        const auto& prod_queue = GetProductionQueueToSerialize(encoding_empire);
+        const auto& influence_queue = GetInfluenceQueueToSerialize(encoding_empire);
+        const auto& buildings = GetAvailableBuildingsToSerialize(encoding_empire);
+        const auto& parts = GetAvailablePartsToSerialize(encoding_empire);
+        const auto& hulls = GetAvailableHullsToSerialize(encoding_empire);
+
+        ar  & boost::serialization::make_nvp("m_research_queue", research_queue)
+            & boost::serialization::make_nvp("m_research_progress", research_progress)
+            & boost::serialization::make_nvp("m_production_queue", prod_queue)
+            & boost::serialization::make_nvp("m_influence_queue", influence_queue)
+            & boost::serialization::make_nvp("m_available_building_types", buildings)
+            & boost::serialization::make_nvp("m_available_part_types", parts)
+            & boost::serialization::make_nvp("m_available_hull_types", hulls);
     }
 
     ar  & BOOST_SERIALIZATION_NVP(m_supply_system_ranges);
     ar  & BOOST_SERIALIZATION_NVP(m_supply_unobstructed_systems);
     ar  & BOOST_SERIALIZATION_NVP(m_preserved_system_exit_lanes);
+
+
+    const bool visible = (ALL_EMPIRES == encoding_empire) || (m_id == encoding_empire);
 
     if (visible) {
         try {
@@ -395,6 +263,7 @@ void Empire::serialize(Archive& ar, const unsigned int version)
         }
     }
 
+
     ar  & BOOST_SERIALIZATION_NVP(m_authenticated);
     ar  & BOOST_SERIALIZATION_NVP(m_ready);
     ar  & BOOST_SERIALIZATION_NVP(m_auto_turn_count);
@@ -404,7 +273,6 @@ void Empire::serialize(Archive& ar, const unsigned int version)
     } else {
         ar  & BOOST_SERIALIZATION_NVP(m_last_turn_received);
     }
-
 }
 
 BOOST_CLASS_VERSION(Empire, 13)
@@ -416,7 +284,7 @@ template void Empire::serialize<freeorion_xml_iarchive>(freeorion_xml_iarchive&,
 
 
 namespace {
-    std::pair<int, int> DiploKey(int id1, int ind2)
+    constexpr auto DiploKey(int id1, int ind2) noexcept
     { return std::pair(std::max(id1, ind2), std::min(id1, ind2)); }
 }
 
@@ -444,7 +312,22 @@ void serialize(Archive& ar, EmpireManager& em, unsigned int const version)
     } else if (Archive::is_loading::value && version < 2) {
         ar  & make_nvp("m_empire_map", em.m_empire_map);
         TraceLogger() << "EmpireManager serialized " << em.m_empire_map.size() << " empires";
-        ar  & make_nvp("m_empire_diplomatic_statuses", em.m_empire_diplomatic_statuses);
+
+        std::map<std::pair<int, int>, DiplomaticStatus> diplo_statuses;
+        ar  & make_nvp("m_empire_diplomatic_statuses", diplo_statuses);
+        em.m_empire_diplomatic_statuses.clear();
+        for (const auto& ids_status : diplo_statuses)
+            em.m_empire_diplomatic_statuses.emplace(ids_status);
+
+    } else if (Archive::is_loading::value && version < 3) {
+        std::map<std::pair<int, int>, DiplomaticStatus> diplo_statuses;
+        ar  & make_nvp("m_empire_diplomatic_statuses", diplo_statuses);
+        em.m_empire_diplomatic_statuses.clear();
+        for (const auto& ids_status : diplo_statuses)
+            em.m_empire_diplomatic_statuses.emplace(ids_status);
+
+        ar  & make_nvp("m_empire_map", em.m_empire_map);
+        TraceLogger() << "EmpireManager serialized " << em.m_empire_map.size() << " empires";
 
     } else {
         ar  & make_nvp("m_empire_diplomatic_statuses", em.m_empire_diplomatic_statuses);
@@ -454,11 +337,10 @@ void serialize(Archive& ar, EmpireManager& em, unsigned int const version)
     ar  & BOOST_SERIALIZATION_NVP(messages);
 
     if constexpr (Archive::is_loading::value) {
-        for (auto& [empire_id, empire_ptr] : em.m_empire_map) {
+        for (const auto& [empire_id, empire_ptr] : em.m_empire_map) {
             em.m_const_empire_map.emplace(empire_id, empire_ptr);
-            em.m_empire_ids.push_back(empire_id);
+            em.m_empire_ids.insert(empire_id);
         }
-        std::sort(em.m_empire_ids.begin(), em.m_empire_ids.end());
 
         em.RefreshCapitalIDs();
 
@@ -466,33 +348,31 @@ void serialize(Archive& ar, EmpireManager& em, unsigned int const version)
 
         // erase invalid empire diplomatic statuses
         std::vector<std::pair<int, int>> to_erase;
-        for (auto& [ids, diplo_status] : em.m_empire_diplomatic_statuses) {
-            (void)diplo_status; // quiet unused warning
-            const auto& [e1, e2] = ids;
+        to_erase.reserve(em.m_empire_diplomatic_statuses.size());
+        for (const auto &[e1, e2] : em.m_empire_diplomatic_statuses | range_keys) {
             if (!em.m_empire_map.contains(e1) || !em.m_empire_map.contains(e2)) {
                 to_erase.emplace_back(e1, e2);
                 ErrorLogger() << "Erased invalid diplomatic status between empires " << e1 << " and " << e2;
             }
         }
-        for (auto p : to_erase)
+        for (const auto& p : to_erase)
             em.m_empire_diplomatic_statuses.erase(p);
 
         // add missing empire diplomatic statuses
-        for (const auto& [e1_id, e1_ptr] : em.m_empire_map) {
-            (void)e1_ptr; // quiet warning
-            for (const auto& [e2_id, e2_ptr] : em.m_empire_map) {
-                (void)e2_ptr; // quiet warning
-                if (e1_id >= e2_id)
-                    continue;
+        for (const auto e1_id : em.m_empire_map | range_keys) {
+            const auto e1_id_lower = [e1_id](auto e2_id) { return e1_id < e2_id; };
+            for (const auto e2_id : em.m_empire_map | range_keys | range_filter(e1_id_lower)) {
                 auto dk = DiploKey(e1_id, e2_id);
-                if (!em.m_empire_diplomatic_statuses.contains(dk)) {
-                    em.m_empire_diplomatic_statuses[dk] = DiplomaticStatus::DIPLO_WAR;
+                const auto inserted_missing_status = em.m_empire_diplomatic_statuses.try_emplace(
+                    dk, DiplomaticStatus::DIPLO_WAR).second;
+                if (inserted_missing_status)
                     ErrorLogger() << "Added missing diplomatic status (default WAR) between empires "
                                   << e1_id << " and " << e2_id;
-                }
             }
         }
     }
+
+    DebugLogger() << "EmpireManager takes at least: " << em.SizeInMemory()/1024 << " kB";
 }
 
 template void serialize<freeorion_bin_oarchive>(freeorion_bin_oarchive&, EmpireManager&, unsigned int const);

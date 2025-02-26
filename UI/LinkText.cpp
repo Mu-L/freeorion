@@ -117,20 +117,19 @@ namespace {
  *  Given tag content (i.e. the stringtable content for the tag name) gets added as explanation.
  *  If the tag content is empty or @p add_explanation is true,
  *  the value ref description gets added as explanation instead. */
-std::string ValueRefLinkText(const std::string& text, const bool add_explanation) {
+std::string ValueRefLinkText(std::string text, const bool add_explanation) {
     static const std::string FOCS_VALUE_TAG_CLOSE{std::string{"</"}.append(VarText::FOCS_VALUE_TAG).append(">")};
     if (!boost::contains(text, FOCS_VALUE_TAG_CLOSE))
         return text;
 
-    std::string retval(text);
-    auto text_it = retval.begin();
+    auto text_it = text.begin();
     xpr::smatch match;
     const xpr::sregex FOCS_VALUE_SEARCH =
         (std::string{"<"}.append(VarText::FOCS_VALUE_TAG)) >> xpr::_s >> (xpr::s1 = REGEX_NON_BRACKET) >> ">" >>
         (xpr::s2 = REGEX_NON_BRACKET) >> (std::string{"</"}.append(VarText::FOCS_VALUE_TAG).append(">"));
 
     while (true) {
-        if (!xpr::regex_search(text_it, retval.end(), match, FOCS_VALUE_SEARCH, xpr::regex_constants::match_default))
+        if (!xpr::regex_search(text_it, text.end(), match, FOCS_VALUE_SEARCH, xpr::regex_constants::match_default))
             break;
 
         std::string value_ref_name{match[1]};
@@ -147,12 +146,12 @@ std::string ValueRefLinkText(const std::string& text, const bool add_explanation
                                .append(value_ref_name).append(">").append(value_str).append(explanation_str)
                                .append("</").append(VarText::FOCS_VALUE_TAG).append(">");
 
-        retval.replace(text_it + match.position(), text_it + match.position() + match.length(), resolved_tooltip);
+        text.replace(text_it + match.position(), text_it + match.position() + match.length(), resolved_tooltip);
 
-        text_it = retval.end() - match.suffix().length();
+        text_it = text.end() - match.suffix().length();
     }
 
-    return retval;
+    return text;
 }
 
 ///////////////////////////////////////
@@ -263,9 +262,10 @@ namespace {
         GG::Clr color = ClientUI::DefaultLinkColor();
         // get object indicated by object_id, and then get object's owner, if any
         int object_id = CastStringToInt(object_id_str);
-        auto object = Objects().get(object_id);
+        const auto& context = IApp::GetApp()->GetContext();
+        auto object = context.ContextObjects().get(object_id);
         if (object && !object->Unowned())
-            if (auto empire = Empires().GetEmpire(object->Owner()))
+            if (auto empire = context.GetEmpire(object->Owner()))
                 color = empire->Color();
         return GG::RgbaTag(color).append(content).append("</rgba>");
     }
@@ -451,18 +451,18 @@ void TextLinker::FindLinks() {
     for (const auto& curr_line : GetLineData()) {
         for (const auto& curr_char : curr_line.char_data) {
             for (const auto& tag : curr_char.tags) {
-                if (!is_link_tag(tag->tag_name))
+                if (!is_link_tag(tag.tag_name))
                     continue;
 
-                link.type = tag->tag_name;
-                if (tag->close_tag) {
+                link.type = tag.tag_name;
+                if (tag.IsCloseTag()) {
                     link.text_posn.second = Value(curr_char.string_index);
                     m_links.emplace_back(std::move(link));
                     link = Link();
                 } else {
-                    if (!tag->params.empty()) {
-                        if (tag->tag_name == TextLinker::BROWSE_PATH_TAG) {
-                            auto all_param_str(AllParamsAsString(tag->params));
+                    if (!tag.params.empty()) {
+                        if (tag.tag_name == TextLinker::BROWSE_PATH_TAG) {
+                            auto all_param_str(AllParamsAsString(tag.params));
                             link.data = ResolveNestedPathTypes(all_param_str);
                             // BROWSE_PATH_TAG requires a PathType within param
                             if (link.data == all_param_str) {
@@ -471,14 +471,14 @@ void TextLinker::FindLinks() {
                                 link.data = PathTypeToString(PathType::PATH_INVALID);
                             }
                         } else {
-                            link.data = tag->params[0];
+                            link.data = tag.params[0];
                         }
                     } else {
                         link.data.clear();
                     }
                     link.text_posn.first = Value(curr_char.string_index);
                     for (auto& itag : curr_char.tags)
-                        link.text_posn.first -= Value(itag->StringSize());
+                        link.text_posn.first -= Value(itag.StringSize());
                 }
                 // Before decoration, the real positions are the same as the raw ones
                 link.real_text_posn = link.text_posn;
@@ -493,7 +493,7 @@ void TextLinker::LocateLinks() {
     if (m_links.empty())
         return;
 
-    GG::Y y_posn(0); // y-coordinate of the top of the current line
+    GG::Y y_posn(GG::Y0); // y-coordinate of the top of the current line
     const auto& font = GetFont();
 
     // We assume that links are stored in m_links in the order they appear in the text.
@@ -507,19 +507,24 @@ void TextLinker::LocateLinks() {
             current_link->rects.emplace_back(GG::X0, y_posn, GG::X0, y_posn + font->Height());
 
         for (unsigned int i = 0; i < curr_line.char_data.size(); ++i) {
+            const GG::X x_posn = (i > 0) ? curr_line.char_data.at(static_cast<std::size_t>(i - 1)).extent : GG::X0;
             // The link text_posn is at the beginning of the tag, whereas
             // char_data jumps over tags. That is why we cannot test for precise equality
-            if (!inside_link && curr_line.char_data[i].string_index >= current_link->real_text_posn.first &&
-                curr_line.char_data[i].string_index < current_link->real_text_posn.second)
+            const auto cdsi = Value(curr_line.char_data.at(i).string_index);
+            const auto [first, lastplusone] = current_link->real_text_posn;
+
+            if (!inside_link &&
+                std::cmp_greater_equal(cdsi, first) &&
+                std::cmp_less(cdsi, lastplusone))
             {
                 inside_link = true;
                 // Clear out the old rectangles
                 current_link->rects.clear();
-                current_link->rects.emplace_back(i ? curr_line.char_data[i - 1].extent : GG::X0,
-                                                 y_posn, GG::X0, y_posn + font->Height());
-            } else if (inside_link && curr_line.char_data[i].string_index >= current_link->real_text_posn.second) {
+                current_link->rects.emplace_back(x_posn, y_posn, GG::X0, y_posn + font->Height());
+
+            } else if (inside_link && std::cmp_greater_equal(cdsi, current_link->real_text_posn.second)) {
                 inside_link = false;
-                current_link->rects.back().lr.x = i ? curr_line.char_data[i - 1].extent : GG::X0;
+                current_link->rects.back().lr.x = x_posn;
                 ++current_link;
                 if (current_link == m_links.end())
                     return;
@@ -675,7 +680,7 @@ std::string LinkTaggedPresetText(std::string_view tag, std::string_view stringta
 }
 
 namespace {
-    static bool link_tags_registered = false;
+    bool link_tags_registered = false;
 }
 
 void RegisterLinkTags() {
@@ -684,33 +689,15 @@ void RegisterLinkTags() {
     link_tags_registered = true;
 
     // need to register the tags that link text uses so GG::Font will know how to (not) render them
-    GG::Font::RegisterKnownTag(VarText::PLANET_ID_TAG);
-    GG::Font::RegisterKnownTag(VarText::SYSTEM_ID_TAG);
-    GG::Font::RegisterKnownTag(VarText::SHIP_ID_TAG);
-    GG::Font::RegisterKnownTag(VarText::FLEET_ID_TAG);
-    GG::Font::RegisterKnownTag(VarText::BUILDING_ID_TAG);
-    GG::Font::RegisterKnownTag(VarText::FIELD_ID_TAG);
-
-    GG::Font::RegisterKnownTag(VarText::COMBAT_ID_TAG);
-
-    GG::Font::RegisterKnownTag(VarText::EMPIRE_ID_TAG);
-    GG::Font::RegisterKnownTag(VarText::DESIGN_ID_TAG);
-    GG::Font::RegisterKnownTag(VarText::PREDEFINED_DESIGN_TAG);
-
-    GG::Font::RegisterKnownTag(VarText::TECH_TAG);
-    GG::Font::RegisterKnownTag(VarText::POLICY_TAG);
-    GG::Font::RegisterKnownTag(VarText::BUILDING_TYPE_TAG);
-    GG::Font::RegisterKnownTag(VarText::SPECIAL_TAG);
-    GG::Font::RegisterKnownTag(VarText::SHIP_HULL_TAG);
-    GG::Font::RegisterKnownTag(VarText::SHIP_PART_TAG);
-    GG::Font::RegisterKnownTag(VarText::SPECIES_TAG);
-    GG::Font::RegisterKnownTag(VarText::FIELD_TYPE_TAG);
-    GG::Font::RegisterKnownTag(VarText::METER_TYPE_TAG);
-
-    GG::Font::RegisterKnownTag(VarText::FOCS_VALUE_TAG);
-
-    GG::Font::RegisterKnownTag(TextLinker::ENCYCLOPEDIA_TAG);
-    GG::Font::RegisterKnownTag(TextLinker::GRAPH_TAG);
-    GG::Font::RegisterKnownTag(TextLinker::URL_TAG);
-    GG::Font::RegisterKnownTag(TextLinker::BROWSE_PATH_TAG);
+    GG::Font::RegisterKnownTags({VarText::PLANET_ID_TAG, VarText::SYSTEM_ID_TAG, VarText::SHIP_ID_TAG,
+                                 VarText::FLEET_ID_TAG, VarText::BUILDING_ID_TAG, VarText::FIELD_ID_TAG,
+                                 VarText::COMBAT_ID_TAG,
+                                 VarText::EMPIRE_ID_TAG,
+                                 VarText::DESIGN_ID_TAG, VarText::PREDEFINED_DESIGN_TAG,
+                                 VarText::TECH_TAG, VarText::POLICY_TAG, VarText::BUILDING_TYPE_TAG,
+                                 VarText::SPECIAL_TAG, VarText::SHIP_HULL_TAG, VarText::SHIP_PART_TAG,
+                                 VarText::SPECIES_TAG, VarText::FIELD_TYPE_TAG, VarText::METER_TYPE_TAG,
+                                 VarText::FOCS_VALUE_TAG,
+                                 TextLinker::ENCYCLOPEDIA_TAG, TextLinker::GRAPH_TAG,
+                                 TextLinker::URL_TAG, TextLinker::BROWSE_PATH_TAG});
 }

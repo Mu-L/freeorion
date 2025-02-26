@@ -13,7 +13,9 @@ Policy
             scope = And [
                 Planet
                 OwnedBy empire = Source.Owner
+                Species
             ]
+            priority = [[TARGET_LATE_AFTER_2ND_SCALING_PRIORITY]]
             effects = [
                 SetTargetInfluence value = Value
                    + (NamedReal name = "PLC_CHECKPOINTS_TARGET_INFLUENCE_FLAT" value = -0.5)
@@ -55,4 +57,4 @@ Policy
     graphic = "icons/policies/economic_checkpoints.png"
 
 #include "/scripting/policies/policies.macros"
-#include "/scripting/common/priorities.macros"
+#include "/scripting/macros/priorities.macros"

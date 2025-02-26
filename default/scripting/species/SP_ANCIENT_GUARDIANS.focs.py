@@ -1,17 +1,47 @@
-from common.misc import PLANET_SHIELD_FACTOR
-from common.priorities import POPULATION_OVERRIDE_PRIORITY
-from species.common.focus import HAS_ADVANCED_FOCI
-from species.common.happiness import AVERAGE_HAPPINESS
-from species.common.industry import NO_INDUSTRY
-from species.common.influence import NO_INFLUENCE
-from species.common.planet_defense import AVERAGE_PLANETARY_DEFENSE
-from species.common.planet_shields import AVERAGE_PLANETARY_SHIELDS
-from species.common.population import AVERAGE_POPULATION
-from species.common.research import NO_RESEARCH
-from species.common.shields import STANDARD_SHIP_SHIELDS
-from species.common.stockpile import NO_STOCKPILE
-from species.common.supply import AVERAGE_SUPPLY
-from species.common.troops import AVERAGE_DEFENSE_TROOPS
+from focs._effects import (
+    AnyEmpire,
+    AsteroidsType,
+    Barren,
+    Desert,
+    EffectsGroup,
+    GasGiantType,
+    GenerateSitRepMessage,
+    Good,
+    Inferno,
+    IsSource,
+    NamedReal,
+    Ocean,
+    OwnedBy,
+    Planet,
+    Radiated,
+    SetMaxShield,
+    SetMaxTroops,
+    SetPopulation,
+    Source,
+    Swamp,
+    Target,
+    Terran,
+    Toxic,
+    Tundra,
+    Turn,
+    Value,
+)
+from focs._species import *
+from macros.misc import PLANET_SHIELD_FACTOR
+from macros.priorities import POPULATION_OVERRIDE_PRIORITY
+from species.species_macros.empire_opinions import FIXED_OPINION_EFFECTS
+from species.species_macros.focus import HAS_ADVANCED_FOCI
+from species.species_macros.happiness import AVERAGE_HAPPINESS
+from species.species_macros.industry import NO_INDUSTRY
+from species.species_macros.influence import NO_INFLUENCE
+from species.species_macros.planet_defense import AVERAGE_PLANETARY_DEFENSE
+from species.species_macros.planet_shields import AVERAGE_PLANETARY_SHIELDS
+from species.species_macros.population import AVERAGE_POPULATION
+from species.species_macros.research import NO_RESEARCH
+from species.species_macros.shields import STANDARD_SHIP_SHIELDS
+from species.species_macros.stockpile import NO_STOCKPILE
+from species.species_macros.supply import AVERAGE_SUPPLY
+from species.species_macros.troops import AVERAGE_DEFENSE_TROOPS
 
 Species(
     name="SP_ANCIENT_GUARDIANS",
@@ -37,6 +67,7 @@ Species(
         *NO_STOCKPILE,
         *AVERAGE_POPULATION,
         *AVERAGE_HAPPINESS,
+        FIXED_OPINION_EFFECTS("SP_ANCIENT_GUARDIANS", 0.0),
         *AVERAGE_SUPPLY,
         *AVERAGE_DEFENSE_TROOPS,
         # not for description
@@ -97,4 +128,5 @@ Species(
         GasGiantType: Good,
     },
     graphic="icons/species/robotic-08.png",
+    annexation_condition=NoObject,
 )

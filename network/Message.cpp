@@ -78,9 +78,6 @@ void Message::Reset() noexcept {
 bool operator==(const Message& lhs, const Message& rhs) noexcept
 { return lhs.Type() == rhs.Type() && lhs.Text() == rhs.Text(); }
 
-bool operator!=(const Message& lhs, const Message& rhs) noexcept
-{ return !(lhs == rhs); }
-
 void swap(Message& lhs, Message& rhs) noexcept
 { lhs.Swap(rhs); }
 
@@ -97,13 +94,25 @@ void HeaderToBuffer(const Message& message, Message::HeaderBuffer& buffer) {
 ////////////////////////////////////////////////
 // Message named ctors
 ////////////////////////////////////////////////
-Message ErrorMessage(const std::string& problem, bool fatal, int player_id) {
+Message ErrorMessage(const std::string& problem_stringtable_key, bool fatal, int player_id) {
     std::ostringstream os;
     {
         freeorion_xml_oarchive oa(os);
-        oa << BOOST_SERIALIZATION_NVP(problem)
+        oa << boost::serialization::make_nvp("problem", problem_stringtable_key)
            << BOOST_SERIALIZATION_NVP(fatal)
            << BOOST_SERIALIZATION_NVP(player_id);
+    }
+    return Message{Message::MessageType::ERROR_MSG, std::move(os).str()};
+}
+
+Message ErrorMessage(const std::string& problem_stringtable_key, const std::string& unlocalized_info, bool fatal, int player_id) {
+    std::ostringstream os;
+    {
+        freeorion_xml_oarchive oa(os);
+        oa << boost::serialization::make_nvp("problem", problem_stringtable_key)
+           << BOOST_SERIALIZATION_NVP(fatal)
+           << BOOST_SERIALIZATION_NVP(player_id);
+        oa << BOOST_SERIALIZATION_NVP(unlocalized_info);
     }
     return Message{Message::MessageType::ERROR_MSG, std::move(os).str()};
 }
@@ -212,7 +221,7 @@ Message GameStartMessage(bool single_player_game, int empire_id,
                          const Universe& universe, const SpeciesManager& species,
                          CombatLogManager& combat_logs, const SupplyManager& supply,
                          const std::map<int, PlayerInfo>& players,
-                         const OrderSet& orders, const SaveGameUIData* ui_data,
+                         const OrderSet& orders, const SaveGameUIData& ui_data,
                          GalaxySetupData galaxy_setup_data,
                          bool use_binary_serialization, bool use_compression)
 {
@@ -238,10 +247,9 @@ Message GameStartMessage(bool single_player_game, int empire_id,
             oa << BOOST_SERIALIZATION_NVP(players)
                << BOOST_SERIALIZATION_NVP(loaded_game_data);
             Serialize(oa, orders);
-            bool ui_data_available = (ui_data != nullptr);
+            bool ui_data_available = true;
             oa << BOOST_SERIALIZATION_NVP(ui_data_available);
-            if (ui_data_available)
-                oa << boost::serialization::make_nvp("ui_data", *ui_data);
+            oa << boost::serialization::make_nvp("ui_data", ui_data);
             bool save_state_string_available = false;
             oa << BOOST_SERIALIZATION_NVP(save_state_string_available);
             galaxy_setup_data.encoding_empire = empire_id;
@@ -261,17 +269,9 @@ Message GameStartMessage(bool single_player_game, int empire_id,
             oa << BOOST_SERIALIZATION_NVP(players)
                << BOOST_SERIALIZATION_NVP(loaded_game_data);
             Serialize(oa, orders);
-            bool ui_data_available = (ui_data != nullptr);
+            bool ui_data_available = true;
             oa << BOOST_SERIALIZATION_NVP(ui_data_available);
-            if (ui_data_available) {
-                if (ui_data) {
-                    oa << boost::serialization::make_nvp("ui_data", *ui_data);
-                } else {
-                    ErrorLogger() << "GameStartMessage expected UI data but it was nullptr";
-                    SaveGameUIData temp_UI_data;
-                    oa << boost::serialization::make_nvp("ui_data", temp_UI_data);
-                }
-            }
+            oa << boost::serialization::make_nvp("ui_data", ui_data);
             bool save_state_string_available = false;
             oa << BOOST_SERIALIZATION_NVP(save_state_string_available);
             galaxy_setup_data.encoding_empire = empire_id;
@@ -319,7 +319,7 @@ Message GameStartMessage(bool single_player_game, int empire_id,
             oa << BOOST_SERIALIZATION_NVP(ui_data_available);
             bool save_state_string_available = (save_state_string != nullptr);
             oa << BOOST_SERIALIZATION_NVP(save_state_string_available);
-            if (save_state_string_available)
+            if (save_state_string)
                 oa << boost::serialization::make_nvp("save_state_string", *save_state_string);
             galaxy_setup_data.encoding_empire = empire_id;
             oa << BOOST_SERIALIZATION_NVP(galaxy_setup_data);
@@ -342,15 +342,8 @@ Message GameStartMessage(bool single_player_game, int empire_id,
             oa << BOOST_SERIALIZATION_NVP(ui_data_available);
             bool save_state_string_available = (save_state_string != nullptr);
             oa << BOOST_SERIALIZATION_NVP(save_state_string_available);
-            if (save_state_string_available) {
-                if (save_state_string) {
-                    oa << boost::serialization::make_nvp("save_state_string", *save_state_string);
-                } else {
-                    ErrorLogger() << "GameStartMessage expectes save_state_string but it was nullptr";
-                    std::string temp_sss;
-                    oa << boost::serialization::make_nvp("save_state_string", temp_sss);
-                }
-            }
+            if (save_state_string)
+                oa << boost::serialization::make_nvp("save_state_string", *save_state_string);
             galaxy_setup_data.encoding_empire = empire_id;
             oa << BOOST_SERIALIZATION_NVP(galaxy_setup_data);
         }
@@ -616,7 +609,7 @@ Message DispatchCombatLogsMessage(const std::vector<std::pair<int, const CombatL
     return Message{Message::MessageType::DISPATCH_COMBAT_LOGS, std::move(os).str()};
 }
 
-Message LoggerConfigMessage(int sender, const std::set<std::tuple<std::string, std::string, LogLevel>>& options) {
+Message LoggerConfigMessage(int sender, const std::vector<std::tuple<std::string, std::string, LogLevel>>& options) {
     std::ostringstream os;
     {
         freeorion_xml_oarchive oa(os);
@@ -706,8 +699,8 @@ Message ServerPlayerChatMessage(int sender, const boost::posix_time::ptime& time
 Message StartMPGameMessage()
 { return Message{Message::MessageType::START_MP_GAME, DUMMY_EMPTY_MESSAGE}; }
 
-Message ContentCheckSumMessage() {
-    auto checksums = CheckSumContent();
+Message ContentCheckSumMessage(const SpeciesManager& species) {
+    auto checksums = CheckSumContent(species);
 
     std::ostringstream os;
     {
@@ -761,22 +754,38 @@ Message AutoTurnMessage(int turns_count)
 Message RevertOrdersMessage()
 { return Message{Message::MessageType::REVERT_ORDERS, DUMMY_EMPTY_MESSAGE}; }
 
+
 ////////////////////////////////////////////////
 // Message data extractors
 ////////////////////////////////////////////////
-void ExtractErrorMessageData(const Message& msg, int& player_id, std::string& problem, bool& fatal) {
+void ExtractErrorMessageData(const Message& msg, int& player_id, std::string& problem_key,
+                             std::string& unlocalized_info, bool& fatal)
+{
+    bool got_stuff_before_unlocalized = false;
     try {
-        std::istringstream is(msg.Text());
+        std::istringstream is(msg.Text() /*+ "</boost_serialization>"*/); // additional closing tag needed to prevent crash in freeorion_xml_iarchive destructor for incomplete input
         freeorion_xml_iarchive ia(is);
-        ia >> BOOST_SERIALIZATION_NVP(problem)
-           >> BOOST_SERIALIZATION_NVP(fatal)
-           >> BOOST_SERIALIZATION_NVP(player_id);
+
+        ia >> boost::serialization::make_nvp("problem", problem_key);
+        ia >> BOOST_SERIALIZATION_NVP(fatal);
+        ia >> BOOST_SERIALIZATION_NVP(player_id);
+
+        got_stuff_before_unlocalized = true;
+        // may fail if message didn't have any unlocalized info specified
+        ia >> BOOST_SERIALIZATION_NVP(unlocalized_info);
+
+        // this scope must exactly match scope of the archive see: https://github.com/boostorg/serialization/issues/220#issuecomment-690786015
     } catch (const std::exception& err) {
-        ErrorLogger() << "ExtractErrorMessageData(const Message& msg, std::string& problem, bool& fatal) failed!  Message:\n"
-                      << msg.Text() << "\n"
-                      << "Error: " << err.what();
-        problem = UserStringNop("SERVER_MESSAGE_NOT_UNDERSTOOD");
-        fatal = false;
+        if (!got_stuff_before_unlocalized) {
+            ErrorLogger() << "ExtractErrorMessageData(const Message& msg, std::string& problem_key, std::string& unlocalized_info, bool& fatal) failed!  Message:\n"
+                          << msg.Text() << "\n"
+                          << "Error: " << err.what();
+            problem_key = UserStringNop("SERVER_MESSAGE_NOT_UNDERSTOOD");
+        } // else, not a problem; old format error message without the unlocalized info
+    } catch (...) {
+        ErrorLogger() << "ExtractErrorMessageData(const Message& msg, std::string& problem_key, std::string& unlocalized_info, bool& fatal) failed!  Message:\n"
+                      << msg.Text() << "\nError unknown.";
+        problem_key = UserStringNop("SERVER_MESSAGE_NOT_UNDERSTOOD");
     }
 }
 
@@ -890,6 +899,7 @@ void ExtractGameStartMessageData(std::string text, bool& single_player_game, int
 {
     try {
         bool try_xml = false;
+        bool did_some_binary_deserialization = false;
         try {
             // first attempt binary deserialziation
             std::istringstream is(text);
@@ -902,6 +912,8 @@ void ExtractGameStartMessageData(std::string text, bool& single_player_game, int
                >> BOOST_SERIALIZATION_NVP(empire_id)
                >> BOOST_SERIALIZATION_NVP(current_turn);
             GlobalSerializationEncodingForEmpire() = empire_id;
+
+            did_some_binary_deserialization = true; // got some binary data, so don't retry as XML even if following deserialization fails
 
             ScopedTimer deserialize_timer;
             ia >> BOOST_SERIALIZATION_NVP(empires);
@@ -918,22 +930,31 @@ void ExtractGameStartMessageData(std::string text, bool& single_player_game, int
 
 
             ia >> BOOST_SERIALIZATION_NVP(players)
-            >> BOOST_SERIALIZATION_NVP(loaded_game_data);
+               >> BOOST_SERIALIZATION_NVP(loaded_game_data);
             if (loaded_game_data) {
                 Deserialize(ia, orders);
+                DebugLogger() << "deserialized orders: " << orders.size();
                 ia >> BOOST_SERIALIZATION_NVP(ui_data_available);
+                DebugLogger() << (ui_data_available ? "have UI data" : "do not have UI data");
                 if (ui_data_available)
                     ia >> BOOST_SERIALIZATION_NVP(ui_data);
                 ia >> BOOST_SERIALIZATION_NVP(save_state_string_available);
-                if (save_state_string_available)
+                DebugLogger() << (save_state_string_available ? "have save state string" : "do not have save state string");
+                if (save_state_string_available) {
                     ia >> BOOST_SERIALIZATION_NVP(save_state_string);
+                    DebugLogger() << "save state string size:" << save_state_string.size();
+                }
             } else {
                 ui_data_available = false;
                 save_state_string_available = false;
             }
             ia >> BOOST_SERIALIZATION_NVP(galaxy_setup_data);
         } catch (...) {
-            try_xml = true;
+            if (did_some_binary_deserialization) {
+                ErrorLogger() << "Deserialization error after partially-done binary deserialization";
+                throw;
+            }
+            try_xml = true; // try XML deserialization if no binary data was deserialized
         }
         if (try_xml) {
             // if binary deserialization failed, try more-portable XML deserialization
@@ -960,7 +981,7 @@ void ExtractGameStartMessageData(std::string text, bool& single_player_game, int
 
             deserialize_timer.restart();
             Deserialize(ia, universe);
-            DebugLogger() << "ExtractGameStartMessage universe deserialization time " << deserialize_timer.DurationString();;
+            DebugLogger() << "ExtractGameStartMessage universe deserialization time " << deserialize_timer.DurationString();
 
 
             ia >> BOOST_SERIALIZATION_NVP(players)
@@ -985,8 +1006,8 @@ void ExtractGameStartMessageData(std::string text, bool& single_player_game, int
             TraceLogger() << "ExtractGameStartMessage galaxy setup data deserialization time " << deserialize_timer.DurationString();
         }
     } catch (const std::exception& err) {
-        ErrorLogger() << "ExtractGameStartMessageData(...) failed!  Message probably long, so not outputting to log.\n"
-                      << "Error: " << err.what();
+        ErrorLogger() << "ExtractGameStartMessageData(...) failed!  Message text length: " << text.size()
+                      << "\nError: " << err.what();
         throw err;
     }
 }
@@ -1360,14 +1381,17 @@ FO_COMMON_API void ExtractDispatchCombatLogsMessageData(
     }
 }
 
-FO_COMMON_API void ExtractLoggerConfigMessageData(const Message& msg,
-                                                  std::set<std::tuple<std::string, std::string, LogLevel>>& options)
+FO_COMMON_API std::vector<std::tuple<std::string, std::string, LogLevel>>
+    ExtractLoggerConfigMessageData(const Message& msg)
 {
+    std::vector<std::tuple<std::string, std::string, LogLevel>> options;
+
     try {
         std::istringstream is(msg.Text());
         freeorion_xml_iarchive ia(is);
         std::size_t size;
         ia >> BOOST_SERIALIZATION_NVP(size);
+        options.reserve(size);
         for (std::size_t ii = 0; ii < size; ++ii) {
             std::string option;
             std::string name;
@@ -1375,7 +1399,7 @@ FO_COMMON_API void ExtractLoggerConfigMessageData(const Message& msg,
             ia >> BOOST_SERIALIZATION_NVP(option);
             ia >> BOOST_SERIALIZATION_NVP(name);
             ia >> BOOST_SERIALIZATION_NVP(level);
-            options.emplace(std::move(option), std::move(name), level);
+            options.emplace_back(std::move(option), std::move(name), level);
         }
     } catch (const std::exception& err) {
         ErrorLogger() << "ExtractDispatchCombatLogMessageData(const Message& msg, std::vector<std::pair<int, const CombatLog&> >& logs) failed!  Message:\n"
@@ -1383,7 +1407,7 @@ FO_COMMON_API void ExtractLoggerConfigMessageData(const Message& msg,
                       << "Error: " << err.what();
         throw err;
     }
-
+    return options;
 }
 
 void ExtractContentCheckSumMessageData(const Message& msg, std::map<std::string, unsigned int>& checksums) {

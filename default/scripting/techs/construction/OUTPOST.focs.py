@@ -1,4 +1,30 @@
-from common.priorities import (
+from focs._effects import (
+    Abs,
+    EffectsGroup,
+    EmpireHasAdoptedPolicy,
+    HasEmpireStockpile,
+    HasSpecies,
+    IsSource,
+    IsTarget,
+    MaxOf,
+    MinOf,
+    NumPoliciesAdopted,
+    OwnedBy,
+    Planet,
+    Population,
+    ResourceInfluence,
+    SetConstruction,
+    SetEmpireStockpile,
+    SetHappiness,
+    SetMaxTroops,
+    SetTargetConstruction,
+    Source,
+    StatisticIf,
+    Target,
+    Value,
+)
+from focs._tech import *
+from macros.priorities import (
     AFTER_ALL_TARGET_MAX_METERS_PRIORITY,
     METER_OVERRIDE_PRIORITY,
     TARGET_AFTER_2ND_SCALING_PRIORITY,
@@ -17,7 +43,10 @@ Tech(
     effectsgroups=[
         # Outposts only have 50% of troops
         EffectsGroup(
-            scope=Planet() & OwnedBy(empire=Source.Owner) & Population(high=0),
+            scope=Planet()
+            & OwnedBy(empire=Source.Owner)
+            & Population(high=0)
+            & ~EmpireHasAdoptedPolicy(empire=Source.Owner, name="PLC_MARINE_RECRUITMENT"),
             stackinggroup="OUTPOST_TROOPS_STACK",
             priority=TARGET_AFTER_2ND_SCALING_PRIORITY,
             effects=SetMaxTroops(value=Value * 0.5),
@@ -46,10 +75,10 @@ Tech(
         # Reset influence to 0 if no policies adopted. Not really relevant to Outposts, but I need somewhere to put this...
         EffectsGroup(
             scope=IsSource,
-            activation=HasEmpireStockpile(empire=Source.Owner, resource=Influence, high=0)
+            activation=HasEmpireStockpile(empire=Source.Owner, resource=ResourceInfluence, high=0)
             & (NumPoliciesAdopted(empire=Source.Owner) == 0),
             priority=METER_OVERRIDE_PRIORITY,
-            effects=SetEmpireStockpile(resource=Influence, value=0.0),
+            effects=SetEmpireStockpile(resource=ResourceInfluence, value=0.0),
         ),
     ],
 )

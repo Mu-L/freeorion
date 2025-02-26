@@ -24,7 +24,7 @@
 #include <future>
 #include <stdexcept>
 
-extern template TechManager::TechParseTuple parse::techs<TechManager::TechParseTuple>(const PythonParser& parser, const boost::filesystem::path& path);
+extern template TechManager::TechParseTuple parse::techs<TechManager::TechParseTuple>(const PythonParser& parser, const boost::filesystem::path& path, bool& success);
 
 IApp* IApp::s_app = nullptr;
 
@@ -61,13 +61,13 @@ void IApp::StartBackgroundParsing(const PythonParser& python, std::promise<void>
     DebugLogger() << "Start background parsing...";
 
     // named value ref parsing can be done in parallel as the referencing happens after parsing
-    if (IsExistingDir(rdir / "scripting/common"))
-        GetNamedValueRefManager().SetNamedValueRefParse(Pending::ParseSynchronously(parse::named_value_refs, rdir / "scripting/common"));
+    if (IsExistingDir(rdir / "scripting/macros"))
+        GetNamedValueRefManager().SetNamedValueRefParse(Pending::ParseSynchronously(parse::named_value_refs, rdir / "scripting/macros"));
     else
-        ErrorLogger() << "Background parse path doesn't exist: " << (rdir / "scripting/common").string();
+        ErrorLogger() << "Background parse path doesn't exist: " << (rdir / "scripting/macros").string();
 
     if (IsExistingDir(rdir / "scripting/buildings"))
-        GetBuildingTypeManager().SetBuildingTypes(Pending::StartAsyncParsing(parse::buildings, rdir / "scripting/buildings"));
+        GetBuildingTypeManager().SetBuildingTypes(Pending::ParseSynchronously(parse::buildings, python, rdir / "scripting/buildings"));
     else
         ErrorLogger() << "Background parse path doesn't exist: " << (rdir / "scripting/buildings").string();
 

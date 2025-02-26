@@ -22,7 +22,6 @@
 #include <boost/filesystem/fstream.hpp>
 
 #include <cstdlib>
-#include <fstream>
 #include <string>
 
 namespace {
@@ -56,7 +55,7 @@ public:
     void MouseWheel(GG::Pt pt, int move, GG::Flags<GG::ModKey> mod_keys) override
     { m_scroll_offset -= move * 2000; }
 
-    void KeyPress(GG::Key key, std::uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys) override {
+    void KeyPress(GG::Key key, uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys) override {
         if (key == GG::Key::GGK_ESCAPE)
             OnExit();
     }
@@ -98,7 +97,7 @@ CreditsWnd::CreditsWnd(GG::X x, GG::Y y, GG::X w, GG::Y h, int cx, int cy, int c
     if (!doc.root_node.ContainsChild("CREDITS"))
         return;
 
-    auto credits_node = doc.root_node.Child("CREDITS");
+    const auto& credits_node = doc.root_node.Child("CREDITS");
 
     std::ostringstream credits;
 
@@ -107,32 +106,32 @@ CreditsWnd::CreditsWnd(GG::X x, GG::Y y, GG::X w, GG::Y h, int cx, int cy, int c
     auto task_format = boost::format(" - <rgba 204 204 204 255>%1%</rgba>");
     auto resource_format = boost::format("%1% - <rgba 153 153 153 255>%2%</rgba>\n%3% %4%%5%\n");
     auto source_format = boost::format(" - <rgba 153 153 153 255>%1%</rgba>");
-    auto note_format = boost::format("<rgba 204 204 204 255>(%1%)\n");
+    auto note_format = boost::format("<rgba 204 204 204 255>(%1%)</rgba>\n");
 
-    for (const XMLElement& group : credits_node.children) {
+    for (const XMLElement& group : credits_node.Children()) {
         if (0 == group.Tag().compare("GROUP")) {
-            credits << group_format % group.attributes.at("name");
-            for (const XMLElement& item : group.children) {
+            credits << group_format % group.Attribute("name");
+            for (const XMLElement& item : group.Children()) {
                 if (0 == item.Tag().compare("PERSON")) {
-                    if (item.attributes.contains("name"))
-                        credits << item.attributes.at("name");
-                    if (item.attributes.contains("nick") && item.attributes.at("nick").length() > 0)
-                        credits << nick_format % item.attributes.at("nick");
-                    if (item.attributes.contains("task"))
-                        credits << task_format % item.attributes.at("task");
+                    if (item.HasAttribute("name"))
+                        credits << item.Attribute("name");
+                    if (item.HasAttribute("nick") && !item.Attribute("nick").empty())
+                        credits << nick_format % item.Attribute("nick");
+                    if (item.HasAttribute("task"))
+                        credits << task_format % item.Attribute("task");
                 }
 
                 if (0 == item.Tag().compare("RESOURCE")) {
                     credits << resource_format
-                        % item.attributes.at("author")
-                        % item.attributes.at("title")
+                        % item.Attribute("author")
+                        % item.Attribute("title")
                         % UserString("INTRO_CREDITS_LICENSE")
-                        % item.attributes.at("license")
-                        % ((item.attributes.contains("source"))
-                            ? boost::str(source_format % item.attributes.at("source"))
+                        % item.Attribute("license")
+                        % ((item.HasAttribute("source"))
+                            ? boost::str(source_format % item.Attribute("source"))
                             : std::string{});
-                    if (item.attributes.contains("notes"))
-                        credits << note_format % item.attributes.at("notes");
+                    if (item.HasAttribute("notes"))
+                        credits << note_format % item.Attribute("notes");
                 }
 
                 credits << "\n";
@@ -160,20 +159,15 @@ void CreditsWnd::OnExit() {
 }
 
 void CreditsWnd::DrawCredits(GG::X x1, GG::Y y1, GG::X x2, GG::Y y2) {
-    GG::Flags<GG::TextFormat> format = GG::FORMAT_CENTER | GG::FORMAT_TOP;
-
-    //offset starts with 0, credits are place by transforming the viewport
-    GG::Y offset(0);
+    static constexpr auto format = GG::FORMAT_CENTER | GG::FORMAT_TOP;
 
     //start color is white (name), this color is valid outside the rgba tags
-    glColor(GG::Clr(255, 255, 255, 255));
 
-    std::vector<std::shared_ptr<GG::Font::TextElement>> text_elements =
-        m_font->ExpensiveParseFromTextToTextElements(m_credits, format);
-    std::vector<GG::Font::LineData> lines =
-        m_font->DetermineLines(m_credits, format, x2 - x1, text_elements);
-    m_font->RenderText(GG::Pt(x1, y1 + offset), GG::Pt(x2, y2), m_credits, format, lines);
-    offset = m_font->TextExtent(lines).y;
+    GG::Font::RenderState rs{GG::CLR_WHITE};
+    const auto text_elements = m_font->ExpensiveParseFromTextToTextElements(m_credits, format);
+    const auto lines = m_font->DetermineLines(m_credits, format, x2 - x1, text_elements);
+    m_font->RenderText(GG::Pt(x1, y1), GG::Pt(x2, y2), m_credits, format, lines, rs);
+    const auto offset = m_font->TextExtent(lines).y;
     //store complete height for self destruction
     m_credits_height = Value(offset);
 }
@@ -243,6 +237,21 @@ void IntroScreen::CompleteConstruction() {
                                                       GG::INTERACTIVE);
         m_logo = GG::Wnd::Create<GG::StaticGraphic>(ClientUI::GetTexture(ClientUI::ArtDir() / "logo0104.png"),
                                                     GG::GRAPHIC_FITGRAPHIC | GG::GRAPHIC_PROPSCALE);
+
+    } else if (today.month() == 12 && today.day() == 25) {
+        m_splash = GG::Wnd::Create<GG::StaticGraphic>(ClientUI::GetTexture(ClientUI::ArtDir() / "splash2512.png"),
+                                                      GG::GRAPHIC_FITGRAPHIC | GG::GRAPHIC_PROPSCALE,
+                                                      GG::INTERACTIVE);
+        m_logo = GG::Wnd::Create<GG::StaticGraphic>(ClientUI::GetTexture(ClientUI::ArtDir() / "logo2512.png"),
+                                                    GG::GRAPHIC_FITGRAPHIC | GG::GRAPHIC_PROPSCALE);
+
+    } else if (today.month() == 10 && today.day() == 31) {
+            m_splash = GG::Wnd::Create<GG::StaticGraphic>(ClientUI::GetTexture(ClientUI::ArtDir() / "splash3110.png"),
+                                                          GG::GRAPHIC_FITGRAPHIC | GG::GRAPHIC_PROPSCALE,
+                                                          GG::INTERACTIVE);
+            m_logo = GG::Wnd::Create<GG::StaticGraphic>(ClientUI::GetTexture(ClientUI::ArtDir() / "logo3110.png"),
+                                                        GG::GRAPHIC_FITGRAPHIC | GG::GRAPHIC_PROPSCALE);
+
     } else {
         m_splash = GG::Wnd::Create<GG::StaticGraphic>(ClientUI::GetTexture(ClientUI::ArtDir() / "splash.png"),
                                                       GG::GRAPHIC_FITGRAPHIC | GG::GRAPHIC_PROPSCALE,
@@ -399,7 +408,7 @@ void IntroScreen::OnExitGame() {
     GG::GUI::GetGUI()->ExitApp(0);
 }
 
-void IntroScreen::KeyPress(GG::Key key, std::uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys) {
+void IntroScreen::KeyPress(GG::Key key, uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys) {
     if (key == GG::Key::GGK_ESCAPE)
         OnExitGame();
 }
@@ -423,7 +432,7 @@ void IntroScreen::PreRender() {
     GG::Wnd::PreRender();
 
     m_splash->Resize(this->Size());
-    m_logo->Resize(GG::Pt(this->Width(), this->Height() / 10));
+    m_logo->Resize(GG::Pt(this->Width(), this->Height() / 8));
     m_version->MoveTo(GG::Pt(this->Width() - m_version->Width(), this->Height() - m_version->Height()));
 
     auto layout = m_menu->GetLayout();
@@ -431,10 +440,10 @@ void IntroScreen::PreRender() {
         return;
 
     // position menu window
-    GG::Pt ul(Width()  * GetOptionsDB().Get<double>("ui.intro.menu.center.x") - layout->MinUsableSize().x / 2,
-              Height() * GetOptionsDB().Get<double>("ui.intro.menu.center.y") - layout->MinUsableSize().y / 2);
-    GG::Pt lr(Width()  * GetOptionsDB().Get<double>("ui.intro.menu.center.x") + layout->MinUsableSize().x / 2,
-              Height() * GetOptionsDB().Get<double>("ui.intro.menu.center.y") + layout->MinUsableSize().y / 2);
+    GG::Pt ul(GG::ToX(Width()  * GetOptionsDB().Get<double>("ui.intro.menu.center.x")) - layout->MinUsableSize().x / 2,
+              GG::ToY(Height() * GetOptionsDB().Get<double>("ui.intro.menu.center.y")) - layout->MinUsableSize().y / 2);
+    GG::Pt lr(GG::ToX(Width()  * GetOptionsDB().Get<double>("ui.intro.menu.center.x")) + layout->MinUsableSize().x / 2,
+              GG::ToY(Height() * GetOptionsDB().Get<double>("ui.intro.menu.center.y")) + layout->MinUsableSize().y / 2);
 
     m_menu->InitSizeMove(ul, lr);
 }

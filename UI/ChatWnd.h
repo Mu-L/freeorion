@@ -24,7 +24,7 @@ public:
     void PreRender() override;
 
     void HandlePlayerChatMessage(const std::string& text, const std::string& player_name,
-                                 GG::Clr text_color, const boost::posix_time::ptime& timestamp,
+                                 GG::Clr player_name_color, const boost::posix_time::ptime& timestamp,
                                  int recipient_player_id, bool pm);
     void HandleTurnPhaseUpdate(Message::TurnProgressPhase phase_id, bool prefixed = false);
     void HandleGameStatusUpdate(const std::string& text);
@@ -32,7 +32,7 @@ public:
     void HandleDiplomaticStatusChange(int empire1_id, int empire2_id);
     void Clear();
     void OpenForInput();
-    void SetChatText(const std::string& chat_text);
+    void SetChatText(std::string chat_text);
 
     /** emitted when the edit gains focus.  Keyboard accelerators elsewhere
         should be disabled */

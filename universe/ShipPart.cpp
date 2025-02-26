@@ -242,11 +242,9 @@ ShipPart::ShipPart(ShipPartClass part_class, double capacity, double stat2,
                       [](auto& t) { boost::to_upper<std::string>(t); });
 
         // allocate storage for concatenated tags
+        std::size_t params_sz = std::transform_reduce(common_params.tags.begin(), common_params.tags.end(), 0u, std::plus{},
+                                                      [](const auto& tag) { return tag.size(); });
         std::string retval;
-        // TODO: transform_reduce when available on all platforms...
-        std::size_t params_sz = 0;
-        for (const auto& t : common_params.tags)
-            params_sz += t.size();
         retval.reserve(params_sz);
 
         // concatenate tags
@@ -478,7 +476,8 @@ float ShipPart::ProductionCost(int empire_id, int location_id, const ScriptingCo
         return static_cast<float>(m_production_cost->Eval());
     } else if (m_production_cost->SourceInvariant() && m_production_cost->TargetInvariant()) {
         const ScriptingContext design_id_context{
-            context, nullptr, nullptr, in_design_id, PRODUCTION_BLOCK_SIZE};
+            context, ScriptingContext::Source{}, nullptr, ScriptingContext::Target{}, nullptr,
+            in_design_id, PRODUCTION_BLOCK_SIZE};
         return static_cast<float>(m_production_cost->Eval(design_id_context));
     }
 
@@ -495,8 +494,8 @@ float ShipPart::ProductionCost(int empire_id, int location_id, const ScriptingCo
 
 
     const ScriptingContext design_id_context{
-        context, source.get(),
-        const_cast<UniverseObject*>(location), // won't be modified when evaluating a ValueRef, but needs to be a pointer to mutable to be passed as the target object
+        context, ScriptingContext::Source{}, source.get(),
+        ScriptingContext::Target{}, const_cast<UniverseObject*>(location), // won't be modified when evaluating a ValueRef, but needs to be a pointer to mutable to be passed as the target object
         in_design_id, PRODUCTION_BLOCK_SIZE};
 
     return static_cast<float>(m_production_cost->Eval(design_id_context));
@@ -514,7 +513,8 @@ int ShipPart::ProductionTime(int empire_id, int location_id, const ScriptingCont
         return m_production_time->Eval();
     } else if (m_production_time->SourceInvariant() && m_production_time->TargetInvariant()) {
         const ScriptingContext design_id_context{
-            context, nullptr, nullptr, in_design_id, PRODUCTION_BLOCK_SIZE};
+            context, ScriptingContext::Source{}, nullptr, ScriptingContext::Target{}, nullptr,
+            in_design_id, PRODUCTION_BLOCK_SIZE};
         return m_production_time->Eval(design_id_context);
     }
 
@@ -530,8 +530,8 @@ int ShipPart::ProductionTime(int empire_id, int location_id, const ScriptingCont
         return ARBITRARY_LARGE_TURNS;
 
     const ScriptingContext design_id_context{
-        context, source.get(),
-        const_cast<UniverseObject*>(location), // won't be modified when evaluating a ValueRef, but needs to be a pointer to mutable to be passed as the target object
+        context, ScriptingContext::Source{}, source.get(),
+        ScriptingContext::Target{}, const_cast<UniverseObject*>(location), // won't be modified when evaluating a ValueRef, but needs to be a pointer to mutable to be passed as the target object
         in_design_id, PRODUCTION_BLOCK_SIZE};
     return m_production_time->Eval(design_id_context);
 }

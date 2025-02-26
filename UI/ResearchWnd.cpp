@@ -15,8 +15,6 @@
 #include <GG/Layout.h>
 #include <GG/StaticGraphic.h>
 
-#include <boost/cast.hpp>
-
 #include <cmath>
 #include <iterator>
 
@@ -38,7 +36,7 @@ namespace {
     public:
         QueueTechPanel(GG::X x, GG::Y y, GG::X w, std::string_view tech_name,
                        double allocated_rp, int turns_left, double turns_completed,
-                       int empire_id, bool paused = false);
+                       int empire_id, bool paused);
 
         void CompleteConstruction() override;
         void Render() override;
@@ -48,7 +46,7 @@ namespace {
         static GG::Y DefaultHeight();
 
     private:
-        void Draw(GG::Clr clr, bool fill);
+        void Draw(GG::Clr clr, bool fill) const;
 
         std::string_view                        m_tech_name = "";
         std::shared_ptr<GG::Label>              m_name_text;
@@ -76,23 +74,21 @@ namespace {
         }
 
         void Init() {
-            ScriptingContext context;
-            auto empire = context.GetEmpire(elem.empire_id);
+            const ScriptingContext& context = IApp::GetApp()->GetContext();
+            const auto empire = context.GetEmpire(elem.empire_id);
 
             const Tech* tech = GetTech(elem.name);
-            double per_turn_cost = tech ? tech->PerTurnCost(elem.empire_id, context) : 1;
-            double progress = 0.0;
-            if (empire && empire->TechResearched(elem.name))
-                progress = tech ? tech->ResearchCost(elem.empire_id, context) : 0.0;
-            else if (empire)
-                progress = empire->ResearchProgress(elem.name, context);
+            const double per_turn_cost = tech ? tech->PerTurnCost(elem.empire_id, context) : 1.0;
+            const double progress = (empire && empire->TechResearched(elem.name)) ?
+                (tech ? tech->ResearchCost(elem.empire_id, context) : 0.0) :
+                (empire ? empire->ResearchProgress(elem.name, context) : 0.0);
 
             panel = GG::Wnd::Create<QueueTechPanel>(GG::X(GetLayout()->BorderMargin()),
                                                     GG::Y(GetLayout()->BorderMargin()),
                                                     ClientWidth(), elem.name, elem.allocated_rp,
                                                     elem.turns_left, progress / per_turn_cost,
-                                                    elem.empire_id);
-            push_back(panel);
+                                                    elem.empire_id, elem.paused);
+            push_back(panel); // DO NOT MOVE; panel is a member
 
             SetDragDropDataType("RESEARCH_QUEUE_ROW");
 
@@ -105,6 +101,10 @@ namespace {
 
             if (!panel)
                 Init();
+            if (!panel) {
+                ErrorLogger() << "Didn't create a panel in QueueRow::PreRender?";
+                return;
+            }
 
             GG::Pt border(GG::X(2 * GetLayout()->BorderMargin()), GG::Y(2 * GetLayout()->BorderMargin()));
             panel->Resize(Size() - border);
@@ -140,34 +140,34 @@ namespace {
         SetChildClippingMode(ChildClippingMode::ClipToClient);
 
         const int FONT_PTS = ClientUI::Pts();
-        const GG::Y METER_HEIGHT(FONT_PTS);
+        const GG::Y METER_HEIGHT{FONT_PTS};
 
         // 9 pixels accounts for border thickness so the sharp-cornered icon doesn't with the rounded panel corner
         const int GRAPHIC_SIZE = std::max(Value(DefaultHeight() - 9), 1);
 
-        const GG::X NAME_WIDTH  = std::max(Width() - GRAPHIC_SIZE - 4*MARGIN - 3, GG::X(1));
-        const GG::X METER_WIDTH = std::max(Width() - GRAPHIC_SIZE - 4*MARGIN - 3, GG::X(1));
-        const GG::X TURNS_AND_COST_WIDTH = std::max(NAME_WIDTH/2 - MARGIN, GG::X(1));
+        const GG::X NAME_WIDTH  = std::max(Width() - GRAPHIC_SIZE - 4*MARGIN - 3, GG::X1);
+        const GG::X METER_WIDTH = std::max(Width() - GRAPHIC_SIZE - 4*MARGIN - 3, GG::X1);
+        const GG::X TURNS_AND_COST_WIDTH = std::max(NAME_WIDTH/2 - MARGIN, GG::X1);
 
-        ScriptingContext context;
+        const ScriptingContext& context = IApp::GetApp()->GetContext();
         const Tech* tech = GetTech(m_tech_name);
-        if (tech)
-            m_total_turns = tech->ResearchTime(m_empire_id, context);
+        m_total_turns = tech ? tech->ResearchTime(m_empire_id, context) : 1;
 
-        GG::Clr clr = m_in_progress
-                        ? GG::LightenClr(ClientUI::ResearchableTechTextAndBorderColor())
-                        : ClientUI::ResearchableTechTextAndBorderColor();
+        const auto clr = m_in_progress ?
+            GG::LightenClr(ClientUI::ResearchableTechTextAndBorderColor()) :
+            ClientUI::ResearchableTechTextAndBorderColor();
 
-        GG::Y top(MARGIN);
-        GG::X left(MARGIN);
+        GG::Y top{MARGIN};
+        GG::X left{MARGIN};
 
         m_icon = GG::Wnd::Create<GG::StaticGraphic>(ClientUI::TechIcon(m_tech_name), GG::GRAPHIC_FITGRAPHIC);
         m_icon->MoveTo(GG::Pt(left, top));
         m_icon->Resize(GG::Pt(GG::X(GRAPHIC_SIZE), GG::Y(GRAPHIC_SIZE)));
-        m_icon->SetColor(tech ? ClientUI::CategoryColor(tech->Category()) : GG::Clr());
+        m_icon->SetColor(tech ? ClientUI::CategoryColor(tech->Category()) : GG::CLR_ZERO);
         left += m_icon->Width() + MARGIN;
 
-        m_name_text = GG::Wnd::Create<CUILabel>(m_paused ? UserString("PAUSED") : UserString(m_tech_name), GG::FORMAT_TOP | GG::FORMAT_LEFT);
+        m_name_text = GG::Wnd::Create<CUILabel>(m_paused ? UserString("PAUSED") : UserString(m_tech_name),
+                                                GG::FORMAT_TOP | GG::FORMAT_LEFT);
         m_name_text->MoveTo(GG::Pt(left, top));
         m_name_text->Resize(GG::Pt(NAME_WIDTH, GG::Y(FONT_PTS + 2*MARGIN)));
         m_name_text->SetTextColor(clr);
@@ -175,35 +175,25 @@ namespace {
         m_name_text->SetChildClippingMode(ChildClippingMode::ClipToClient);
         top += m_name_text->Height();
 
-        int total_time = 0;
-        float perc_complete = 0.0f;
-        float next_progress = 0.0f;
-        float research_cost = 0.0f;
-        if (tech) {
-            total_time = m_total_turns;
-            perc_complete = total_time > 0 ? turns_completed / total_time : 0.0f;
-            research_cost = tech->ResearchCost(m_empire_id, context);
-            next_progress = turn_spending / std::max(1.0f, research_cost);
-        }
-        GG::Clr outline_color = ClientUI::ResearchableTechFillColor();
-        if (m_in_progress)
-            outline_color = GG::LightenClr(outline_color);
+        const int total_time = tech ? m_total_turns : 0;
+        const float perc_complete = (tech && total_time > 0) ? (turns_completed / total_time) : 0.0f;
+        const float research_cost = tech ? tech->ResearchCost(m_empire_id, context) : 0.0f;
+        const float next_progress = turn_spending / std::max(1.0f, research_cost);
 
-        m_progress_bar = GG::Wnd::Create<MultiTurnProgressBar>(total_time,
-                                                               perc_complete,
-                                                               next_progress,
-                                                               GG::LightenClr(ClientUI::TechWndProgressBarBackgroundColor()),
-                                                               ClientUI::TechWndProgressBarColor(),
-                                                               outline_color);
+        const auto fill_clr = ClientUI::ResearchableTechFillColor();
+        const auto outline_color = m_in_progress ? GG::LightenClr(fill_clr) : fill_clr;
+
+        m_progress_bar = GG::Wnd::Create<MultiTurnProgressBar>(
+            total_time, perc_complete, next_progress,
+            GG::LightenClr(ClientUI::TechWndProgressBarBackgroundColor()),
+            ClientUI::TechWndProgressBarColor(), outline_color);
 
         m_progress_bar->MoveTo(GG::Pt(left, top));
         m_progress_bar->Resize(GG::Pt(METER_WIDTH, METER_HEIGHT));
         top += m_progress_bar->Height() + MARGIN;
 
-        using boost::io::str;
-
-        double max_spending_per_turn = research_cost;
-        std::string turns_cost_text = str(FlexibleFormat(UserString("TECH_TURN_COST_STR"))
+        const double max_spending_per_turn = research_cost;
+        std::string turns_cost_text = boost::io::str(FlexibleFormat(UserString("TECH_TURN_COST_STR"))
             % DoubleToString(turn_spending, 3, false)
             % DoubleToString(max_spending_per_turn, 3, false));
         m_RPs_and_turns_text = GG::Wnd::Create<CUILabel>(std::move(turns_cost_text), GG::FORMAT_LEFT);
@@ -215,8 +205,10 @@ namespace {
 
         left += TURNS_AND_COST_WIDTH;
 
-        std::string turns_left_text = turns_left < 0 ? UserString("TECH_TURNS_LEFT_NEVER")
-                                                     : str(FlexibleFormat(UserString("TECH_TURNS_LEFT_STR")) % turns_left);
+        std::string turns_left_text = m_paused ? UserString("PAUSED") :
+            (turns_left < 0) ? UserString("TECH_TURNS_LEFT_NEVER") :
+            str(FlexibleFormat(UserString("TECH_TURNS_LEFT_STR")) % turns_left);
+
         m_turns_remaining_text = GG::Wnd::Create<CUILabel>(std::move(turns_left_text), GG::FORMAT_RIGHT);
         m_turns_remaining_text->MoveTo(GG::Pt(left, top));
         m_turns_remaining_text->Resize(GG::Pt(TURNS_AND_COST_WIDTH, GG::Y(FONT_PTS + MARGIN)));
@@ -235,8 +227,8 @@ namespace {
     }
 
     void QueueTechPanel::Render() {
-        GG::Clr fill = m_in_progress ? GG::LightenClr(ClientUI::ResearchableTechFillColor()) : ClientUI::ResearchableTechFillColor();
-        GG::Clr text_and_border = m_in_progress ? GG::LightenClr(ClientUI::ResearchableTechTextAndBorderColor()) : ClientUI::ResearchableTechTextAndBorderColor();
+        const auto fill = m_in_progress ? GG::LightenClr(ClientUI::ResearchableTechFillColor()) : ClientUI::ResearchableTechFillColor();
+        const auto text_and_border = m_in_progress ? GG::LightenClr(ClientUI::ResearchableTechTextAndBorderColor()) : ClientUI::ResearchableTechTextAndBorderColor();
 
         glDisable(GL_TEXTURE_2D);
         Draw(fill, true);
@@ -249,7 +241,7 @@ namespace {
         glEnable(GL_TEXTURE_2D);
     }
 
-    void QueueTechPanel::Draw(GG::Clr clr, bool fill) {
+    void QueueTechPanel::Draw(GG::Clr clr, bool fill) const {
         static constexpr int CORNER_RADIUS = 7;
         glColor(clr);
         GG::Pt LINE_WIDTH(GG::X(3), GG::Y0);
@@ -261,14 +253,14 @@ namespace {
         GG::Control::SizeMove(ul, lr);
         if (Size() != old_size) {
             const int FONT_PTS = ClientUI::Pts();
-            const GG::Y METER_HEIGHT(FONT_PTS);
+            const GG::Y METER_HEIGHT{FONT_PTS};
 
             // 9 pixels accounts for border thickness so the sharp-cornered icon doesn't with the rounded panel corner
             const int GRAPHIC_SIZE = std::max(Value(DefaultHeight() - 9), 1);
 
-            const GG::X NAME_WIDTH  = std::max(Width() - GRAPHIC_SIZE - 4*MARGIN - 3, GG::X(1));
-            const GG::X METER_WIDTH = std::max(Width() - GRAPHIC_SIZE - 4*MARGIN - 3, GG::X(1));
-            const GG::X TURNS_AND_COST_WIDTH = std::max(NAME_WIDTH/2 - MARGIN, GG::X(1));
+            const GG::X NAME_WIDTH  = std::max(Width() - GRAPHIC_SIZE - 4*MARGIN - 3, GG::X1);
+            const GG::X METER_WIDTH = std::max(Width() - GRAPHIC_SIZE - 4*MARGIN - 3, GG::X1);
+            const GG::X TURNS_AND_COST_WIDTH = std::max(NAME_WIDTH/2 - MARGIN, GG::X1);
 
             m_name_text->Resize(GG::Pt(NAME_WIDTH, GG::Y(FONT_PTS + 2*MARGIN)));
             m_progress_bar->Resize(GG::Pt(METER_WIDTH, METER_HEIGHT));
@@ -281,7 +273,7 @@ namespace {
 
     GG::Y QueueTechPanel::DefaultHeight() {
         const int FONT_PTS = ClientUI::Pts();
-        const GG::Y METER_HEIGHT(FONT_PTS);
+        const GG::Y METER_HEIGHT{FONT_PTS};
 
         const GG::Y HEIGHT = MARGIN + FONT_PTS + MARGIN + METER_HEIGHT + MARGIN + FONT_PTS + MARGIN + 6;
 
@@ -369,7 +361,7 @@ public:
         m_queue_lb->SetStyle(GG::LIST_NOSORT | GG::LIST_NOSEL | GG::LIST_USERDELETE);
         m_queue_lb->SetName("ResearchQueue ListBox");
 
-        SetEmpire(GGHumanClientApp::GetApp()->EmpireID(), ScriptingContext{});
+        SetEmpire(GGHumanClientApp::GetApp()->EmpireID(), IApp::GetApp()->GetContext());
 
         AttachChild(m_queue_lb);
 
@@ -381,7 +373,7 @@ public:
     }
 
     void SizeMove(GG::Pt ul, GG::Pt lr) override {
-        GG::Pt sz = Size();
+        const auto sz = Size();
         CUIWnd::SizeMove(ul, lr);
         if (Size() != sz)
             DoLayout();
@@ -399,7 +391,7 @@ public:
 private:
     void DoLayout() {
         m_queue_lb->SizeMove(
-            GG::Pt(GG::X0, GG::Y0),
+            GG::Pt0,
             GG::Pt(ClientWidth(), ClientHeight() - GG::Y(CUIWnd::INNER_BORDER_ANGLE_OFFSET)));
     }
 
@@ -413,13 +405,13 @@ private:
 ResearchWnd::ResearchWnd(GG::X w, GG::Y h, bool initially_hidden) :
     GG::Wnd(GG::X0, GG::Y0, w, h, GG::INTERACTIVE | GG::ONTOP)
 {
-    GG::X queue_width(GetOptionsDB().Get<int>("ui.queue.width"));
-    GG::Pt tech_tree_wnd_size = ClientSize() - GG::Pt(GG::X(GetOptionsDB().Get<int>("ui.queue.width")), GG::Y0);
+    const GG::X queue_width(GetOptionsDB().Get<GG::X>("ui.queue.width"));
+    const GG::Pt tech_tree_wnd_size = ClientSize() - GG::Pt(GetOptionsDB().Get<GG::X>("ui.queue.width"), GG::Y0);
 
     m_research_info_panel = GG::Wnd::Create<ResourceInfoPanel>(
         UserString("RESEARCH_WND_TITLE"), UserString("RESEARCH_INFO_RP"),
-        GG::X0, GG::Y0, GG::X(queue_width), GG::Y(100), "research.info");
-    m_queue_wnd = GG::Wnd::Create<ResearchQueueWnd>(GG::X0, GG::Y(100), queue_width, GG::Y(ClientSize().y - 100));
+        GG::X0, GG::Y0, queue_width, GG::Y{100}, "research.info");
+    m_queue_wnd = GG::Wnd::Create<ResearchQueueWnd>(GG::X0, GG::Y{100}, queue_width, ClientSize().y - 100);
     m_tech_tree_wnd = GG::Wnd::Create<TechTreeWnd>(tech_tree_wnd_size.x, tech_tree_wnd_size.y, initially_hidden);
 
     using boost::placeholders::_1;
@@ -457,14 +449,14 @@ void ResearchWnd::CompleteConstruction() {
 }
 
 void ResearchWnd::SizeMove(GG::Pt ul, GG::Pt lr) {
-    const GG::Pt old_size = Size();
+    const auto old_size = Size();
     GG::Wnd::SizeMove(ul, lr);
     if (old_size != Size())
         DoLayout();
 }
 
 void ResearchWnd::DoLayout(bool init) {
-    m_research_info_panel->MoveTo(GG::Pt(GG::X0, GG::Y0));
+    m_research_info_panel->MoveTo(GG::Pt0);
     GG::X queue_width = GG::X(init ? GetOptionsDB().GetDefault<int>("ui.queue.width") :
                                      GetOptionsDB().Get<int>("ui.queue.width"));
     if (init) {
@@ -514,11 +506,11 @@ void ResearchWnd::Update(const ScriptingContext& context)
 void ResearchWnd::CenterOnTech(const std::string& tech_name)
 { m_tech_tree_wnd->CenterOnTech(tech_name); }
 
-void ResearchWnd::ShowTech(const std::string& tech_name, bool force) {
+void ResearchWnd::ShowTech(std::string tech_name, bool force) {
     m_tech_tree_wnd->SetEncyclopediaTech(tech_name);
     if (force || m_tech_tree_wnd->TechIsVisible(tech_name)) {
         m_tech_tree_wnd->CenterOnTech(tech_name);
-        m_tech_tree_wnd->SelectTech(tech_name);
+        m_tech_tree_wnd->SelectTech(std::move(tech_name));
     }
 }
 
@@ -534,35 +526,34 @@ void ResearchWnd::TogglePedia()
 bool ResearchWnd::PediaVisible()
 { return m_tech_tree_wnd->PediaVisible(); }
 
-void ResearchWnd::QueueItemMoved(const GG::ListBox::iterator& row_it,
-                                 const GG::ListBox::iterator& original_position_it)
+void ResearchWnd::QueueItemMoved(GG::ListBox::iterator row_it,
+                                 GG::ListBox::iterator original_position_it)
 {
     if (!m_enabled)
         return;
 
-    auto queue_row = boost::polymorphic_downcast<QueueRow*>(row_it->get());
+    auto queue_row = dynamic_cast<QueueRow*>(row_it->get());
     if (!queue_row)
         return;
 
-    ScriptingContext context;
+    auto* app = GGHumanClientApp::GetApp();
+    ScriptingContext& context = app->GetContext();
 
     // This precorrects the position for a factor in Empire::PlaceTechInQueue
-    int new_position = m_queue_wnd->GetQueueListBox()->IteraterIndex(row_it);
-    int original_position = m_queue_wnd->GetQueueListBox()->IteraterIndex(original_position_it);
-    auto direction = original_position < new_position;
-    int corrected_new_position = new_position + (direction ? 1 : 0);
+    const int new_position = m_queue_wnd->GetQueueListBox()->IteraterIndex(row_it);
+    const int original_position = m_queue_wnd->GetQueueListBox()->IteraterIndex(original_position_it);
+    const auto direction = original_position < new_position;
+    const int corrected_new_position = new_position + (direction ? 1 : 0);
 
-    int empire_id = GGHumanClientApp::GetApp()->EmpireID();
+    const int empire_id = app->EmpireID();
     if (empire_id == ALL_EMPIRES)
         return;
 
-    GGHumanClientApp::GetApp()->Orders().IssueOrder(
-        std::make_shared<ResearchQueueOrder>(empire_id, queue_row->elem.name,
-                                             static_cast<int>(corrected_new_position)),
-        context);
+    app->Orders().IssueOrder<ResearchQueueOrder>(context, empire_id, queue_row->elem.name,
+                                                 static_cast<int>(corrected_new_position));
 
     if (auto empire = context.GetEmpire(empire_id))
-        empire->UpdateResearchQueue(context);
+        empire->UpdateResearchQueue(context, empire->TechCostsTimes(context));
 }
 
 void ResearchWnd::Sanitize()
@@ -571,7 +562,7 @@ void ResearchWnd::Sanitize()
 void ResearchWnd::Render() {
     bool do_update = m_refresh_needed.exchange(false);
     if (do_update) {
-        const ScriptingContext context;
+        const ScriptingContext& context = IApp::GetApp()->GetContext();
         UpdateQueue(context);
         UpdateInfoPanel(context);
         m_tech_tree_wnd->Update();
@@ -638,18 +629,19 @@ void ResearchWnd::UpdateInfoPanel(const ScriptingContext& context) {
     //empire->GetResearchResPool().ChangedSignal();
 }
 
-void ResearchWnd::AddTechsToQueueSlot(std::vector<std::string> tech_vec, int pos) {
+void ResearchWnd::AddTechsToQueueSlot(std::vector<std::string> tech_vec, int pos) const {
     if (!m_enabled)
         return;
 
-    ScriptingContext context;
+    ScriptingContext& context = IApp::GetApp()->GetContext();
 
-    int empire_id = GGHumanClientApp::GetApp()->EmpireID();
+    const int empire_id = GGHumanClientApp::GetApp()->EmpireID();
     auto empire = context.GetEmpire(empire_id);
     if (!empire)
         return;
     const ResearchQueue& queue = empire->GetResearchQueue();
     OrderSet& orders = GGHumanClientApp::GetApp()->Orders();
+
     for (std::string& tech_name : tech_vec) {
         if (empire->TechResearched(tech_name))
             continue;
@@ -665,54 +657,53 @@ void ResearchWnd::AddTechsToQueueSlot(std::vector<std::string> tech_vec, int pos
         // adding/moving a group of techs to the queue beginning, we increment our insertion point for every tech we add, 
         // or that we skipped because it happened to already be in the right spot.
         if (pos == -1) {
-            if (!queue.InQueue(tech_name)) {
-                orders.IssueOrder(std::make_shared<ResearchQueueOrder>(empire_id, std::move(tech_name), pos),
-                                  context);
-            }
+            if (!queue.InQueue(tech_name))
+                orders.IssueOrder<ResearchQueueOrder>(context, empire_id, std::move(tech_name), pos);
         } else if (!queue.InQueue(tech_name) || ((queue.find(tech_name) - queue.begin()) > pos)) {
-            orders.IssueOrder(std::make_shared<ResearchQueueOrder>(empire_id, std::move(tech_name), pos),
-                              context);
+            orders.IssueOrder<ResearchQueueOrder>(context, empire_id, std::move(tech_name), pos);
             pos += 1;
         } else {
             if ((queue.find(tech_name) - queue.begin()) == pos)
                 pos += 1;
         }
     }
-    empire->UpdateResearchQueue(context);
+    empire->UpdateResearchQueue(context, empire->TechCostsTimes(context));
 }
 
 void ResearchWnd::DeleteQueueItem(GG::ListBox::iterator it) {
     if (!m_enabled || m_queue_wnd->GetQueueListBox()->IteraterIndex(it) < 0)
         return;
 
-    ScriptingContext context;
-
-    int empire_id = GGHumanClientApp::GetApp()->EmpireID();
-    OrderSet& orders = GGHumanClientApp::GetApp()->Orders();
-    if (auto queue_row = boost::polymorphic_downcast<QueueRow*>(it->get()))
-        orders.IssueOrder(std::make_shared<ResearchQueueOrder>(empire_id, queue_row->elem.name), context);
+    auto* app = GGHumanClientApp::GetApp();
+    ScriptingContext& context = app->GetContext();
+    int empire_id = app->EmpireID();
+    OrderSet& orders = app->Orders();
+    if (auto queue_row = dynamic_cast<const QueueRow*>(it->get()))
+        orders.IssueOrder<ResearchQueueOrder>(context, empire_id, queue_row->elem.name);
     if (auto empire = context.GetEmpire(empire_id))
-        empire->UpdateResearchQueue(context);
+        empire->UpdateResearchQueue(context, empire->TechCostsTimes(context));
 }
 
 void ResearchWnd::QueueItemClickedSlot(GG::ListBox::iterator it, GG::Pt pt, GG::Flags<GG::ModKey> modkeys) {
-    if (m_queue_wnd->GetQueueListBox()->IteraterIndex(it) < 0 || !m_queue_wnd->GetQueueListBox()->DisplayingValidQueueItems())
-        return;
+    if (m_queue_wnd->GetQueueListBox()->IteraterIndex(it) < 0 ||
+        !m_queue_wnd->GetQueueListBox()->DisplayingValidQueueItems())
+    { return; }
 
     if (modkeys & GG::MOD_KEY_CTRL) {
         if (m_enabled)
             DeleteQueueItem(it);
     } else {
-        if (auto queue_row = boost::polymorphic_downcast<QueueRow*>(it->get()))
+        if (auto queue_row = dynamic_cast<const QueueRow*>(it->get()))
             ShowTech(queue_row->elem.name, false);
     }
 }
 
 void ResearchWnd::QueueItemDoubleClickedSlot(GG::ListBox::iterator it, GG::Pt pt, GG::Flags<GG::ModKey> modkeys) {
-    if (m_queue_wnd->GetQueueListBox()->IteraterIndex(it) < 0 || !m_queue_wnd->GetQueueListBox()->DisplayingValidQueueItems())
-        return;
+    if (m_queue_wnd->GetQueueListBox()->IteraterIndex(it) < 0 ||
+        !m_queue_wnd->GetQueueListBox()->DisplayingValidQueueItems())
+    { return; }
 
-    if (auto queue_row = boost::polymorphic_downcast<QueueRow*>(it->get()))
+    if (auto queue_row = dynamic_cast<const QueueRow*>(it->get()))
         ShowTech(queue_row->elem.name);
 }
 
@@ -720,20 +711,21 @@ void ResearchWnd::QueueItemPaused(GG::ListBox::iterator it, bool pause) {
     if (!m_enabled || m_queue_wnd->GetQueueListBox()->IteraterIndex(it) < 0)
         return;
 
-    ScriptingContext context;
-    int client_empire_id = GGHumanClientApp::GetApp()->EmpireID();
+    auto* app = GGHumanClientApp::GetApp();
+    ScriptingContext& context = app->GetContext();
+    const int client_empire_id = app->EmpireID();
     auto empire = context.GetEmpire(client_empire_id);
     if (!empire)
         return;
 
-    // todo: reject action if shown queue is not this client's empire's queue
+    // TODO: reject action if shown queue is not this client's empire's queue
 
-    if (QueueRow* queue_row = boost::polymorphic_downcast<QueueRow*>(it->get()))
-        GGHumanClientApp::GetApp()->Orders().IssueOrder(
-            std::make_shared<ResearchQueueOrder>(client_empire_id, queue_row->elem.name, pause, -1.0f),
-            context);
+    if (auto* queue_row = dynamic_cast<const QueueRow*>(it->get())) {
+        app->Orders().IssueOrder<ResearchQueueOrder>(
+            context, client_empire_id, queue_row->elem.name, pause, -1.0f);
+    }
 
-    empire->UpdateResearchQueue(context);
+    empire->UpdateResearchQueue(context, empire->TechCostsTimes(context));
 }
 
 void ResearchWnd::EnableOrderIssuing(bool enable) {

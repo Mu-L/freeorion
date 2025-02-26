@@ -41,9 +41,7 @@ public:
 
     ~Special();
 
-    bool operator==(const Special& rhs) const;
-    bool operator!=(const Special& rhs) const
-    { return !(*this == rhs); }
+    [[nodiscard]] bool operator==(const Special& rhs) const;
 
     [[nodiscard]] auto&       Name() const noexcept            { return m_name; }           ///< unique name for this type of special
     [[nodiscard]] std::string Description() const;           ///< text description of this type of special
@@ -81,7 +79,7 @@ private:
 
 /** Returns the Special object used to represent specials of type \a name.
   * If no such Special exists, 0 is returned instead. */
-[[nodiscard]]FO_COMMON_API const Special* GetSpecial(std::string_view name);
+[[nodiscard]] FO_COMMON_API const Special* GetSpecial(std::string_view name);
 
 /** Returns names of all specials. */
 [[nodiscard]] FO_COMMON_API std::vector<std::string_view> SpecialNames();

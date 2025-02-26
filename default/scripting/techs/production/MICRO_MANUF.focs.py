@@ -1,5 +1,22 @@
-from common.base_prod import TECH_COST_MULTIPLIER
-from common.priorities import TARGET_AFTER_2ND_SCALING_PRIORITY
+from focs._effects import (
+    AsteroidsType,
+    ContainedBy,
+    Contains,
+    EffectsGroup,
+    Focus,
+    Happiness,
+    InSystem,
+    NamedReal,
+    OwnedBy,
+    Planet,
+    Population,
+    SetTargetIndustry,
+    Source,
+    Value,
+)
+from focs._tech import *
+from macros.base_prod import TECH_COST_MULTIPLIER
+from macros.priorities import TARGET_AFTER_2ND_SCALING_PRIORITY
 
 Tech(
     name="PRO_MICROGRAV_MAN",

@@ -8,13 +8,23 @@ jobs:
     name: ${{ matrix.image }}
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         image:
-          - ubuntu-22.10
+          - ubuntu-24.10
           - fedora-33
+          - debian-oldstable
           - debian-stable
-          - manjaro
-          # - fedora-rawhide # base image is broken https://github.com/fedora-cloud/docker-brew-fedora/issues/109
+          - debian-sid
+          - debian-sid-i386
+        godot3: [true]
+        include:
+          - image: manjaro
+            godot3: false
+          - image: void-musl
+            godot3: false
+          - image: fedora-rawhide # wait for update godot3-headless at https://packages.fedoraproject.org/pkgs/godot3/godot3-headless/fedora-rawhide.html since 2025-01-30
+            godot3: false
     env:
       CACHE_NAME: linux
     steps:
@@ -37,7 +47,7 @@ jobs:
             layer-docker-layer-cache-${{ matrix.image }}
       - name: Build production image
         run: |
-          docker build .github/${{ matrix.image }}/ --file .github/${{ matrix.image }}/Dockerfile --tag ${{ steps.prep.outputs.tagged_image }}
+          docker build .github/docker/${{ matrix.image }}/ --file .github/docker/${{ matrix.image }}/Dockerfile --tag ${{ steps.prep.outputs.tagged_image }}
       - name: Prepare ccache timestamp
         id: build-docker-ccache-timestamp
         shell: cmake -P {0}
@@ -53,15 +63,17 @@ jobs:
             build-${{ matrix.image }}-docker-ccache-
       - name: Detect godot
         id: detect-godot
+        if: ${{ matrix.godot3 }}
         run: |
           touch ${GITHUB_OUTPUT}
           docker run -v "$(pwd):/freeorion" -v "${{ runner.temp }}/ccache:/ccache_dir" --mount type=bind,source=${GITHUB_OUTPUT},target=/github-output.file -e CCACHE_DIR='/ccache_dir' -e GITHUB_OUTPUT=/github-output.file -w /freeorion ${{ steps.prep.outputs.tagged_image }} /usr/bin/cmake -P /freeorion/.github/godot-detect.cmake
       - name: Copy godot
+        if: ${{ matrix.godot3 }}
         run: |
           mkdir build
           docker run -v "$(pwd):/freeorion" -v "${{ runner.temp }}/ccache:/ccache_dir" -e CCACHE_DIR='/ccache_dir' -w /freeorion/build ${{ steps.prep.outputs.tagged_image }} cp ${{ steps.detect-godot.outputs.godot }} /freeorion/build/godot
       - name: Generate godot API file
-        if: ${{ matrix.image != 'manjaro' }}
+        if: ${{ matrix.godot3 }}
         run: |
           docker run -v "$(pwd):/freeorion" -v "${{ runner.temp }}/ccache:/ccache_dir" -e CCACHE_DIR='/ccache_dir' -w /freeorion/build ${{ steps.prep.outputs.tagged_image }} /freeorion/build/godot --gdnative-generate-json-api /freeorion/build/godot-api.json
       - name: Generate godot API file
@@ -69,15 +81,15 @@ jobs:
         run: |
           docker run -v "$(pwd):/freeorion" -v "${{ runner.temp }}/ccache:/ccache_dir" -e CCACHE_DIR='/ccache_dir' -w /freeorion/build ${{ steps.prep.outputs.tagged_image }} /usr/bin/xvfb-run /freeorion/build/godot --no-window --disable-render-loop --video-driver GLES2 --gdnative-generate-json-api /freeorion/build/godot-api.json
       - name: Configure freeorion
-        if: ${{ matrix.image == 'ubuntu-22.10' }}
+        if: ${{ matrix.image == 'ubuntu-24.10' }}
         run: |
-          docker run -v "$(pwd):/freeorion" -v "${{ runner.temp }}/ccache:/ccache_dir" -e CCACHE_DIR='/ccache_dir' -w /freeorion/build ${{ steps.prep.outputs.tagged_image }} /usr/bin/cmake -DBUILD_CLIENT_GODOT=ON -DGODOT_CUSTOM_API_FILE=/freeorion/build/godot-api.json -DBUILD_TESTING=ON -DCMAKE_C_COMPILER=gcc-12 -DCMAKE_CXX_COMPILER=g++-12 ..
+          docker run -v "$(pwd):/freeorion" -v "${{ runner.temp }}/ccache:/ccache_dir" -e CCACHE_DIR='/ccache_dir' -w /freeorion/build ${{ steps.prep.outputs.tagged_image }} /usr/bin/cmake -DBUILD_CLIENT_GODOT=ON -DGODOT_CUSTOM_API_FILE=/freeorion/build/godot-api.json -DBUILD_TESTING=ON -DCMAKE_C_COMPILER=gcc-14 -DCMAKE_CXX_COMPILER=g++-14 ..
       - name: Configure freeorion
-        if: ${{ matrix.image == 'manjaro' }}
+        if: ${{ matrix.image != 'ubuntu-24.10' && !matrix.godot3 }}
         run: |
           docker run -v "$(pwd):/freeorion" -v "${{ runner.temp }}/ccache:/ccache_dir" -e CCACHE_DIR='/ccache_dir' -w /freeorion/build ${{ steps.prep.outputs.tagged_image }} /usr/bin/cmake -DBUILD_CLIENT_GODOT=Off -DBUILD_TESTING=ON ..
       - name: Configure freeorion
-        if: ${{ matrix.image != 'ubuntu-22.10' && matrix.image != 'manjaro' }}
+        if: ${{ matrix.image != 'ubuntu-24.10' && matrix.godot3 }}
         run: |
           docker run -v "$(pwd):/freeorion" -v "${{ runner.temp }}/ccache:/ccache_dir" -e CCACHE_DIR='/ccache_dir' -w /freeorion/build ${{ steps.prep.outputs.tagged_image }} /usr/bin/cmake -DBUILD_CLIENT_GODOT=ON -DGODOT_CUSTOM_API_FILE=/freeorion/build/godot-api.json -DBUILD_TESTING=ON ..
       - name: Build freeorion
@@ -87,10 +99,13 @@ jobs:
         run: |
           docker run -v "$(pwd):/freeorion" -v "${{ runner.temp }}/ccache:/ccache_dir" -e CCACHE_DIR='/ccache_dir' -e FO_TEST_HOSTLESS_GAMES=1 -w /freeorion/build ${{ steps.prep.outputs.tagged_image }} /usr/bin/cmake --build . --target unittest
       - name: Run godot
-        if: ${{ matrix.image != 'manjaro'  }}
+        if: ${{ matrix.godot3 }}
         run: |
           docker run -v "$(pwd):/freeorion" -v "${{ runner.temp }}/ccache:/ccache_dir" -e CCACHE_DIR='/ccache_dir' -w /freeorion/ ${{ steps.prep.outputs.tagged_image }} /freeorion/build/godot --disable-render-loop --verbose -s --path godot addons/gut/gut_cmdln.gd -gdir=res://test/ -ginclude_subdirs -gexit
       - name: Run godot
         if: ${{ matrix.image == 'manjaro' && false }} # Manjaro stopped to support Godot 3
         run: |
           docker run -v "$(pwd):/freeorion" -v "${{ runner.temp }}/ccache:/ccache_dir" -e CCACHE_DIR='/ccache_dir' -w /freeorion/ ${{ steps.prep.outputs.tagged_image }} /usr/bin/xvfb-run /freeorion/build/godot --no-window --disable-render-loop --video-driver GLES2 --verbose -s --path godot addons/gut/gut_cmdln.gd -gdir=res://test/ -ginclude_subdirs -gexit
+      - name: Cleanup
+        run: |
+          docker run -v "$(pwd):/freeorion" -w /freeorion/ ${{ steps.prep.outputs.tagged_image }} rm -rf /freeorion/build/

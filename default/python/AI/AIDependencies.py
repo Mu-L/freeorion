@@ -391,9 +391,10 @@ WEAPON_UPGRADE_DICT = {
     }.items()
 }
 
+# ROF == rate of fire == weapon shots
 WEAPON_ROF_UPGRADE_DICT = {
     # "PARTNAME": tuple((tech_name, rof_upgrade), (tech_name2, rof_upgrade2), ...)
-    "SR_WEAPON_0_1": (),
+    "SR_WEAPON_0_1": (("SHP_WEAPON_1_3", 1), ("SHP_WEAPON_2_3", 1), ("SHP_WEAPON_3_3", 1), ("SHP_WEAPON_4_3", 1)),
     "SR_WEAPON_1_1": (),
     "SR_WEAPON_2_1": (),
     "SR_WEAPON_3_1": (),
@@ -501,9 +502,9 @@ PILOT_FIGHTERDAMAGE_UNSCALED_MODIFIER_DICT = {
     # Note: FT_HANGAR_1 fighters are not able to attack ships so pilot damage modifier does not apply
     "NO": {},
     "BAD": {"FT_HANGAR_1": 0, "FT_HANGAR_2": -1, "FT_HANGAR_3": -1, "FT_HANGAR_4": -1},
-    "GOOD": {"FT_HANGAR_1": 0, "FT_HANGAR_2": 1, "FT_HANGAR_3": 1, "FT_HANGAR_4": 1},
-    "GREAT": {"FT_HANGAR_1": 0, "FT_HANGAR_2": 2, "FT_HANGAR_3": 2, "FT_HANGAR_4": 2},
-    "ULTIMATE": {"FT_HANGAR_1": 0, "FT_HANGAR_2": 3, "FT_HANGAR_3": 3, "FT_HANGAR_4": 3},
+    "GOOD": {"FT_HANGAR_1": 0, "FT_HANGAR_2": 1.5, "FT_HANGAR_3": 1.5, "FT_HANGAR_4": 1.5},
+    "GREAT": {"FT_HANGAR_1": 0, "FT_HANGAR_2": 3, "FT_HANGAR_3": 3, "FT_HANGAR_4": 3},
+    "ULTIMATE": {"FT_HANGAR_1": 0, "FT_HANGAR_2": 4.5, "FT_HANGAR_3": 4.5, "FT_HANGAR_4": 4.5},
 }
 
 PILOT_FIGHTER_CAPACITY_MODIFIER_DICT = {
@@ -740,19 +741,19 @@ HULL_EFFECTS = {
     "SH_SYMBIOTIC": {
         REPAIR_PER_TURN: 2 * SHIP_STRUCTURE_FACTOR,
         FUEL_PER_TURN: 0.2,
-        DETECTION: 50,
+        DETECTION: 40,
         ORGANIC_GROWTH: (0.2 * SHIP_STRUCTURE_FACTOR, 10 * SHIP_STRUCTURE_FACTOR),
     },
     "SH_PROTOPLASMIC": {
         REPAIR_PER_TURN: 2 * SHIP_STRUCTURE_FACTOR,
         FUEL_PER_TURN: 0.2,
-        DETECTION: 50,
+        DETECTION: 40,
         ORGANIC_GROWTH: (0.5 * SHIP_STRUCTURE_FACTOR, 25 * SHIP_STRUCTURE_FACTOR),
     },
     "SH_ENDOSYMBIOTIC": {
         REPAIR_PER_TURN: 2 * SHIP_STRUCTURE_FACTOR,
         FUEL_PER_TURN: 0.2,
-        DETECTION: 50,
+        DETECTION: 40,
         ORGANIC_GROWTH: (0.5 * SHIP_STRUCTURE_FACTOR, 15 * SHIP_STRUCTURE_FACTOR),
     },
     "SH_RAVENOUS": {
@@ -768,7 +769,7 @@ HULL_EFFECTS = {
     "SH_SENTIENT": {
         REPAIR_PER_TURN: 2 * SHIP_STRUCTURE_FACTOR,
         FUEL_PER_TURN: 0.2,
-        DETECTION: 70,
+        DETECTION: 90,
         ORGANIC_GROWTH: (1 * SHIP_STRUCTURE_FACTOR, 45 * SHIP_STRUCTURE_FACTOR),
         STEALTH_MODIFIER: 20,
     },

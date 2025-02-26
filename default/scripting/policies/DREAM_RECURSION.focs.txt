@@ -15,6 +15,7 @@ Policy
                 OwnedBy empire = Source.Owner
                 Species
             ]
+            activation = EmpireStockpile empire = Source.Owner resource = Influence low = 0
             priority = [[TARGET_LAST_BEFORE_OVERRIDE_PRIORITY]]
             effects = [
                 SetTargetInfluence value = Value - max(0.0,
@@ -32,4 +33,4 @@ Policy
     graphic = "icons/policies/social_dream_recursion.png"
 
 #include "/scripting/policies/policies.macros"
-#include "/scripting/common/priorities.macros"
+#include "/scripting/macros/priorities.macros"

@@ -67,8 +67,7 @@ public:
          std::vector<UnlockableItem>&& unlocked_items,
          std::string&& graphic);
 
-    bool operator==(const Tech& rhs) const;
-    bool operator!=(const Tech& rhs) const { return !(*this == rhs); }
+    [[nodiscard]] bool operator==(const Tech& rhs) const;
     Tech(const Tech&) = delete;
     Tech(Tech&&) = default;
     Tech& operator=(const Tech&) = delete;
@@ -87,7 +86,7 @@ public:
     [[nodiscard]] const auto& Tags() const noexcept { return m_tags; }
     [[nodiscard]] const auto& PediaTags() const noexcept { return m_pedia_tags; }
     [[nodiscard]] bool        HasTag(std::string_view tag) const
-    { return std::any_of(m_tags.begin(), m_tags.end(), [tag](const auto& t) { return t == tag; }); }
+    { return std::any_of(m_tags.begin(), m_tags.end(), [tag](const auto& t) noexcept { return t == tag; }); }
 
     [[nodiscard]] const auto& Effects() const noexcept          { return m_effects; }
     [[nodiscard]] const auto& Prerequisites() const noexcept    { return m_prerequisites; }
@@ -149,6 +148,7 @@ namespace CheckSums {
 class FO_COMMON_API TechManager {
 public:
     using TechContainer = boost::container::flat_map<std::string, Tech, std::less<>>;
+    using const_iterator = TechContainer::const_iterator;
     using iterator = TechContainer::const_iterator;
     using TechCategoryContainer = boost::container::flat_map<std::string, TechCategory, std::less<>>;
 

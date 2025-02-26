@@ -22,7 +22,7 @@ namespace {
     struct grammar : public parse::detail::grammar<start_rule_signature> {
         grammar(const parse::lexer& tok,
                 const std::string& filename,
-                const parse::text_iterator& first, const parse::text_iterator& last) :
+                const parse::text_iterator first, const parse::text_iterator last) :
             grammar::base_type(start),
             unlockable_item_parser(tok, label)
         {
@@ -58,14 +58,14 @@ namespace parse {
     start_rule_payload items(const boost::filesystem::path& path) {
         start_rule_payload items_;
         items_.reserve(128);    // should be more than enough as of this writing
-        detail::parse_file<grammar, start_rule_payload>(lexer::tok, path, items_);
+        detail::parse_file<grammar, start_rule_payload>(GetLexer(), path, items_);
         return items_;
     }
 
     start_rule_payload starting_buildings(const boost::filesystem::path& path) {
         start_rule_payload starting_buildings_;
         starting_buildings_.reserve(32); // should be more than enough as of this writing...
-        detail::parse_file<grammar, start_rule_payload>(lexer::tok, path, starting_buildings_);
+        detail::parse_file<grammar, start_rule_payload>(GetLexer(), path, starting_buildings_);
         return starting_buildings_;
     }
 }

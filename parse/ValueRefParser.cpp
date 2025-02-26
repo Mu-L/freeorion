@@ -12,8 +12,8 @@
 // These are just here to satisfy the requirements of boost::spirit::qi::debug(<rule>).
 #if DEBUG_VALUEREF_PARSERS
 namespace std {
-    inline ostream& operator<<(ostream& os, const std::vector<boost::variant<ValueRef::OpType, value_ref_payload<int>>>&) { return os; }
-    inline ostream& operator<<(ostream& os, const std::vector<boost::variant<ValueRef::OpType, value_ref_payload<double>>>&) { return os; }
+    inline ostream& operator<<(ostream& os, const std::vector<std::variant<ValueRef::OpType, value_ref_payload<int>>>&) { return os; }
+    inline ostream& operator<<(ostream& os, const std::vector<std::variant<ValueRef::OpType, value_ref_payload<double>>>&) { return os; }
 }
 #endif
 
@@ -38,12 +38,15 @@ namespace parse::detail {
         return variable_scope;
     }
 
-    const name_token_rule container_type(const parse::lexer& tok) {
-        name_token_rule container_type;
-        container_type
-            =   tok.Planet_
-            |   tok.System_
-            |   tok.Fleet_
+    const container_token_rule container(const parse::lexer& tok) {
+        qi::eps_type eps;
+        qi::_val_type _val;
+
+        container_token_rule container_type =
+                tok.Planet_ [ _val = ValueRef::ContainerType::PLANET ]
+            |   tok.System_ [ _val = ValueRef::ContainerType::SYSTEM ]
+            |   tok.Fleet_  [ _val = ValueRef::ContainerType::FLEET ]
+            |   eps         [ _val = ValueRef::ContainerType::NONE ]
             ;
 
         container_type.name("Planet, System, or Fleet");
@@ -78,7 +81,7 @@ namespace parse::detail {
             ;
 
         variable_scope_rule = variable_scope(tok);
-        container_type_rule = container_type(tok);
+        container_type_rule = container(tok);
         initialize_bound_variable_parser<T>(
             bound_variable, unwrapped_bound_variable,
             value_wrapped_bound_variable, bound_variable_name,

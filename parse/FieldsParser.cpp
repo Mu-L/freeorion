@@ -46,7 +46,7 @@ namespace {
     struct grammar : public parse::detail::grammar<start_rule_signature> {
         grammar(const parse::lexer& tok,
                 const std::string& filename,
-                const parse::text_iterator& first, const parse::text_iterator& last) :
+                const parse::text_iterator first, const parse::text_iterator last) :
             grammar::base_type(start),
             condition_parser(tok, label),
             string_grammar(tok, label, condition_parser),
@@ -117,7 +117,7 @@ namespace parse {
         ScopedTimer timer("Fields Parsing");
 
         for (const auto& file : ListDir(path, IsFOCScript))
-            detail::parse_file<grammar, start_rule_payload>(lexer::tok, file, field_types);
+            detail::parse_file<grammar, start_rule_payload>(GetLexer(), file, field_types);
 
         return field_types;
     }

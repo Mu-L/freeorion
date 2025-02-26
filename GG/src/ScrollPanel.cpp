@@ -24,13 +24,11 @@ using std::max;
 using std::min;
 
 namespace {
+    // Minimum acceptable width for a scroll.
+    constexpr X MIN_SCROLL_WIDTH{14};
 
-// Minimum acceptable width for a scroll.
-X MIN_SCROLL_WIDTH(14);
-
-// Space to leave left of the vertical scroll.
-X SCROLL_MARGIN_X(2);
-
+    // Space to leave left of the vertical scroll.
+    constexpr X SCROLL_MARGIN_X{2};
 }
 
 void ScrollPanel::SizeMove(Pt ul, Pt lr)
@@ -43,19 +41,7 @@ void ScrollPanel::SizeMove(Pt ul, Pt lr)
 }
 
 void ScrollPanel::Render()
-{
-    FlatRectangle(UpperLeft(), LowerRight(), m_background_color, CLR_ZERO, 0);
-}
-
-ScrollPanel::ScrollPanel() :
-    m_background_color(CLR_ZERO)
-{}
-
-ScrollPanel::ScrollPanel(X x, Y y, X w, Y h, std::shared_ptr<Wnd> content):
-    Wnd(x, y, w, h, INTERACTIVE),
-    m_content(content),
-    m_background_color(CLR_ZERO)
-{}
+{ FlatRectangle(UpperLeft(), LowerRight(), m_background_color, CLR_ZERO, 0); }
 
 void ScrollPanel::CompleteConstruction()
 {
@@ -65,7 +51,7 @@ void ScrollPanel::CompleteConstruction()
 
     // Get the scroll bar from the current style factory.
     const auto& style = GetStyleFactory();
-    m_vscroll = style->NewMultiEditVScroll(CLR_WHITE, CLR_BLACK);
+    m_vscroll = style.NewMultiEditVScroll(CLR_WHITE, CLR_BLACK);
 
     // Don't accept less than MIN_SCROLL_WIDTH pixels wide scrolls.
     if (m_vscroll->Width() < MIN_SCROLL_WIDTH) {
@@ -94,7 +80,7 @@ void ScrollPanel::MouseWheel(Pt pt, int move, Flags<ModKey> mod_keys)
     SignalScroll(*m_vscroll, true);
 }
 
-void ScrollPanel::KeyPress(Key key, std::uint32_t key_code_point, Flags<ModKey> mod_keys)
+void ScrollPanel::KeyPress(Key key, uint32_t key_code_point, Flags<ModKey> mod_keys)
 {
     // unused variable bool shift_down = mod_keys & (MOD_KEY_LSHIFT | MOD_KEY_RSHIFT);
     bool ctrl_down = mod_keys & (MOD_KEY_CTRL | MOD_KEY_RCTRL);

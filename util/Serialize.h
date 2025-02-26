@@ -105,7 +105,7 @@ extern template FO_COMMON_API void SerializeIncompleteLogs<freeorion_xml_oarchiv
 
 class EmpireManager;
 
-BOOST_CLASS_VERSION(EmpireManager, 2);
+BOOST_CLASS_VERSION(EmpireManager, 3);
 
 template <typename Archive>
 void serialize(Archive&, EmpireManager&, unsigned int const);
@@ -155,7 +155,7 @@ extern template FO_COMMON_API void serialize<freeorion_xml_iarchive>(freeorion_x
 
 struct PlayerSaveGameData;
 
-BOOST_CLASS_VERSION(PlayerSaveGameData, 2);
+BOOST_CLASS_VERSION(PlayerSaveGameData, 3);
 
 template <typename Archive>
 void serialize(Archive&, PlayerSaveGameData&, unsigned int const);
@@ -263,6 +263,8 @@ extern template FO_COMMON_API void serialize<freeorion_xml_iarchive>(freeorion_x
 
 
 class SpeciesManager;
+
+BOOST_CLASS_VERSION(SpeciesManager, 1)
 
 template <typename Archive>
 void serialize(Archive&, SpeciesManager&, unsigned int const);

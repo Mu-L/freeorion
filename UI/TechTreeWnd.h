@@ -21,7 +21,7 @@ public:
     using TechClickSignalType = boost::signals2::signal<void (std::string, GG::Flags<GG::ModKey>)>;
     using QueueAddTechsSignalType = boost::signals2::signal<void (std::vector<std::string>, int)>;
 
-    /** TechTreeWnd contructor is usually called before client has
+    /** TechTreeWnd constructor is usually called before client has
         access to techs.  Attempting to show the tech tree takes a long
         time and generates errors.  If \p initially_hidden is true then the
         tech categories are not parsed until the first time Show() is
@@ -41,7 +41,7 @@ public:
     void Clear();
     void Reset();
 
-    void ShowCategory(const std::string& category);
+    void ShowCategory(std::string category);
     void ShowAllCategories();
     void HideCategory(const std::string& category);
     void HideAllCategories();
@@ -54,8 +54,8 @@ public:
     void ShowListView();
 
     void CenterOnTech(const std::string& tech_name);
-    void SetEncyclopediaTech(const std::string& tech_name);
-    void SelectTech(const std::string& tech_name);
+    void SetEncyclopediaTech(std::string tech_name);
+    void SelectTech(std::string tech_name);
 
     void ShowPedia();
     void HidePedia();
@@ -69,11 +69,9 @@ private:
     class LayoutPanel;
     class TechListBox;
 
-    void TechLeftClickedSlot(const std::string& tech_name,
-                             GG::Flags<GG::ModKey> modkeys);
-    void AddTechToResearchQueue(const std::string& tech_name,
-                                bool to_front);
-    void TechPediaDisplaySlot(const std::string& tech_name);
+    void TechLeftClickedSlot(std::string tech_name, GG::Flags<GG::ModKey> modkeys);
+    void AddTechToResearchQueue(std::string tech_name, bool to_front);
+    void TechPediaDisplaySlot(std::string tech_name);
 
     void InitializeWindows();
 

@@ -49,7 +49,7 @@ namespace {
         auto formatter = FlexibleFormat(key);
 
         std::size_t arg = 1;
-        for (auto submatch : match.nested_results())
+        for (const auto& submatch : match.nested_results())
             formatter.bind_arg(arg++, submatch.str());
 
         return formatter.str();
@@ -78,7 +78,7 @@ class MessageWndEdit : public CUIEdit {
 public:
     MessageWndEdit();
 
-    void KeyPress(GG::Key key, std::uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys) override;
+    void KeyPress(GG::Key key, uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys) override;
     bool AutoComplete() override;   //!< Autocomplete current word
 
     /** emitted when user presses enter/return while entering text */
@@ -111,9 +111,7 @@ MessageWndEdit::MessageWndEdit() :
     CUIEdit("")
 {}
 
-void MessageWndEdit::KeyPress(GG::Key key, std::uint32_t key_code_point,
-                              GG::Flags<GG::ModKey> mod_keys)
-{
+void MessageWndEdit::KeyPress(GG::Key key, uint32_t key_code_point, GG::Flags<GG::ModKey> mod_keys) {
     switch (key) {
     case GG::Key::GGK_RETURN:
     case GG::Key::GGK_KP_ENTER:
@@ -132,19 +130,20 @@ void MessageWndEdit::KeyPress(GG::Key key, std::uint32_t key_code_point,
 }
 
 void MessageWndEdit::FindGameWords() {
+    const ScriptingContext& context = IApp::GetApp()->GetContext();
+
      // add player and empire names
-    for ([[maybe_unused]] auto& [ignored_id, empire] : Empires()) {
-        (void)ignored_id;   // quiet unused variable warning
+    for (const auto& empire : Empires() | range_values) {
         m_game_words.insert(empire->Name());
         m_game_words.insert(empire->PlayerName());
     }
     // add system names
-    for (auto system : GetUniverse().Objects().allRaw<System>()) {
+    for (const auto* system : context.ContextObjects().allRaw<const System>()) {
         if (!system->Name().empty())
             m_game_words.insert(system->Name());
     }
      // add ship names
-    for (auto ship : GetUniverse().Objects().allRaw<Ship>()) {
+    for (const auto* ship : context.ContextObjects().allRaw<const Ship>()) {
         if (!ship->Name().empty())
             m_game_words.insert(ship->Name());
     }
@@ -160,21 +159,19 @@ void MessageWndEdit::FindGameWords() {
             m_game_words.insert(UserString(special_name));
     }
      // add species names
-    for (const auto& [name, species] : GetSpeciesManager()) {
+    for (const auto& name : context.species | range_keys) {
         if (!name.empty())
             m_game_words.insert(UserString(name));
-        (void)species; // quiet unused variable warning
     }
      // add techs names
-    for (const auto& tech_name : GetTechManager().TechNames()) {
+    for (const auto& tech_name : GetTechManager() | range_keys) {
         if (!tech_name.empty())
             m_game_words.insert(UserString(tech_name));
     }
     // add building type names
-    for (const auto& [name, type] : GetBuildingTypeManager()) {
+    for (const auto& name : GetBuildingTypeManager() | range_keys) {
         if (!name.empty())
             m_game_words.insert(UserString(name));
-        (void)type; // quiet unused variable warning
     }
     // add ship hulls
     for (const auto& design : GetPredefinedShipDesignManager().GetOrderedShipDesigns()) {
@@ -219,8 +216,11 @@ bool MessageWndEdit::AutoComplete() {
     } else {
         bool exact_match = false;
 
-        auto cursor_pos = this->CursorPosn();
-        if (cursor_pos.first == cursor_pos.second && 0 < cursor_pos.first && cursor_pos.first <= full_line.size()) {
+        const auto cursor_pos = this->CursorPosn();
+        if (cursor_pos.first == cursor_pos.second &&
+            GG::CP0 < cursor_pos.first &&
+            Value(cursor_pos.first) <= full_line.size())
+        {
             auto word_start = full_line.substr(0, Value(cursor_pos.first)).find_last_of(" :");
             if (word_start == std::string::npos)
                 word_start = 0;
@@ -238,7 +238,7 @@ bool MessageWndEdit::AutoComplete() {
                 if (boost::iequals(word, partial_word)) { // if there's an exact match, just add a space
                     full_line.insert(Value(cursor_pos.first), " ");
                     this->SetText(std::move(full_line));
-                    this->SelectRange(cursor_pos.first + 1, cursor_pos.first + 1);
+                    this->SelectRange(cursor_pos.first + GG::CP1, cursor_pos.first + GG::CP1);
                     exact_match = true;
                     break;
                 }
@@ -325,8 +325,8 @@ void MessageWnd::CompleteConstruction() {
 }
 
 void MessageWnd::DoLayout() {
-    static constexpr GG::Y PAD(3);
-    m_display->SizeMove(GG::Pt(GG::X0, GG::Y0),
+    static constexpr GG::Y PAD{3};
+    m_display->SizeMove(GG::Pt0,
                         GG::Pt(ClientWidth(), ClientHeight() - PAD - m_edit->MinUsableSize().y));
     m_edit->SizeMove(GG::Pt(GG::X0, ClientHeight() - m_edit->MinUsableSize().y),
                      GG::Pt(ClientWidth() - GG::X(CUIWnd::INNER_BORDER_ANGLE_OFFSET), ClientHeight()));
@@ -351,7 +351,7 @@ std::string MessageWnd::GetText() const
 { return *m_display; }
 
 void MessageWnd::SizeMove(GG::Pt ul, GG::Pt lr) {
-    const GG::Pt old_size = Size();
+    const auto old_size = Size();
     CUIWnd::SizeMove(ul, lr);
     if (old_size != Size())
         RequirePreRender();
@@ -364,86 +364,74 @@ void MessageWnd::PreRender() {
 
 void MessageWnd::HandlePlayerChatMessage(const std::string& text,
                                          const std::string& player_name,
-                                         GG::Clr text_color,
+                                         GG::Clr player_name_color,
                                          const boost::posix_time::ptime& timestamp,
                                          int recipient_player_id,
                                          bool pm)
 {
     std::string filtered_message = StringtableTextSubstitute(text);
-    std::string wrapped_text = RgbaTag(text_color);
-    const std::string&& formatted_timestamp = ClientUI::FormatTimestamp(timestamp);
-    if (utf8::is_valid(formatted_timestamp.begin(), formatted_timestamp.end()))
-        wrapped_text.append(formatted_timestamp);
-    if (player_name.empty()) {
-        wrapped_text.append(filtered_message).append("</rgba>");
-    } else {
-        wrapped_text.append(player_name);
-        if (pm)
-            wrapped_text.append(UserString("MESSAGES_WHISPER"));
-        wrapped_text.append(": ").append(filtered_message).append("</rgba>");
+    std::string wrapped_text;
+    {
+        const auto formatted_timestamp = ClientUI::FormatTimestamp(timestamp);
+        if (utf8::is_valid(formatted_timestamp.begin(), formatted_timestamp.end()))
+            wrapped_text.append(formatted_timestamp);
     }
+    const auto filtered_name = GG::Font::StripTags(player_name);
+    wrapped_text.append(RgbaTag(player_name_color))
+                .append(!filtered_name.empty() ? filtered_name : UserString("PLAYER"))
+                .append("</rgba>");
+    static_assert(GG::Font::RGBA_TAG == "rgba");
+    if (pm)
+        wrapped_text.append(UserString("MESSAGES_WHISPER"));
+    wrapped_text.append(": ")
+                .append(filtered_message)
+                .append("</pre>").append("<reset>"); // ensure message doesn't leave text state in preformatted mode or with any other tags applied
+    static_assert(GG::Font::PRE_TAG == "pre");
+    static_assert(GG::Font::RESET_TAG == "reset");
+
     TraceLogger() << "HandlePlayerChatMessage sender: " << player_name
-                  << "  sender colour rgba tag: " << RgbaTag(text_color)
+                  << "  sender colour tag: " << RgbaTag(player_name_color)
                   << "  filtered message: " << filtered_message
                   << "  timestamp text: " << ClientUI::FormatTimestamp(timestamp)
                   << "  wrapped text: " << wrapped_text;
 
-    *m_display += wrapped_text.append("\n");
+    wrapped_text.append("\n");
+
+    *m_display += wrapped_text;
     m_display_show_time = GG::GUI::GetGUI()->Ticks();
 
-    // if client empire is target of message, show message window
-    const ClientApp* app = ClientApp::GetApp();
-    if (!app) {
-        ErrorLogger() << "MessageWnd::HandlePlayerChatMessage couldn't get client app!";
-        return;
-    }
-    // only show and flash message window if other player sent message
-    const auto& players = app->Players();
-    const auto it = players.find(app->PlayerID());
-    if (it == players.end() || it->second.name != player_name) {
-        Flash();
-        Show();
+    if (const ClientApp* app = ClientApp::GetApp()) {
+        // if client empire is target of message, show message window
+        const auto& players = app->Players();
+        const auto it = players.find(app->PlayerID());
+        if (it == players.end() || it->second.name != player_name) {
+            Flash();
+            Show();
+        }
     }
 }
 
 void MessageWnd::HandleTurnPhaseUpdate(Message::TurnProgressPhase phase_id, bool prefixed) {
-    std::string phase_str;
-    switch (phase_id) {
-    case Message::TurnProgressPhase::FLEET_MOVEMENT:
-        phase_str = UserString("TURN_PROGRESS_PHASE_FLEET_MOVEMENT");
-        break;
-    case Message::TurnProgressPhase::COMBAT:
-        phase_str = UserString("TURN_PROGRESS_PHASE_COMBAT");
-        break;
-    case Message::TurnProgressPhase::EMPIRE_PRODUCTION:
-        phase_str = UserString("TURN_PROGRESS_PHASE_EMPIRE_GROWTH");
-        break;
-    case Message::TurnProgressPhase::WAITING_FOR_PLAYERS:
-        phase_str = UserString("TURN_PROGRESS_PHASE_WAITING");
-        break;
-    case Message::TurnProgressPhase::PROCESSING_ORDERS:
-        phase_str = UserString("TURN_PROGRESS_PHASE_ORDERS");
-        break;
-    case Message::TurnProgressPhase::COLONIZE_AND_SCRAP:
-        phase_str = UserString("TURN_PROGRESS_COLONIZE_AND_SCRAP");
-        break;
-    case Message::TurnProgressPhase::DOWNLOADING:
-        phase_str = UserString("TURN_PROGRESS_PHASE_DOWNLOADING");
-        break;
-    case Message::TurnProgressPhase::LOADING_GAME:
-        phase_str = UserString("TURN_PROGRESS_PHASE_LOADING_GAME");
-        break;
-    case Message::TurnProgressPhase::GENERATING_UNIVERSE:
-        phase_str = UserString("TURN_PROGRESS_PHASE_GENERATING_UNIVERSE");
-        break;
-    case Message::TurnProgressPhase::STARTING_AIS:
-        phase_str = UserString("TURN_PROGRESS_STARTING_AIS");
-        break;
-    default:
-        ErrorLogger() << "MessageWnd::HandleTurnPhaseUpdate got unknown turn phase id";
-        return;
-        break;
-    }
+#if defined(__cpp_lib_constexpr_string) && ((!defined(__GNUC__) || (__GNUC__ > 12) || (__GNUC__ == 12 && __GNUC_MINOR__ >= 2))) && ((!defined(_MSC_VER) || (_MSC_VER >= 1934))) && ((!defined(__clang_major__) || (__clang_major__ >= 17)))
+    static constexpr std::string EMPTY_STRING;
+#else
+    static const std::string EMPTY_STRING;
+#endif
+    const auto& phase_str = [phase_id]() {
+        switch (phase_id) {
+        case Message::TurnProgressPhase::FLEET_MOVEMENT:        return UserString("TURN_PROGRESS_PHASE_FLEET_MOVEMENT"); break;
+        case Message::TurnProgressPhase::COMBAT:                return UserString("TURN_PROGRESS_PHASE_COMBAT"); break;
+        case Message::TurnProgressPhase::EMPIRE_PRODUCTION:     return UserString("TURN_PROGRESS_PHASE_EMPIRE_GROWTH"); break;
+        case Message::TurnProgressPhase::WAITING_FOR_PLAYERS:   return UserString("TURN_PROGRESS_PHASE_WAITING"); break;
+        case Message::TurnProgressPhase::PROCESSING_ORDERS:     return UserString("TURN_PROGRESS_PHASE_ORDERS"); break;
+        case Message::TurnProgressPhase::COLONIZE_AND_SCRAP:    return UserString("TURN_PROGRESS_COLONIZE_AND_SCRAP"); break;
+        case Message::TurnProgressPhase::DOWNLOADING:           return UserString("TURN_PROGRESS_PHASE_DOWNLOADING"); break;
+        case Message::TurnProgressPhase::LOADING_GAME:          return UserString("TURN_PROGRESS_PHASE_LOADING_GAME"); break;
+        case Message::TurnProgressPhase::GENERATING_UNIVERSE:   return UserString("TURN_PROGRESS_PHASE_GENERATING_UNIVERSE"); break;
+        case Message::TurnProgressPhase::STARTING_AIS:          return UserString("TURN_PROGRESS_STARTING_AIS"); break;
+        default:                                                return EMPTY_STRING; break;
+        }
+    }();
 
     if (prefixed)
         *m_display += boost::str(FlexibleFormat(UserString("PLAYING_GAME")) % phase_str) + "\n";
@@ -453,12 +441,12 @@ void MessageWnd::HandleTurnPhaseUpdate(Message::TurnProgressPhase phase_id, bool
 }
 
 void MessageWnd::HandleGameStatusUpdate(const std::string& text) {
-    *m_display += text;
+    *m_display += (text + "\n");
     m_display_show_time = GG::GUI::GetGUI()->Ticks();
 }
 
 void MessageWnd::HandleLogMessage(const std::string& text) {
-    *m_display += text;
+    *m_display += (text + "\n");
     m_display_show_time = GG::GUI::GetGUI()->Ticks();
 }
 
@@ -469,7 +457,7 @@ void MessageWnd::HandleDiplomaticStatusChange(int empire1_id, int empire2_id) {
         return;
     }
 
-    const ScriptingContext context;
+    const ScriptingContext& context = IApp::GetApp()->GetContext();
 
     int client_empire_id = app->EmpireID();
     DiplomaticStatus status = context.ContextDiploStatus(empire1_id, empire2_id);
@@ -516,8 +504,8 @@ void MessageWnd::OpenForInput() {
     m_display_show_time = GG::GUI::GetGUI()->Ticks();
 }
 
-void MessageWnd::SetChatText(const std::string& chat_text)
-{ m_display->SetText(chat_text); }
+void MessageWnd::SetChatText(std::string chat_text)
+{ m_display->SetText(std::move(chat_text)); }
 
 namespace {
     void SendChatMessage(const std::string& text, std::set<int> recipients, bool pm) {
@@ -539,13 +527,12 @@ namespace {
         std::string::size_type space_pos = text.find_first_of(' ');
         if (space_pos == std::string::npos)
             return Networking::INVALID_PLAYER_ID;
-        std::string player_name = boost::trim_copy(text.substr(0, space_pos));
-        const std::map<int, PlayerInfo>& players = app->Players();
+        const std::string player_name = boost::trim_copy(text.substr(0, space_pos));
+        const auto& players = app->Players();
 
-        for (auto& player : players) {
-            if (boost::iequals(player.second.name, player_name)) {
-                return player.first;
-            }
+        for (auto& [player_id, player_info] : players) {
+            if (boost::iequals(player_info.name, player_name))
+                return player_id;
         }
 
         return Networking::INVALID_PLAYER_ID;
@@ -593,8 +580,8 @@ void MessageWnd::HandleTextCommand(const std::string& text) {
         m_display_show_time = GG::GUI::GetGUI()->Ticks();
     }
     else if (boost::iequals(command, "pm")) {
-        int player_id = ExtractPlayerID(params);
-        std::string message = ExtractMessage(params);
+        const int player_id = ExtractPlayerID(params);
+        const std::string message = ExtractMessage(params);
 
         if (player_id != Networking::INVALID_PLAYER_ID) {
             std::set<int> recipient;

@@ -1,8 +1,9 @@
 if(WIN32)
-    # file(GET_RUNTIME_DEPENDENCIES
-    set(REQUIRED_CMAKE_VERSION 3.16)
+    # file(GET_RUNTIME_DEPENDENCIES and install(... ALL_COMPONENTS)
+    set(REQUIRED_CMAKE_VERSION 3.21)
 else()
-    set(REQUIRED_CMAKE_VERSION 3.8)
+    # Python3_FIND_STRATEGY
+    set(REQUIRED_CMAKE_VERSION 3.15)
 endif()
 
 cmake_minimum_required(VERSION ${REQUIRED_CMAKE_VERSION} FATAL_ERROR)
@@ -32,7 +33,7 @@ message(STATUS "Build type CMAKE_BUILD_TYPE set to ${CMAKE_BUILD_TYPE}")
 include(UseCompilerCache)
 find_compiler_cache(PROGRAM ccache)
 
-list(APPEND GODOT_CPP_CMAKE_VARS "CMAKE_BUILD_TYPE;CMAKE_CONFIGURATION_TYPES;CMAKE_TOOLCHAIN_FILE;PYTHON_EXECUTABLE")
+list(APPEND GODOT_CPP_CMAKE_VARS "CMAKE_BUILD_TYPE;CMAKE_CONFIGURATION_TYPES;CMAKE_TOOLCHAIN_FILE;PYTHON_EXECUTABLE;Python3_EXECUTABLE")
 get_cmake_property(vars CACHE_VARIABLES)
 foreach(var ${vars})
   get_property(currentHelpString CACHE "${var}" PROPERTY HELPSTRING)
@@ -59,7 +60,6 @@ include(CPackComponent)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 
 option(BUILD_SHARED_LIBS "Build project as shared libraries." ON)
@@ -102,8 +102,8 @@ else()
 endif()
 
 if(APPLE)
-    set(FreeOrionSDK_VERSION 14)
-    set(FreeOrionSDK_FILE "FreeOrionSDK_${FreeOrionSDK_VERSION}_Clang-MacOSX-10.9-x86_64.tar.bz2")
+    set(FreeOrionSDK_VERSION 15)
+    set(FreeOrionSDK_FILE "FreeOrionSDK_${FreeOrionSDK_VERSION}_Clang-MacOSX-10.15-x86_64.tar.bz2")
     if(NOT EXISTS "${CMAKE_BINARY_DIR}/${FreeOrionSDK_FILE}")
     file(DOWNLOAD
             "https://github.com/freeorion/freeorion-sdk/releases/download/v${FreeOrionSDK_VERSION}/${FreeOrionSDK_FILE}"
@@ -125,9 +125,11 @@ if(APPLE)
     set(CMAKE_PREFIX_PATH "${CMAKE_BINARY_DIR}/dep/")
     set(CMAKE_FRAMEWORK_PATH "${CMAKE_BINARY_DIR}/dep/Frameworks")
     set(CMAKE_PROGRAM_PATH "${CMAKE_BINARY_DIR}/dep/bin")
+    set(Python3_FIND_FRAMEWORK "LAST")
     set(BOOST_ROOT "${CMAKE_BINARY_DIR}/dep/")
     set(Boost_NO_SYSTEM_PATHS ON)
-    set(Python_FIND_REGISTRY "LAST")
+    set(Python3_ROOT_DIR "${CMAKE_BINARY_DIR}/dep/")
+    set(Python3_FIND_STRATEGY "LOCATION")
 endif()
 
 if(UNIX)
@@ -201,10 +203,10 @@ endif()
 
 set_property(DIRECTORY APPEND
     PROPERTY COMPILE_DEFINITIONS
-        # Set minimum Windows target version to WindowsXP or Vista depending on toolset
+        # Set minimum Windows target version to Windows10
         # https://msdn.microsoft.com/en-us/library/aa383745.aspx
         # Use numeric to correctly compare it in <boost\log\detail\config.hpp>
-        $<$<PLATFORM_ID:Windows>:_WIN32_WINNT=$<IF:$<STREQUAL:${_VS_PLATFORM_TOOLSET_TARGET},_xp>,0x0501,0x0600>>
+        $<$<PLATFORM_ID:Windows>:_WIN32_WINNT=0x0A00>
         # Default to unicode variants when using Win32 API
         # https://msdn.microsoft.com/en-us/library/dybsewaf.aspx
         $<$<PLATFORM_ID:Windows>:_UNICODE>
@@ -263,18 +265,25 @@ set(MINIMUM_PYTHON_VERSION 3.9)
 set(MINIMUM_BOOST_VERSION 1.73.0)
 
 find_package(Threads)
-find_package(PythonInterp ${MINIMUM_PYTHON_VERSION} REQUIRED)
-find_package(PythonLibs ${MINIMUM_PYTHON_VERSION} REQUIRED)
-message(STATUS "Python library version detected ${PYTHONLIBS_VERSION_STRING}")
-string(REGEX REPLACE "^([0-9]+)\\.([0-9]+)\\..*" "\\1\\2" Boost_PYTHON_SUFFIX "${PYTHONLIBS_VERSION_STRING}")
+if(ANDROID)
+    find_package(Python3 ${MINIMUM_PYTHON_VERSION} COMPONENTS Interpreter REQUIRED)
+    find_package(Python3 ${MINIMUM_PYTHON_VERSION} COMPONENTS Development REQUIRED)
+else()
+    find_package(Python3 ${MINIMUM_PYTHON_VERSION} COMPONENTS Interpreter Development REQUIRED)
+endif()
+message(STATUS "Python library version detected ${Python3_VERSION}")
+set(Boost_PYTHON_SUFFIX "${Python3_VERSION_MAJOR}${Python3_VERSION_MINOR}")
 message(STATUS "Boost python version ${Boost_PYTHON_SUFFIX}")
 find_package(Boost ${MINIMUM_BOOST_VERSION}
     COMPONENTS
+        container
         filesystem
+        graph
         iostreams
         locale
         log
         log_setup
+        random
         serialization
         system
         thread
@@ -287,6 +296,10 @@ if(NOT Boost_PYTHON${Boost_PYTHON_SUFFIX}_FOUND)
     # try some strange boost installations
     string(SUBSTRING "${Boost_PYTHON_SUFFIX}" 0 1 Boost_PYTHON_SUFFIX)
     find_package(Boost COMPONENTS python${Boost_PYTHON_SUFFIX} REQUIRED)
+endif()
+
+if(BUILD_TESTING)
+    find_package(Boost ${MINIMUM_BOOST_VERSION} COMPONENTS unit_test_framework REQUIRED)
 endif()
 
 find_package(ZLIB REQUIRED)
@@ -363,7 +376,7 @@ set_property(DIRECTORY APPEND
 # execution to a separate target and the existing python command
 execute_process(
     COMMAND
-    "${PYTHON_EXECUTABLE}"
+    "${Python3_EXECUTABLE}"
     "${CMAKE_SOURCE_DIR}/cmake/make_versioncpp.py"
     "${CMAKE_SOURCE_DIR}"
     "CMake"
@@ -426,7 +439,7 @@ target_compile_definitions(freeorioncommon
 
 target_include_directories(freeorioncommon SYSTEM
     PUBLIC
-        ${PYTHON_INCLUDE_PATH}
+        ${Python3_INCLUDE_DIRS}
 )
 
 target_link_libraries(freeorioncommon
@@ -443,7 +456,7 @@ target_link_libraries(freeorioncommon
         Boost::python${Boost_PYTHON_SUFFIX}
         Boost::thread
         Boost::serialization
-        ${PYTHON_LIBRARIES}
+        ${Python3_LIBRARIES}
         ZLIB::ZLIB
         ${ICUI18N_LIBRARY}
         ${ICUUC_LIBRARY}
@@ -478,7 +491,7 @@ target_compile_definitions(freeorionparseobj
 target_include_directories(freeorionparseobj
     PUBLIC
         $<TARGET_PROPERTY:Boost::boost,INTERFACE_INCLUDE_DIRECTORIES>
-        ${PYTHON_INCLUDE_PATH}
+        ${Python3_INCLUDE_DIRS}
 )
 
 set_property(TARGET freeorionparseobj
@@ -648,7 +661,7 @@ if(BUILD_CLIENT_GG)
         # at configuration time.
         execute_process(
             COMMAND
-            "${PYTHON_EXECUTABLE}"
+            "${Python3_EXECUTABLE}"
             "${CMAKE_SOURCE_DIR}/cmake/make_versioncpp.py"
             "${CMAKE_SOURCE_DIR}"
             "CMake"
@@ -719,8 +732,9 @@ if(BUILD_CLIENT_GODOT)
                 -D CMAKE_BUILD_TYPE=${GODOT_CPP_BUILD_TYPE}
                 -D CMAKE_CONFIGURATION_TYPES=${GODOT_CPP_BUILD_TYPE}
                 -D CMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
-                -D PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}
-                -D Python3_EXECUTABLE=${PYTHON_EXECUTABLE}
+                -D CMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES}
+                -D PYTHON_EXECUTABLE=${Python3_EXECUTABLE}
+                -D Python3_EXECUTABLE=${Python3_EXECUTABLE}
                 ${CL_ARGS}
             INSTALL_COMMAND ""
         )
@@ -790,9 +804,9 @@ endif()
 if(WIN32 AND BUILD_CLIENT_GG)
     add_custom_command(TARGET freeorion POST_BUILD
         COMMAND
-            ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_PREFIX_PATH}/bin/python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}.dll" "$<TARGET_FILE_DIR:freeorion>"
+            ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_PREFIX_PATH}/bin/python${Python3_VERSION_MAJOR}${Python3_VERSION_MINOR}.dll" "$<TARGET_FILE_DIR:freeorion>"
         COMMAND
-            ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_PREFIX_PATH}/bin/python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}.zip" "$<TARGET_FILE_DIR:freeorion>" 
+            ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_PREFIX_PATH}/bin/python${Python3_VERSION_MAJOR}${Python3_VERSION_MINOR}.zip" "$<TARGET_FILE_DIR:freeorion>"
     )
 endif()
 
@@ -817,9 +831,13 @@ if(APPLE AND BUILD_CLIENT_GG)
         COMMAND
            ${CMAKE_COMMAND} -E copy_if_different "${Boost_CHRONO_LIBRARY}" "$<TARGET_FILE_DIR:freeorion>/../SharedSupport"
         COMMAND
+           ${CMAKE_COMMAND} -E copy_if_different "${Boost_CONTAINER_LIBRARY}" "$<TARGET_FILE_DIR:freeorion>/../SharedSupport"
+        COMMAND
            ${CMAKE_COMMAND} -E copy_if_different "${Boost_DATE_TIME_LIBRARY}" "$<TARGET_FILE_DIR:freeorion>/../SharedSupport"
         COMMAND
            ${CMAKE_COMMAND} -E copy_if_different "${Boost_FILESYSTEM_LIBRARY}" "$<TARGET_FILE_DIR:freeorion>/../SharedSupport"
+        COMMAND
+           ${CMAKE_COMMAND} -E copy_if_different "${Boost_GRAPH_LIBRARY}" "$<TARGET_FILE_DIR:freeorion>/../SharedSupport"
         COMMAND
            ${CMAKE_COMMAND} -E copy_if_different "${Boost_IOSTREAMS_LIBRARY}" "$<TARGET_FILE_DIR:freeorion>/../SharedSupport"
         COMMAND
@@ -833,15 +851,19 @@ if(APPLE AND BUILD_CLIENT_GG)
         COMMAND
            ${CMAKE_COMMAND} -E copy_if_different "${Boost_PYTHON${Boost_PYTHON_SUFFIX}_LIBRARY}" "$<TARGET_FILE_DIR:freeorion>/../SharedSupport"
         COMMAND
+           ${CMAKE_COMMAND} -E copy_if_different "${Boost_RANDOM_LIBRARY}" "$<TARGET_FILE_DIR:freeorion>/../SharedSupport"
+        COMMAND
            ${CMAKE_COMMAND} -E copy_if_different "${Boost_SERIALIZATION_LIBRARY}" "$<TARGET_FILE_DIR:freeorion>/../SharedSupport"
         COMMAND
            ${CMAKE_COMMAND} -E copy_if_different "${Boost_SYSTEM_LIBRARY}" "$<TARGET_FILE_DIR:freeorion>/../SharedSupport"
         COMMAND
            ${CMAKE_COMMAND} -E copy_if_different "${Boost_THREAD_LIBRARY}" "$<TARGET_FILE_DIR:freeorion>/../SharedSupport"
         COMMAND
-           ${CMAKE_COMMAND} -E remove_directory "$<TARGET_FILE_DIR:freeorion>/../SharedSupport/lib/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}"
+           ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:SDL::SDL>" "$<TARGET_FILE_DIR:freeorion>/../SharedSupport"
         COMMAND
-           cp -R "${CMAKE_BINARY_DIR}/dep/lib/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}" "$<TARGET_FILE_DIR:freeorion>/../SharedSupport/lib/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}"
+           ${CMAKE_COMMAND} -E remove_directory "$<TARGET_FILE_DIR:freeorion>/../SharedSupport/lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}"
+        COMMAND
+           cp -R "${CMAKE_BINARY_DIR}/dep/lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}" "$<TARGET_FILE_DIR:freeorion>/../SharedSupport/lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}"
         COMMAND
            ${CMAKE_COMMAND} -E remove_directory "$<TARGET_FILE_DIR:freeorion>/../Frameworks"
         COMMAND
@@ -939,6 +961,12 @@ cpack_add_component(resources
     DISPLAY_NAME "Game resources"
 )
 
+if(BUILD_TESTING)
+    cpack_add_component(binaries-test
+        DISPLAY_NAME "Test binaries only"
+    )
+endif()
+
 if(WIN32)
     install(CODE [[
         list(APPEND pre_exclude_regexes "api-ms-.*") # windows API
@@ -951,7 +979,7 @@ if(WIN32)
         list(APPEND post_exclude_regexes ".*[Ww][Ii][Nn][Dd][Oo][Ww][Ss][\\/][Ss][Yy][Ss][Tt][Ee][Mm]32.*") # windows system dlls
         list(APPEND post_exclude_regexes ".*[Ww][Ii][Nn][Dd][Oo][Ww][Ss][\\/][Ss][Yy][Ss][Ww][Oo][Ww]64.*") # windows system dlls
     ]]
-    COMPONENT binaries)
+    ALL_COMPONENTS)
 endif()
 
 if(BUILD_CLIENT_GG)
@@ -972,7 +1000,7 @@ if(BUILD_CLIENT_GG)
                 POST_EXCLUDE_REGEXES ${post_exclude_regexes}
             )
         ]]
-        COMPONENT binaries)
+        ALL_COMPONENTS)
     endif()
 endif()
 
@@ -1004,7 +1032,7 @@ if(NOT APPLE AND NOT ANDROID)
                     POST_EXCLUDE_REGEXES ${post_exclude_regexes}
                 )
             ]]
-            COMPONENT binaries)
+            ALL_COMPONENTS)
         endif()
     endif()
 
@@ -1025,7 +1053,7 @@ if(NOT APPLE AND NOT ANDROID)
                     POST_EXCLUDE_REGEXES ${post_exclude_regexes}
                 )
             ]]
-            COMPONENT binaries)
+            ALL_COMPONENTS)
         endif()
     endif()
 
@@ -1056,7 +1084,7 @@ if(NOT APPLE AND NOT ANDROID)
                     POST_EXCLUDE_REGEXES ${post_exclude_regexes}
                 )
             ]]
-            COMPONENT binaries)
+            ALL_COMPONENTS)
         endif()
     endif()
 
@@ -1084,7 +1112,7 @@ if(NOT APPLE AND NOT ANDROID)
                     FILES
                     ${CMAKE_SOURCE_DIR}/default/data/art/icons/FO_Icon_${SIZE}x${SIZE}.png
                     DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/${SIZE}x${SIZE}/apps/
-                    RENAME freeorion.png
+                    RENAME org.freeorion.FreeOrion.png
                 )
             endforeach()
         endif()
@@ -1116,6 +1144,28 @@ if(WIN32)
         endforeach()
     ]]
     COMPONENT binaries)
+    if(BUILD_TESTING)
+        if(BUILD_PARSERS)
+            install(CODE [[
+                file(GET_RUNTIME_DEPENDENCIES
+                    EXECUTABLES $<TARGET_FILE:fo_unittest_parse>
+                    RESOLVED_DEPENDENCIES_VAR deps_install_fotp
+                    PRE_EXCLUDE_REGEXES ${pre_exclude_regexes}
+                    POST_EXCLUDE_REGEXES ${post_exclude_regexes}
+                )
+                list(REMOVE_ITEM deps_install_fotp ${deps_install_fo} ${deps_install_fod} ${deps_install_foca} ${deps_install_fog})
+                message(STATUS "Install dependencies ${deps_install_fotp}")
+                foreach(dep ${deps_install_fotp})
+                    file(INSTALL ${dep} DESTINATION ${CMAKE_INSTALL_PREFIX})
+                endforeach()
+            ]]
+            COMPONENT binaries-test)
+            install(TARGETS fo_unittest_parse
+                COMPONENT binaries-test
+                LIBRARY DESTINATION ${FreeOrion_INSTALL_LIBDIR}
+                RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})             
+        endif()
+    endif()
 endif()
 
 set(CPACK_PACKAGE_NAME ${CMAKE_PROJECT_NAME})

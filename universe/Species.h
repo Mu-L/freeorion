@@ -9,10 +9,12 @@
 #include <vector>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/container/flat_map.hpp>
+#include <boost/container/flat_set.hpp>
 #include <boost/iterator/filter_iterator.hpp>
 #include <boost/optional/optional.hpp>
 #include "ConstantsFwd.h"
 #include "EnumsFwd.h"
+#include "Meter.h"
 #include "../util/Enum.h"
 #include "../util/Export.h"
 #include "../util/Pending.h"
@@ -23,6 +25,10 @@ namespace Condition {
 }
 namespace Effect {
     class EffectsGroup;
+}
+namespace ValueRef {
+    template <typename T>
+    struct ValueRef;
 }
 class ObjectMap;
 
@@ -38,6 +44,17 @@ FO_ENUM(
     ((NUM_PLANET_ENVIRONMENTS))
 )
 
+[[nodiscard]] constexpr std::string_view DumpEnum(PlanetEnvironment value) noexcept {
+    switch (value) {
+    case PlanetEnvironment::PE_UNINHABITABLE: return "Uninhabitable";
+    case PlanetEnvironment::PE_HOSTILE:       return "Hostile";
+    case PlanetEnvironment::PE_POOR:          return "Poor";
+    case PlanetEnvironment::PE_ADEQUATE:      return "Adequate";
+    case PlanetEnvironment::PE_GOOD:          return "Good";
+    default:                                  return "?";
+    }
+}
+
 
 /** A setting that a Planet can be assigned to influence what it
   * produces.  Doesn't directly affect the Planet, but effectsgroups
@@ -48,17 +65,12 @@ FO_ENUM(
 class FO_COMMON_API FocusType {
 public:
     FocusType() = default;
-    FocusType(std::string& name, std::string& description,
+    FocusType(std::string name, std::string description,
               std::unique_ptr<Condition::Condition>&& location,
-              std::string& graphic);
-    FocusType(std::string&& name, std::string&& description,
-              std::unique_ptr<Condition::Condition>&& location,
-              std::string&& graphic);
+              std::string graphic);
     ~FocusType(); // needed due to forward-declared Condition held in unique_ptr
 
-    bool operator==(const FocusType& rhs) const;
-    bool operator!=(const FocusType& rhs) const
-    { return !(*this == rhs); }
+    [[nodiscard]] bool operator==(const FocusType& rhs) const;
 
     [[nodiscard]] const std::string&          Name() const noexcept        { return m_name; }          ///< returns the name for this focus type
     [[nodiscard]] const std::string&          Description() const noexcept { return m_description; }   ///< returns a text description of this focus type
@@ -98,6 +110,8 @@ public:
             bool playable, bool native, bool can_colonize, bool can_produce_ships,
             const std::set<std::string>& tags,
             std::set<std::string>&& likes, std::set<std::string>&& dislikes,
+            std::unique_ptr<Condition::Condition>&& annexation_condition,
+            std::unique_ptr<ValueRef::ValueRef<double>>&& annexation_cost,
             std::string&& graphic,
             double spawn_rate = 1.0, int spawn_limit = 99999);
 
@@ -110,32 +124,35 @@ public:
             bool playable, bool native, bool can_colonize, bool can_produce_ships,
             const std::set<std::string>& tags,
             std::set<std::string>&& likes, std::set<std::string>&& dislikes,
+            std::unique_ptr<Condition::Condition>&& annexation_condition,
+            std::unique_ptr<ValueRef::ValueRef<double>>&& annexation_cost,
             std::string&& graphic,
             double spawn_rate = 1.0, int spawn_limit = 99999);
 
     ~Species();
     Species() = delete;
-    Species(const Species&) = delete;
+    Species(const Species&) = delete; // can't shallow copy because likes, dislikes, and tags are stored as string_views into m_tags_concatenated
     Species(Species&&) = default;
 
-    bool operator==(const Species& rhs) const;
-    bool operator!=(const Species& rhs) const
-    { return !(*this == rhs); }
+    [[nodiscard]] bool operator==(const Species& rhs) const;
 
-    [[nodiscard]] const std::string& Name() const noexcept { return m_name; }               ///< returns the unique name for this type of species
-    [[nodiscard]] const std::string& Description() const noexcept { return m_description; } ///< returns a text description of this type of species
-    [[nodiscard]] std::string        GameplayDescription() const;                           ///< returns a text description of this type of species
+    [[nodiscard]] const std::string& Name() const noexcept { return m_name; } ///< unique name (stringtable key) for this type of species
+    [[nodiscard]] const std::string& Description() const noexcept { return m_description; }
+    [[nodiscard]] std::string        GameplayDescription() const;
 
-    [[nodiscard]] const auto*        Location() const noexcept { return m_location.get(); } ///< returns the condition determining what planets on which this species may spawn
-    [[nodiscard]] const auto*        CombatTargets() const noexcept { return m_combat_targets.get(); }  ///< returns the condition for possible targets. may be nullptr if no condition was specified.
+    [[nodiscard]] const auto*        Location() const noexcept { return m_location.get(); }             ///< condition determining what planets on which this species may spawn
+    [[nodiscard]] const auto*        CombatTargets() const noexcept { return m_combat_targets.get(); }  ///< condition for possible targets. may be nullptr if no condition was specified.
 
-    [[nodiscard]] std::string        Dump(uint8_t ntabs = 0) const;                            ///< returns a data file format representation of this object
-    [[nodiscard]] const auto&        Foci() const noexcept { return m_foci; }                  ///< returns the focus types this species can use
-    [[nodiscard]] const std::string& DefaultFocus() const noexcept { return m_default_focus; } ///< returns the name of the planetary focus this species defaults to. Used for new colonies and uninvaded natives.
-    [[nodiscard]] const auto&        PlanetEnvironments() const noexcept { return m_planet_environments; } ///< returns a map from PlanetType to the PlanetEnvironment this Species has on that PlanetType
-    [[nodiscard]] PlanetEnvironment  GetPlanetEnvironment(PlanetType planet_type) const;                     ///< returns the PlanetEnvironment this species has on PlanetType \a planet_type
-    [[nodiscard]] PlanetType         NextBestPlanetType(PlanetType initial_planet_type) const;             ///< returns a best PlanetType for this species from the \a initial_planet_type specified which needs the few steps to reach
-    [[nodiscard]] PlanetType         NextBetterPlanetType(PlanetType initial_planet_type) const;             ///< returns a PlanetType for this species which is a step closer to the best PlanetType than the specified \a initial_planet_type (if such exists)
+    [[nodiscard]] const auto*        AnnexationCondition() const noexcept { return m_annexation_condition.get(); }  ///< condition that determines if the empire that owns the source object can annex the localcandidate with this species on it
+    [[nodiscard]] const auto*        AnnexationCost() const noexcept { return m_annexation_cost.get(); }            ///< cost for the empire that owns the source object to annex the local candidate object that has this species on it
+
+    [[nodiscard]] std::string        Dump(uint8_t ntabs = 0) const;                            ///< a data file format representation of this object
+    [[nodiscard]] const auto&        Foci() const noexcept { return m_foci; }                  ///< focus types this species can use
+    [[nodiscard]] const std::string& DefaultFocus() const noexcept { return m_default_focus; } ///< name of the planetary focus this species defaults to. Used for new colonies and uninvaded natives.
+    [[nodiscard]] const auto&        PlanetEnvironments() const noexcept { return m_planet_environments; } ///< map from PlanetType to the PlanetEnvironment this Species has on that PlanetType
+    [[nodiscard]] PlanetEnvironment  GetPlanetEnvironment(PlanetType planet_type) const;                   ///< PlanetEnvironment this species has on PlanetType \a planet_type
+    [[nodiscard]] PlanetType         NextBestPlanetType(PlanetType initial_planet_type) const;             ///< best PlanetType for this species from the \a initial_planet_type specified which needs the few steps to reach
+    [[nodiscard]] PlanetType         NextBetterPlanetType(PlanetType initial_planet_type) const;           ///< PlanetType for this species which is a step closer to the best PlanetType than the specified \a initial_planet_type (if such exists)
 
     /** Returns the EffectsGroups that encapsulate the effects that species of
         this type have. */
@@ -150,7 +167,7 @@ public:
     [[nodiscard]] const auto&        Tags() const noexcept      { return m_tags; }
     [[nodiscard]] const auto&        PediaTags() const noexcept { return m_pedia_tags; }
     [[nodiscard]] bool               HasTag(std::string_view tag) const
-    { return std::any_of(m_tags.begin(), m_tags.end(), [tag](const auto t) { return t == tag; }); }
+    { return std::any_of(m_tags.begin(), m_tags.end(), [tag](const auto t) noexcept { return t == tag; }); }
     [[nodiscard]] const auto&        Likes() const noexcept     { return m_likes; }
     [[nodiscard]] const auto&        Dislikes() const noexcept  { return m_dislikes; }
     [[nodiscard]] const std::string& Graphic() const noexcept   { return m_graphic; }        ///< returns the name of the grapic file for this species
@@ -193,9 +210,11 @@ private:
     using pt_pe_map = boost::container::flat_map<PlanetType, PlanetEnvironment>;
     pt_pe_map                               m_planet_environments;
 
-    std::vector<Effect::EffectsGroup>       m_effects;
-    std::unique_ptr<Condition::Condition>   m_location;
-    std::unique_ptr<Condition::Condition>   m_combat_targets;
+    std::vector<Effect::EffectsGroup>           m_effects;
+    std::unique_ptr<Condition::Condition>       m_location;
+    std::unique_ptr<Condition::Condition>       m_combat_targets;
+    std::unique_ptr<Condition::Condition>       m_annexation_condition;
+    std::unique_ptr<ValueRef::ValueRef<double>> m_annexation_cost;
 
     bool  m_playable = true;
     bool  m_native = true;
@@ -204,12 +223,12 @@ private:
     float m_spawn_rate = 1.0;
     int   m_spawn_limit = 99999;
 
-    std::string                   m_tags_concatenated;
-    std::vector<std::string_view> m_tags;
-    std::vector<std::string_view> m_pedia_tags;
-    std::vector<std::string_view> m_likes;
-    std::vector<std::string_view> m_dislikes;
-    std::string                   m_graphic;
+    std::vector<std::string::value_type> m_tags_concatenated; // not a string to ensure pointers into data are consistent when moved (ie. no small string optimization issues causing pointed-to data to be invalid)
+    std::vector<std::string_view>        m_tags;
+    std::vector<std::string_view>        m_pedia_tags;
+    std::vector<std::string_view>        m_likes;
+    std::vector<std::string_view>        m_dislikes;
+    std::string                          m_graphic;
 };
 
 
@@ -218,6 +237,7 @@ class FO_COMMON_API SpeciesManager {
 public:
     using SpeciesTypeMap = std::map<std::string, const Species, std::less<>>;
     using iterator = typename SpeciesTypeMap::const_iterator;
+    using const_iterator = iterator;
 
 private:
     using species_entry_t = typename iterator::value_type;
@@ -236,7 +256,7 @@ public:
     SpeciesManager() = default;
     // extracts and moves homeworlds, opinions, populations, and destroyed
     // counts, but not species or census or pending
-    SpeciesManager& operator=(SpeciesManager&& rhs);
+    SpeciesManager& operator=(SpeciesManager&& rhs) noexcept;
 
     /** returns the species with the name \a name; you should use the
       * free function GetSpecies() instead, mainly to save some typing. */
@@ -281,24 +301,31 @@ public:
     /** returns a map from species name to a set of object IDs that are the
       * homeworld(s) of that species in the current game. */
     [[nodiscard]] const auto& GetSpeciesHomeworldsMap() const noexcept { return m_species_homeworlds; }
+    [[nodiscard]] auto& GetSpeciesHomeworldsMap() noexcept { return m_species_homeworlds; }
 
     /** returns a map from species name to a map from empire id to each the
       * species' opinion of the empire */
     [[nodiscard]] const auto& GetSpeciesEmpireOpinionsMap() const noexcept { return m_species_empire_opinions; }
+    [[nodiscard]] auto& GetSpeciesEmpireOpinionsMap() noexcept { return m_species_empire_opinions; }
 
     /** returns opinion of species with name \a species_name about empire with
-      * id \a empire_id or 0.0 if there is no such opinion yet recorded. */
-    [[nodiscard]] float SpeciesEmpireOpinion(const std::string& species_name, int empire_id) const;
+      * id \a empire_id or 0.0 if there is no such opinion yet recorded.
+      * iff \a target is true, then the target meter is returned, otherwise the active meter is returned.
+      * iff \a current is true, then the current meter value is returned, otherwise the initial meter is returned. */
+    [[nodiscard]] float SpeciesEmpireOpinion(const std::string& species_name, int empire_id,
+                                             bool target, bool current) const;
 
     /** returns a map from species name to a map from other species names to the
       * opinion of the first species about the other species. */
     [[nodiscard]] const auto& GetSpeciesSpeciesOpinionsMap() const noexcept { return m_species_species_opinions; }
+    [[nodiscard]] auto& GetSpeciesSpeciesOpinionsMap() noexcept { return m_species_species_opinions; }
 
     /** returns opinion of species with name \a opinionated_species_name about
       * other species with name \a rated_species_name or 0.0 if there is no
       * such opinion yet recorded. */
     [[nodiscard]] float SpeciesSpeciesOpinion(const std::string& opinionated_species_name,
-                                              const std::string& rated_species_name) const;
+                                              const std::string& rated_species_name,
+                                              bool target, bool current) const;
 
     [[nodiscard]] std::vector<std::string_view> SpeciesThatLike(std::string_view content_name) const;
     [[nodiscard]] std::vector<std::string_view> SpeciesThatDislike(std::string_view content_name) const;
@@ -311,29 +338,22 @@ public:
       * clients and server. */
     [[nodiscard]] uint32_t GetCheckSum() const;
 
-    /** sets the opinions of species (indexed by name string) of empires (indexed
-      * by id) as a double-valued number. */
-    void SetSpeciesEmpireOpinions(std::map<std::string, std::map<int, float>>&& species_empire_opinions);
-    void SetSpeciesEmpireOpinion(const std::string& species_name, int empire_id, float opinion);
-
     /** sets the opinions of species (indexed by name string) of other species
-      * (indexed by name string) as a double-valued number. */
-    void SetSpeciesSpeciesOpinions(std::map<std::string,
-                                   std::map<std::string, float>>&& species_species_opinions);
+      * (indexed by name string) or empires (indexed by id number). */
     void SetSpeciesSpeciesOpinion(const std::string& opinionated_species,
-                                  const std::string& rated_species, float opinion);
-    void ClearSpeciesOpinions();
+                                  const std::string& rated_species, float opinion, bool target);
+    void SetSpeciesEmpireOpinion(const std::string& opinionated_species,
+                                 int empire_id, float opinion, bool target);
+    void ResetSpeciesOpinions(bool active, bool target);
+    void BackPropagateOpinions();
 
     void AddSpeciesHomeworld(std::string species, int homeworld_id);
     void RemoveSpeciesHomeworld(const std::string& species, int homeworld_id);
     void ClearSpeciesHomeworlds();
 
-    void UpdatePopulationCounter(const ObjectMap& objects);
-
-    [[nodiscard]] const auto& SpeciesObjectPopulations() const noexcept { return m_species_object_populations; }
     [[nodiscard]] const auto& SpeciesShipsDestroyed() const noexcept { return m_species_species_ships_destroyed; }
+    [[nodiscard]] auto& SpeciesShipsDestroyed() noexcept { return m_species_species_ships_destroyed; }
 
-    void SetSpeciesObjectPopulations(std::map<std::string, std::map<int, float>> sop);
     void SetSpeciesShipsDestroyed(std::map<std::string, std::map<std::string, int>> ssd);
 
     /** Sets species types to the value of \p future. */
@@ -354,11 +374,15 @@ private:
     mutable SpeciesManager::SpeciesTypeMap m_species;
     mutable SpeciesManager::CensusOrder    m_census_order;
 
-    std::map<std::string, std::set<int>>                m_species_homeworlds;
-    std::map<std::string, std::map<int, float>>         m_species_empire_opinions;
-    std::map<std::string, std::map<std::string, float>> m_species_species_opinions;
-    std::map<std::string, std::map<int, float>>         m_species_object_populations;
-    std::map<std::string, std::map<std::string, int>>   m_species_species_ships_destroyed;
+    template <typename K, typename V>
+    using flat_map = boost::container::flat_map<K, V, std::less<>>;
+    template <typename V>
+    using flat_set = boost::container::flat_set<V, std::less<>>;
+
+    flat_map<std::string, flat_set<int>>                                  m_species_homeworlds;
+    flat_map<std::string, flat_map<int, std::pair<Meter, Meter>>>         m_species_empire_opinions;
+    flat_map<std::string, flat_map<std::string, std::pair<Meter, Meter>>> m_species_species_opinions;
+    flat_map<std::string, flat_map<std::string, int>>                     m_species_species_ships_destroyed;
 
     mutable std::mutex m_species_mutex;
 

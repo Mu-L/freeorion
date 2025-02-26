@@ -3,6 +3,7 @@
 #include "ClientUI.h"
 #include "CUIControls.h"
 #include "CUIDrawUtil.h"
+#include "../client/human/GGHumanClientApp.h"
 #include "../universe/Field.h"
 #include "../util/AppInterface.h"
 #include "../util/i18n.h"
@@ -44,9 +45,8 @@ void FieldIcon::LButtonUp(GG::Pt pt, GG::Flags<GG::ModKey> mod_keys)
 void FieldIcon::SizeMove(GG::Pt ul, GG::Pt lr) {
     Wnd::SizeMove(ul, lr);
 
-    GG::Pt middle = GG::Pt(Width() / 2, Height() / 2);
-
-    const GG::Pt SEL_IND_SIZE = Size();
+    const auto middle = GG::Pt(Width() / 2, Height() / 2);
+    const auto SEL_IND_SIZE = Size();
 
     // selection indicator
     if (m_selected && m_selection_indicator) {
@@ -71,7 +71,7 @@ void FieldIcon::SizeMove(GG::Pt ul, GG::Pt lr) {
 }
 
 void FieldIcon::Refresh() {
-    if (auto field = Objects().get<Field>(m_field_id))
+    if (auto field = GGHumanClientApp::GetApp()->GetContext().ContextObjects().get<Field>(m_field_id))
         m_texture = ClientUI::FieldTexture(field->FieldTypeName());
 }
 
@@ -85,7 +85,7 @@ void FieldIcon::RClick(GG::Pt pt, GG::Flags<GG::ModKey> mod_keys) {
     if (!Disabled())
         RightClickedSignal(m_field_id);
 
-    auto field = Objects().get<Field>(m_field_id);
+    auto field = GGHumanClientApp::GetApp()->GetContext().ContextObjects().get<Field>(m_field_id);
     if (!field)
         return;
     const std::string& field_type_name = field->FieldTypeName();

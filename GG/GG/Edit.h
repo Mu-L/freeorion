@@ -69,16 +69,13 @@ public:
     auto CursorPosn() const noexcept { return m_cursor_pos; }
 
     /** Returns the text that is selected in this control. */
-    std::string_view SelectedText() const { return Text(m_cursor_pos.first, m_cursor_pos.second); }
+    std::string_view SelectedText() const;
 
     /** Returns the color used to render the iterior of the control. */
     Clr InteriorColor() const noexcept { return m_int_color; }
 
     /** Returns the color used to render hiliting around selected text. */
     Clr HiliteColor() const noexcept { return m_hilite_color; }
-
-    /** Returns the color used to render selected text. */
-    Clr SelectedTextColor() const noexcept { return m_sel_text_color; }
 
     /** The edited signal object for this Edit. */
     mutable EditedSignalType EditedSignal;
@@ -88,16 +85,13 @@ public:
 
     void Render() override;
 
-    void SetColor(Clr c) override;
+    void SetColor(Clr c) noexcept override { Control::SetColor(c); }
 
     /** Sets the interior color of the control. */
-    void SetInteriorColor(Clr c);
+    void SetInteriorColor(Clr c) noexcept { m_int_color = c; }
 
     /** Sets the color used to render hiliting around selected text. */
-    void SetHiliteColor(Clr c);
-
-    /** Sets the color used to render selected text. */
-    void SetSelectedTextColor(Clr c);
+    void SetHiliteColor(Clr c) noexcept { m_hilite_color = c; }
 
     /** Selects all text in the given range.  When \a from == \a to, this
         function just places the caret at \a from.  Note that it is legal to
@@ -134,9 +128,13 @@ protected:
         the focus was gained. */
     bool RecentlyEdited() const noexcept { return m_recently_edited; }
 
-    /** Returns the index of the code point \a x pixels from left edge of
+    /** Returns the index of the glyph \a x pixels from left edge of
         visible portion of string. */
-    CPSize CharIndexOf(X x) const;
+    CPSize GlyphIndexAt(X x) const;
+
+    /** Returns the code point index of the start of the glyph \a x pixels from left edge of
+        visible portion of string. */
+    CPSize CPIndexOfGlyphAt(X x) const;
 
     /** Returns the distance from the beginning of the string to just before
         the first visible character. */
@@ -162,13 +160,13 @@ protected:
 
     /** Return the index of the last LineData() or 0 if LineData is empty.
      Allows index based Edit to handle empty line data.*/
-    std::vector<GG::Font::LineData>::size_type NumLines() const;
+    std::size_t NumLines() const noexcept;
 
     void LButtonDown(Pt pt, Flags<ModKey> mod_keys) override;
     void LDrag(Pt pt, Pt move, Flags<ModKey> mod_keys) override;
     void LButtonUp(Pt pt, Flags<ModKey> mod_keys) override;
     void LClick(Pt pt, Flags<ModKey> mod_keys) override;
-    void KeyPress(Key key, std::uint32_t key_code_point, Flags<ModKey> mod_keys) override;
+    void KeyPress(Key key, uint32_t key_code_point, Flags<ModKey> mod_keys) override;
     void TextInput(const std::string& text) override;
     void GainingFocus() override;
     void LosingFocus() override;
@@ -180,20 +178,21 @@ protected:
         exists, the returned range will be empty (its .first and .second
         members will be equal).  This function should be called in
         LButtonDown() overrides. */
-    virtual std::pair<CPSize, CPSize> GetDoubleButtonDownWordIndices(CPSize char_index);
+    virtual std::pair<CPSize, CPSize> GetDoubleButtonDownWordIndices(CPSize cp_index);
 
     /** Returns the code point indices that delimit the word around index \a
         char_index.  If no such word exists, the returned range will be empty
         (its .first and .second members will be equal).  This function should
         be called in LDrag() overrides when InDoubleButtonDownMode() is
         true. */
-    virtual std::pair<CPSize, CPSize> GetDoubleButtonDownDragWordIndices(CPSize char_index);
+    virtual std::pair<CPSize, CPSize> GetDoubleButtonDownDragWordCPIndices(CPSize cp_index);
 
     /** Sets the value of InDoubleButtonDownMode() to false.  This should be
         called in LClick() and LButtonUp() overrides. */
     void ClearDoubleButtonDownMode();
 
-    /** If .first == .second, the caret is drawn before character at
+    /** Code point indices (not glyphs) of cursor.
+        If .first == .second, the caret is drawn before character at
         m_cursor_pos.first; otherwise, the range is selected (when range is
         selected, caret is considered at .second) */
     std::pair<CPSize, CPSize> m_cursor_pos = {CP0, CP0};
@@ -208,12 +207,11 @@ private:
     CPSize m_first_char_shown = CP0;    ///< Index of the first character on the left end of the control's viewable area
     Clr    m_int_color;                 ///< Color of background inside text box
     Clr    m_hilite_color = CLR_SHADOW; ///< Color behind selected range
-    Clr    m_sel_text_color = CLR_WHITE;///< Color of selected text
 
     bool   m_recently_edited = false; ///< The contents when the focus was last gained
 };
 
-void GG_API GetTranslatedCodePoint(Key key, std::uint32_t key_code_point,
+void GG_API GetTranslatedCodePoint(Key key, uint32_t key_code_point,
                                    Flags<ModKey> mod_keys, std::string& translated_code_point);
 
 CPSize GG_API NextWordEdgeFrom(std::string_view text, CPSize from_position, bool search_right = true);

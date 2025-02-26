@@ -42,7 +42,9 @@ namespace {
     const std::string MUSIC_FILE_SUFFIX = ".ogg";
     const std::string SOUND_FILE_SUFFIX = ".ogg";
     const std::string FONT_FILE_SUFFIX = ".ttf";
+#ifdef FREEORION_WIN32
     const std::string EXE_FILE_SUFFIX = ".exe";
+#endif
 
     class RowContentsWnd : public GG::Control {
     public:
@@ -63,7 +65,7 @@ namespace {
         }
 
         void SizeMove(GG::Pt ul, GG::Pt lr) override {
-            const GG::Pt old_size = Size();
+            const auto old_size = Size();
             GG::Control::SizeMove(ul, lr);
             if (old_size != Size())
                 DoLayout();
@@ -195,19 +197,19 @@ namespace {
 
     // Small window that will grab a unique key press.
     class KeyPressCatcher : public GG::Wnd {
-        GG::Key                 m_key{GG::Key::GGK_NONE};
-        std::uint32_t           m_code_point{0};
-        GG::Flags<GG::ModKey>   m_mods;
+        GG::Key               m_key{GG::Key::GGK_NONE};
+        uint32_t              m_code_point{0};
+        GG::Flags<GG::ModKey> m_mods;
 
     public:
         KeyPressCatcher() :
             Wnd(GG::X0, GG::Y0, GG::X0, GG::Y0, GG::Flags<GG::WndFlag>(GG::MODAL))
         {}
 
-        void Render() override
+        void Render() noexcept override
         {}
 
-        void KeyPress(GG::Key key, std::uint32_t key_code_point,
+        void KeyPress(GG::Key key, uint32_t key_code_point,
                       GG::Flags<GG::ModKey> mod_keys) override
         {
             m_key = key;
@@ -221,10 +223,10 @@ namespace {
             /// the like...
         };
 
-        static std::pair<GG::Key, GG::Flags<GG::ModKey>> GetKeypress() {
+        static auto GetKeypress() {
             auto ct = GG::Wnd::Create<KeyPressCatcher>();
             ct->Run();
-            return std::pair(ct->m_key, ct->m_mods);
+            return std::pair{ct->m_key, ct->m_mods};
         };
     };
 
@@ -353,7 +355,7 @@ namespace {
 
         void SizeMove(GG::Pt ul, GG::Pt lr) override {
             //std::cout << "OptionsListRow::SizeMove(" << ul << ", " << lr << ")" << std::endl;
-            const GG::Pt old_size = Size();
+            const auto old_size = Size();
             GG::ListBox::Row::SizeMove(ul, lr);
             if (!empty() && old_size != Size() && m_contents)
                 m_contents->Resize(Size());
@@ -379,7 +381,7 @@ namespace {
         }
 
         void SizeMove(GG::Pt ul, GG::Pt lr) override {
-            const GG::Pt old_size = Size();
+            const auto old_size = Size();
             CUIListBox::SizeMove(ul, lr);
             if (old_size != Size()) {
                 const GG::X row_width = ListRowWidth();
@@ -451,7 +453,7 @@ namespace {
 
         // Connect to Options DB
         drop_list->SelChangedSignal.connect(
-            [option_name, drop_list](const GG::ListBox::const_iterator& it) {
+            [option_name, drop_list](const GG::ListBox::const_iterator it) {
                 if (it == drop_list->end())
                     return;
                 const auto dropdown_row = dynamic_cast<CUISimpleDropDownListRow* const>(it->get());
@@ -843,7 +845,7 @@ void OptionsWnd::CompleteConstruction() {
 }
 
 void OptionsWnd::SizeMove(GG::Pt ul, GG::Pt lr) {
-    const GG::Pt old_size = Size();
+    const auto old_size = Size();
     CUIWnd::SizeMove(ul, lr);
     if (old_size != Size())
         DoLayout();
@@ -934,7 +936,7 @@ namespace {
         button->SetText(Hotkey::NamedHotkey(hk_name).PrettyPrint());
 
         // update shortcuts for new hotkey
-        HotkeyManager::GetManager()->RebuildShortcuts();
+        HotkeyManager::GetManager().RebuildShortcuts();
     }
 
     void HandleResetHotkeyOption(const std::string& hk_name, GG::Button* button) {
@@ -948,7 +950,7 @@ namespace {
         button->SetText(Hotkey::NamedHotkey(hk_name).PrettyPrint());
 
         // update shortcuts for new hotkey
-        HotkeyManager::GetManager()->RebuildShortcuts();
+        HotkeyManager::GetManager().RebuildShortcuts();
     }
 }
 
@@ -1282,8 +1284,8 @@ void OptionsWnd::FontOption(GG::ListBox* page, int indentation_level, std::strin
                             std::string text)
 {
     FileOption(page, indentation_level, std::move(option_name), std::move(text),
-               GetRootDataDir() / "default", {std::string(option_name), "*" + FONT_FILE_SUFFIX},
-               ValidFontFile);
+               GetRootDataDir() / "default",
+               {UserString("OPTIONS_FONT_FILE"), "*" + FONT_FILE_SUFFIX}, ValidFontFile);
 }
 
 void OptionsWnd::ResolutionOption(GG::ListBox* page, int indentation_level) {
@@ -1463,7 +1465,7 @@ void OptionsWnd::HotkeysPage() {
     m_tabs->SetCurrentWnd(0);
 }
 
-void OptionsWnd::KeyPress(GG::Key key, std::uint32_t key_code_point,
+void OptionsWnd::KeyPress(GG::Key key, uint32_t key_code_point,
                           GG::Flags<GG::ModKey> mod_keys)
 {
     if (key == GG::Key::GGK_ESCAPE || key == GG::Key::GGK_RETURN || key == GG::Key::GGK_KP_ENTER) // Same behaviour as if "done" was pressed

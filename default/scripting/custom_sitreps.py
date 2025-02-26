@@ -1,4 +1,40 @@
-from common.priorities import END_CLEANUP_PRIORITY
+from focs._effects import (
+    BuildBuilding,
+    Capital,
+    Conditional,
+    ContainedBy,
+    Contains,
+    ContentFocus,
+    CurrentTurn,
+    EffectsGroup,
+    EmpireMeterValue,
+    EnemyOf,
+    Enqueued,
+    Fleet,
+    GasGiantType,
+    GenerateSitRepMessage,
+    IsBuilding,
+    IsSource,
+    LocalCandidate,
+    Location,
+    Number,
+    OneOf,
+    OwnedBy,
+    OwnerHasTech,
+    Planet,
+    RootCandidate,
+    Ship,
+    Source,
+    Stationary,
+    System,
+    Target,
+    Turn,
+    TurnTechResearched,
+    Unowned,
+    UserString,
+    VisibleToEmpire,
+)
+from macros.priorities import END_CLEANUP_PRIORITY
 
 ETA_NEXT_TURN = CurrentTurn + LocalCandidate.ETA - 1
 
@@ -115,7 +151,7 @@ effectsgroups = [
         scope=System &
         # The following assets need protection
         Contains((Planet() | Ship) & OwnedBy(empire=Source.Owner)) &
-        # Dont warn about system where there are already enemies this turn
+        # Don't warn about system where there are already enemies this turn
         ~Contains(
             Ship & (OwnedBy(affiliation=EnemyOf, empire=Source.Owner) | Unowned) & VisibleToEmpire(empire=Source.Owner)
         ),

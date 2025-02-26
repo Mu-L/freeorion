@@ -1,7 +1,7 @@
 #ifndef _Condition_h_
 #define _Condition_h_
 
-
+#include <array>
 #include <memory>
 #include <string>
 #include <vector>
@@ -27,11 +27,16 @@ enum class SearchDomain : bool {
 
 /** The base class for all Conditions. */
 struct FO_COMMON_API Condition {
-    virtual ~Condition() = default;
+    constexpr Condition(const Condition&) noexcept = default;
+    constexpr Condition(Condition&&) noexcept = default;
+    constexpr virtual ~Condition()
+#if defined(__GNUC__) && (__GNUC__ < 13)
+    {} // see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=93413
+#else
+        = default;
+#endif
 
-    virtual bool operator==(const Condition& rhs) const;
-    bool operator!=(const Condition& rhs) const
-    { return !(*this == rhs); }
+    [[nodiscard]] virtual bool operator==(const Condition& rhs) const;
 
     /** Moves object pointers from \a matches or \a non_matches (from whichever
      * is specified in \a search_domain) to the other, if each belongs in the
@@ -79,7 +84,7 @@ struct FO_COMMON_API Condition {
 
     /** Initializes \a condition_non_targets with a set of objects that could
       * match this condition, without checking if they all actually do. */
-    virtual ObjectSet GetDefaultInitialCandidateObjects(const ScriptingContext& parent_context) const;
+    [[nodiscard]] virtual ObjectSet GetDefaultInitialCandidateObjects(const ScriptingContext& parent_context) const;
 
     /** Derived Condition classes can override this to true if all objects returned
       * by GetDefaultInitialCandidateObject() are guaranteed to also match this
@@ -107,7 +112,7 @@ struct FO_COMMON_API Condition {
     //! source object.
     [[nodiscard]] constexpr bool SourceInvariant() const noexcept { return m_source_invariant; }
 
-    [[nodiscard]] virtual std::string Description(bool negated = false) const { return ""; }
+    [[nodiscard]] virtual std::string Description(bool negated = false) const { return ""; } // TODO: pass in ScriptingContext
     [[nodiscard]] virtual std::string Dump(uint8_t ntabs = 0) const { return ""; }
 
     virtual void SetTopLevelContent(const std::string& content_name) {}
@@ -131,11 +136,14 @@ protected:
         m_target_invariant(target_invariant),
         m_source_invariant(source_invariant)
     {}
-    //! Copies invariants from other Condition
-    constexpr Condition(const Condition& rhs) = default;
-    Condition(Condition&& rhs) = delete;
-    Condition& operator=(const Condition& rhs) = delete;
-    Condition& operator=(Condition&& rhs) = delete;
+    constexpr Condition(std::array<bool, 3> rts_invariants) noexcept :
+        Condition(rts_invariants[0], rts_invariants[1], rts_invariants[2])
+    {}
+    constexpr Condition(std::array<bool, 3> rts_invariants, bool init_all_match) noexcept :
+        Condition(rts_invariants[0], rts_invariants[1], rts_invariants[2], init_all_match)
+    {}
+    Condition& operator=(const Condition&) = delete;
+    Condition& operator=(Condition&&) = delete;
 
     bool m_root_candidate_invariant = false; // TODO: make these const once all derived classes initialize them in their constructors
     bool m_target_invariant = false;

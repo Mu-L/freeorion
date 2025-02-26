@@ -67,7 +67,7 @@ public:
      called on \p str.  Hence this constructor is much faster than the first
      constructor.*/
     TextControl(X x, Y y, X w, Y h, std::string str,
-                std::vector<std::shared_ptr<Font::TextElement>> text_elements,
+                std::vector<Font::TextElement> text_elements,
                 std::shared_ptr<Font> font,
                 Clr color = CLR_BLACK, Flags<TextFormat> format = FORMAT_NONE,
                 Flags<WndFlag> flags = NO_WND_FLAGS);
@@ -109,7 +109,7 @@ public:
     const std::string& Text() const noexcept { return m_text; }
 
     /** Returns the text displayed in this control between the specified
-        position \a from through position \a to. */
+        position code point indices \a from through position \a to. */
     std::string_view Text(CPSize from, CPSize to) const;
 
     /** Returns the text format (vertical and horizontal justification, use of
@@ -173,11 +173,11 @@ public:
 
     /** Returns the upper-left corner of the text as it is would be rendered
         if it were not bound to the dimensions of this control. */
-    Pt TextUpperLeft() const;
+    Pt TextUpperLeft() const noexcept;
 
     /** Returns the lower-right corner of the text as it is would be rendered
         if it were not bound to the dimensions of this control. */
-    Pt TextLowerRight() const;
+    Pt TextLowerRight() const noexcept;
 
     void Render() override;
 
@@ -185,7 +185,7 @@ public:
 
     /** Just like Control::SetColor(), except that this one also adjusts the
         text color. */
-    void SetColor(Clr c) override;
+    void SetColor(Clr c) noexcept override;
 
     /** Sets the text displayed in this control to \a str.  May resize the
         window.  If the control was constructed with FORMAT_NOWRAP, calls
@@ -203,8 +203,7 @@ public:
         If the \p str and \p text_elements are inconsistent and \p str is shorter than expected
         from examining \p text_elements then it will return without changing the TextControl.
     */
-    virtual void SetText(std::string str,
-                         std::vector<std::shared_ptr<Font::TextElement>> text_elements);
+    virtual void SetText(std::string str, std::vector<Font::TextElement> text_elements);
 
     /** Change TextControl's text to replace the text at templated \p targ_offset with \p new_text.
 
@@ -296,12 +295,13 @@ public:
 
 protected:
     /** Returns the line data for the text in this TextControl. */
-    virtual const std::vector<Font::LineData>& GetLineData() const noexcept { return m_line_data; }
+    virtual const Font::LineVec& GetLineData() const noexcept { return m_line_data; }
+
+    Font::RenderCache m_render_cache;///< Cache much of text rendering.
 
     friend class StateButtonRepresenter;
 
 private:
-    void ValidateFormat();      ///< ensures that the format flags are consistent
     void AdjustMinimumSize();
     void RecomputeTextBounds(); ///< recalculates m_text_ul and m_text_lr
     void RefreshCache();
@@ -310,21 +310,20 @@ private:
         m_text_elements changes.*/
     void RecomputeLineData();
 
-    std::string                                     m_text;
-    Flags<TextFormat>                               m_format;      ///< the formatting used to display the text (vertical and horizontal alignment, etc.)
-    Clr                                             m_text_color;  ///< the color of the text itself (may differ from GG::Control::m_color)
-    bool                                            m_clip_text = false;
-    bool                                            m_set_min_size = false;
-    std::vector<std::shared_ptr<Font::TextElement>> m_text_elements;
-    std::vector<Font::LineData>                     m_line_data;
-    CPSize                                          m_code_points{0};
-    std::shared_ptr<Font>                           m_font;
-    Pt                                              m_text_ul;     ///< stored relative to the control's UpperLeft()
-    Pt                                              m_text_lr;     ///< stored relative to the control's UpperLeft()
-    std::unique_ptr<Font::RenderCache>              m_render_cache;///< Cache much of text rendering.
+    std::string                    m_text;
+    Flags<TextFormat>              m_format;      ///< the formatting used to display the text (vertical and horizontal alignment, etc.)
+    Clr                            m_text_color;  ///< the color of the text itself (may differ from GG::Control::m_color)
+    bool                           m_clip_text = false;
+    bool                           m_set_min_size = false;
+    std::vector<Font::TextElement> m_text_elements;
+    Font::LineVec                  m_line_data;
+    CPSize                         m_code_points{0};
+    std::shared_ptr<Font>          m_font;
+    Pt                             m_text_ul;     ///< stored relative to the control's UpperLeft()
+    Pt                             m_text_lr;     ///< stored relative to the control's UpperLeft()
 
-    mutable X                                       m_cached_minusable_size_width{X0};
-    mutable Pt                                      m_cached_minusable_size;
+    mutable X                      m_cached_minusable_size_width{X0};
+    mutable Pt                     m_cached_minusable_size{Pt0};
 };
 
 typedef TextControl Label;
@@ -337,7 +336,7 @@ void GG::TextControl::operator>>(T& t) const
 {
     try {
         t = boost::lexical_cast<T>(m_text);
-    } catch (const boost::bad_lexical_cast&) {
+    } catch (...) {
         t = T();
     }
 }
@@ -347,7 +346,7 @@ T GG::TextControl::GetValue() const
 {
     try {
         return boost::lexical_cast<T, std::string>(m_text);
-    } catch (const boost::bad_lexical_cast&) {
+    } catch (...) {
         return T{};
     }
 }

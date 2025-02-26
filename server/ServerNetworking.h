@@ -40,6 +40,17 @@ struct CookieData {
     {}
 };
 
+struct OutgoingMessage {
+    OutgoingMessage(Message&& message, int empire_id, int turn) :
+       m_message(std::move(message)),
+       m_empire_id(empire_id),
+       m_turn(turn)
+    {}
+
+    const Message m_message;
+    const int m_empire_id;
+    const int m_turn;
+};
 
 /** Encapsulates the connection to a single player.  This object should have
     nearly the same lifetime as the socket it represents, except that the
@@ -81,7 +92,7 @@ public:
     [[nodiscard]] bool IsLocalConnection() const noexcept { return m_is_local_connection; }
 
     /** Checks if the player is established, has a valid name, id and client type. */
-    [[nodiscard]] bool IsEstablished() const;
+    [[nodiscard]] bool IsEstablished() const noexcept;
 
     /** Checks if the player was authenticated. */
     [[nodiscard]] bool IsAuthenticated() const noexcept { return m_authenticated; }
@@ -100,6 +111,7 @@ public:
 
     /** Sends \a synchronous message to out on the connection. */
     void SendMessage(const Message& message);
+    void SendMessage(const Message& message, int empire_id, int turn);
 
     /** Set player properties to use them after authentication successed. */
     void AwaitPlayer(Networking::ClientType client_type, std::string client_version_string);
@@ -122,29 +134,28 @@ public:
     void SetAuthRole(Networking::RoleType role, bool value = true);
 
     /** Sets cookie value to this connection to update expire date. */
-    void SetCookie(boost::uuids::uuid cookie);
+    void SetCookie(boost::uuids::uuid cookie) noexcept;
 
+    mutable boost::signals2::signal<void(bool, int, int)> MessageSentSignal;
     mutable boost::signals2::signal<void (const NullaryFn&)> EventSignal;
 
-    /** Creates a new PlayerConnection and returns it as a shared_ptr. */
-    static PlayerConnectionPtr NewConnection(
-        boost::asio::io_context& io_context, MessageAndConnectionFn nonplayer_message_callback,
-        MessageAndConnectionFn player_message_callback, ConnectionFn disconnected_callback);
+    PlayerConnection(boost::asio::io_context& io_context,
+                     MessageAndConnectionFn nonplayer_message_callback,
+                     MessageAndConnectionFn player_message_callback, ConnectionFn disconnected_callback);
 
 private:
-    PlayerConnection(boost::asio::io_context& io_context, MessageAndConnectionFn nonplayer_message_callback,
-                     MessageAndConnectionFn player_message_callback, ConnectionFn disconnected_callback);
     void HandleMessageBodyRead(boost::system::error_code error, std::size_t bytes_transferred);
     void HandleMessageHeaderRead(boost::system::error_code error, std::size_t bytes_transferred);
     void AsyncReadMessage();
     void AsyncWriteMessage();
     static void HandleMessageWrite(PlayerConnectionPtr self,
                                    boost::system::error_code error,
-                                   std::size_t bytes_transferred);
+                                   std::size_t bytes_transferred,
+                                   int empire_id, int turn);
 
     /** Places message to the end of sending queue and start asynchronous write if \a message was
         first in the queue. */
-    static void SendMessageImpl(PlayerConnectionPtr self, Message message);
+    static void SendMessageImpl(PlayerConnectionPtr self, Message message, int empire_id, int turn);
     static void AsyncErrorHandler(PlayerConnectionPtr self, boost::system::error_code handled_error,
                                   boost::system::error_code error);
 
@@ -153,15 +164,15 @@ private:
     Message::HeaderBuffer           m_incoming_header_buffer = {};
     Message                         m_incoming_message;
     Message::HeaderBuffer           m_outgoing_header = {};
-    std::queue<Message>             m_outgoing_messages;
+    std::queue<OutgoingMessage>     m_outgoing_messages;
     int                             m_ID = Networking::INVALID_PLAYER_ID;
     std::string                     m_player_name;
-    bool                            m_new_connection = true;
     Networking::ClientType          m_client_type = Networking::ClientType::INVALID_CLIENT_TYPE;
     std::string                     m_client_version_string;
-    bool                            m_authenticated = false;
     Networking::AuthRoles           m_roles;
     boost::uuids::uuid              m_cookie = boost::uuids::nil_uuid();
+    bool                            m_new_connection = true;
+    bool                            m_authenticated = false;
     bool                            m_valid = true;
     bool                            m_is_local_connection = false;
 
@@ -294,6 +305,9 @@ public:
 
     /** Clean up expired cookies. */
     void CleanupCookies();
+
+    /** Signal to notify if message sent successfully or failed for empire about turn. */
+    mutable boost::signals2::signal<void (bool, int, int)> MessageSentSignal;
 
 private:
     void Init();

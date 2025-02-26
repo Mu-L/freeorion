@@ -1,18 +1,15 @@
-from common.base_prod import TECH_COST_MULTIPLIER
+from focs._tech import *
+from macros.base_prod import TECH_COST_MULTIPLIER
 
 Tech(
     name="GRO_MEGA_ECO",
     description="GRO_MEGA_ECO_DESC",
     short_description="GRO_MEGA_ECO_SHORT_DESC",
     category="GROWTH_CATEGORY",
-    researchcost=225 * TECH_COST_MULTIPLIER,
-    researchturns=9,
+    researchcost=18 * TECH_COST_MULTIPLIER,
+    researchturns=3,
     tags=["PEDIA_GROWTH_CATEGORY"],
-    prerequisites=[
-        "SHP_ENDOCRINE_SYSTEMS",
-        "GRO_TERRAFORM",
-        "GRO_NANOTECH_MED",
-    ],
+    prerequisites=["GRO_PLANET_ECOL"],
     unlock=Item(type=UnlockBuilding, name="BLD_NEST_ERADICATOR"),
     graphic="icons/tech/megafauna_ecology.png",
 )

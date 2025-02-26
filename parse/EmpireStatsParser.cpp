@@ -30,7 +30,7 @@ namespace {
     {
         grammar(const parse::lexer& tok,
                 const std::string& filename,
-                const parse::text_iterator& first, const parse::text_iterator& last) :
+                const parse::text_iterator first, const parse::text_iterator last) :
             grammar::base_type(start),
             condition_parser(tok, label),
             string_grammar(tok, label, condition_parser),
@@ -93,12 +93,12 @@ namespace {
 }
 
 namespace parse {
-    start_rule_payload statistics(const boost::filesystem::path& path) {
+    start_rule_payload statistics(const PythonParser& parser, const boost::filesystem::path& path, bool& success) {
         start_rule_payload all_stats;
 
         for (const auto& file : ListDir(path, IsFOCScript)) {
             start_rule_payload stats_;
-            if (detail::parse_file<grammar, start_rule_payload>(lexer::tok, file, stats_)) {
+            if (detail::parse_file<grammar, start_rule_payload>(GetLexer(), file, stats_)) {
                 for (auto& stat : stats_) {
                     auto maybe_inserted = all_stats.emplace(stat.first, std::move(stat.second));
                     if (!maybe_inserted.second) {
@@ -109,6 +109,7 @@ namespace parse {
             }
         }
 
+        success = true;
         return all_stats;
     }
 }
